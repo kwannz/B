@@ -115,17 +115,88 @@ run_migrations() {
     alembic upgrade head
 }
 
+# 运行测试和检查覆盖率
+run_tests() {
+    print_message "运行测试和检查覆盖率..."
+    
+    # 安装测试依赖
+    pip install pytest pytest-asyncio pytest-cov
+    
+    # 运行测试并生成覆盖率报告
+    pytest --cov=src --cov-report=html
+    
+    # 检查覆盖率是否达到90%
+    COVERAGE=$(coverage report | tail -1 | awk '{print $4}' | sed 's/%//')
+    if (( $(echo "$COVERAGE < 90" | bc -l) )); then
+        print_error "测试覆盖率($COVERAGE%)低于要求的90%"
+        exit 1
+    else
+        print_message "测试覆盖率: $COVERAGE%"
+    fi
+}
+
+# 部署前端
+deploy_frontend() {
+    print_message "部署前端..."
+    cd frontend/trading-ui
+    
+    # 安装依赖
+    npm install || {
+        print_error "前端依赖安装失败"
+        exit 1
+    }
+    
+    # 启动开发服务器
+    npm run dev &
+    FRONTEND_PID=$!
+    echo $FRONTEND_PID > .frontend.pid
+    
+    cd ../..
+    print_message "前端服务已启动: http://localhost:5173"
+}
+
 # 启动应用
 start_app() {
     print_message "启动应用..."
-    uvicorn src.api_gateway.app.main:app --host 0.0.0.0 --port 8000 --reload
+    
+    # 启动后端API服务
+    uvicorn src.api_gateway.app.main:app --host 0.0.0.0 --port 8000 --reload &
+    API_PID=$!
+    echo $API_PID > .api.pid
+    
+    # 部署前端
+    deploy_frontend
+    
+    print_message "系统已启动！"
+    print_message "API文档: http://localhost:8000/docs"
+    print_message "前端界面: http://localhost:5173"
+    print_message "使用 Ctrl+C 停止服务"
+    
+    # 等待用户中断
+    wait
 }
 
 # 清理函数
 cleanup() {
     print_message "清理进程..."
+    
+    # 停止后端服务
+    if [ -f .api.pid ]; then
+        kill $(cat .api.pid) 2>/dev/null
+        rm .api.pid
+    fi
+    
+    # 停止前端服务
+    if [ -f frontend/trading-ui/.frontend.pid ]; then
+        kill $(cat frontend/trading-ui/.frontend.pid) 2>/dev/null
+        rm frontend/trading-ui/.frontend.pid
+    fi
+    
+    # 停止数据库服务
     brew services stop postgresql@15
     brew services stop redis
+    
+    print_message "所有服务已停止"
 }
 
 # 设置清理钩子
@@ -142,7 +213,8 @@ main() {
     setup_env
     install_project
     run_migrations
+    run_tests
     start_app
 }
 
-main 
+main
