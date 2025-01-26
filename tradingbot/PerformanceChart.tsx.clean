@@ -1,0 +1,512 @@
+<<<<<<< HEAD
+||||||| fa1bd03
+import React, { useEffect, useState, useMemo } from 'react';
+import { usePerformanceMetrics } from '../hooks/usePerformanceMetrics';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  useTheme,
+  CircularProgress,
+  ToggleButton,
+  ToggleButtonGroup
+} from '@mui/material';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
+import { format } from 'date-fns';
+// Remove useAgent import
+
+type AgentType = 'trading' | 'defi';
+
+interface PerformanceChartProps {
+  type: AgentType;
+  height?: number;
+}
+
+// Remove duplicate import
+
+interface ChartData {
+  timestamp: number;
+  pnl: number;
+  volume: number;
+  winRate: number;
+  drawdown?: number;
+  volatility?: number;
+  sharpeRatio?: number;
+  riskUsage?: number;
+}
+
+type MetricType = 'pnl' | 'volume' | 'winRate';
+
+export const PerformanceChart: React.FC<PerformanceChartProps> = ({ type, height = 300 }) => {
+  const theme = useTheme();
+  const { performance24h, isConnected } = usePerformanceMetrics(type);
+
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [selectedMetrics, setSelectedMetrics] = useState<MetricType[]>(['pnl']);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        setIsLoading(true);
+        // Fetch metrics from Prometheus endpoints
+        const response = await fetch(`/api/v1/metrics/${type}/performance?timeframe=24h`);
+        if (!response.ok) throw new Error('Failed to fetch performance data');
+
+        const data = await response.json();
+        setChartData(data);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load metrics');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [type]);
+
+  const handleMetricToggle = (event: React.MouseEvent<HTMLElement>, newMetrics: MetricType[]) => {
+    if (newMetrics.length > 0) {
+      setSelectedMetrics(newMetrics);
+    }
+  };
+
+  const formatValue = (value: number, metric: MetricType): string => {
+    switch (metric) {
+      case 'pnl':
+        return `$${value.toFixed(2)}`;
+      case 'volume':
+        return `$${value.toFixed(2)}`;
+      case 'winRate':
+        return `${(value * 100).toFixed(1)}%`;
+      default:
+        return value.toString();
+    }
+  };
+
+  const formatXAxis = (timestamp: number): string => {
+    return format(new Date(timestamp), 'HH:mm');
+  };
+
+  const getMetricColor = (metric: MetricType): string => {
+    switch (metric) {
+      case 'pnl':
+        return theme.palette.primary.main;
+      case 'volume':
+        return theme.palette.secondary.main;
+      case 'winRate':
+        return theme.palette.success.main;
+      default:
+        return theme.palette.grey[500];
+    }
+  };
+
+  const gradientOffset = useMemo(() => {
+    if (chartData.length === 0) return 0;
+    
+    const values = chartData.map(d => d.pnl);
+    const dataMax = Math.max(...values);
+    const dataMin = Math.min(...values);
+    
+    if (dataMax <= 0) return 0;
+    if (dataMin >= 0) return 1;
+    
+    return dataMax / (dataMax - dataMin);
+  }, [chartData]);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent>
+          <Box display="flex" justifyContent="center" alignItems="center" height={height}>
+            <CircularProgress />
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent>
+          <Box display="flex" justifyContent="center" alignItems="center" height={height}>
+            <Typography color="error">{error}</Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Performance Chart
+        </Typography>
+        <Box height={height}>
+          <Box mb={2}>
+            <ToggleButtonGroup
+              value={selectedMetrics}
+              onChange={handleMetricToggle}
+              aria-label="metrics selection"
+              size="small"
+            >
+              <ToggleButton value="pnl" aria-label="PnL">
+                PnL
+              </ToggleButton>
+              <ToggleButton value="volume" aria-label="Volume">
+                Volume
+              </ToggleButton>
+              <ToggleButton value="winRate" aria-label="Win Rate">
+                Win Rate
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{
+                top: 10,
+                right: 30,
+                left: 0,
+                bottom: 0
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+              <XAxis
+                dataKey="timestamp"
+                tickFormatter={formatXAxis}
+                stroke={theme.palette.text.secondary}
+              />
+              <YAxis
+                yAxisId="left"
+                stroke={theme.palette.text.secondary}
+                tickFormatter={value => `$${value}`}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke={theme.palette.text.secondary}
+                tickFormatter={value => `${(value * 100).toFixed(0)}%`}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: theme.shape.borderRadius
+                }}
+                formatter={(value: number, name: string) => [
+                  formatValue(value, name as MetricType),
+                  name === 'pnl' ? 'PnL' : name === 'volume' ? 'Volume' : 'Win Rate'
+                ]}
+                labelFormatter={(timestamp: number) => format(new Date(timestamp), 'PPpp')}
+              />
+              <Legend />
+              {selectedMetrics.includes('pnl') && (
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="pnl"
+                  name="PnL"
+                  stroke={getMetricColor('pnl')}
+                  dot={false}
+                />
+              )}
+              {selectedMetrics.includes('volume') && (
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="volume"
+                  name="Volume"
+                  stroke={getMetricColor('volume')}
+                  dot={false}
+                />
+              )}
+              {selectedMetrics.includes('winRate') && (
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="winRate"
+                  name="Win Rate"
+                  stroke={getMetricColor('winRate')}
+                  dot={false}
+                />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+=======
+import React, { useEffect, useState, useMemo } from 'react';
+import { usePerformanceMetrics } from '../hooks/usePerformanceMetrics';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  useTheme,
+  CircularProgress,
+  ToggleButton,
+  ToggleButtonGroup
+} from '@mui/material';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
+import { format } from 'date-fns';
+// Remove useAgent import
+
+type AgentType = 'trading';
+
+interface PerformanceChartProps {
+  type: AgentType;
+  height?: number;
+}
+
+// Remove duplicate import
+
+interface ChartData {
+  timestamp: number;
+  pnl: number;
+  volume: number;
+  winRate: number;
+  drawdown?: number;
+  volatility?: number;
+  sharpeRatio?: number;
+  riskUsage?: number;
+}
+
+type MetricType = 'pnl' | 'volume' | 'winRate';
+
+export const PerformanceChart: React.FC<PerformanceChartProps> = ({ type, height = 300 }) => {
+  const theme = useTheme();
+  const { performance24h, isConnected } = usePerformanceMetrics(type);
+
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [selectedMetrics, setSelectedMetrics] = useState<MetricType[]>(['pnl']);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        setIsLoading(true);
+        // Fetch metrics from Prometheus endpoints
+        const response = await fetch(`/api/v1/metrics/${type}/performance?timeframe=24h`);
+        if (!response.ok) throw new Error('Failed to fetch performance data');
+
+        const data = await response.json();
+        setChartData(data);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load metrics');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [type]);
+
+  const handleMetricToggle = (event: React.MouseEvent<HTMLElement>, newMetrics: MetricType[]) => {
+    if (newMetrics.length > 0) {
+      setSelectedMetrics(newMetrics);
+    }
+  };
+
+  const formatValue = (value: number, metric: MetricType): string => {
+    switch (metric) {
+      case 'pnl':
+        return `$${value.toFixed(2)}`;
+      case 'volume':
+        return `$${value.toFixed(2)}`;
+      case 'winRate':
+        return `${(value * 100).toFixed(1)}%`;
+      default:
+        return value.toString();
+    }
+  };
+
+  const formatXAxis = (timestamp: number): string => {
+    return format(new Date(timestamp), 'HH:mm');
+  };
+
+  const getMetricColor = (metric: MetricType): string => {
+    switch (metric) {
+      case 'pnl':
+        return theme.palette.primary.main;
+      case 'volume':
+        return theme.palette.secondary.main;
+      case 'winRate':
+        return theme.palette.success.main;
+      default:
+        return theme.palette.grey[500];
+    }
+  };
+
+  const gradientOffset = useMemo(() => {
+    if (chartData.length === 0) return 0;
+    
+    const values = chartData.map(d => d.pnl);
+    const dataMax = Math.max(...values);
+    const dataMin = Math.min(...values);
+    
+    if (dataMax <= 0) return 0;
+    if (dataMin >= 0) return 1;
+    
+    return dataMax / (dataMax - dataMin);
+  }, [chartData]);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent>
+          <Box display="flex" justifyContent="center" alignItems="center" height={height}>
+            <CircularProgress />
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent>
+          <Box display="flex" justifyContent="center" alignItems="center" height={height}>
+            <Typography color="error">{error}</Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Performance Chart
+        </Typography>
+        <Box height={height}>
+          <Box mb={2}>
+            <ToggleButtonGroup
+              value={selectedMetrics}
+              onChange={handleMetricToggle}
+              aria-label="metrics selection"
+              size="small"
+            >
+              <ToggleButton value="pnl" aria-label="PnL">
+                PnL
+              </ToggleButton>
+              <ToggleButton value="volume" aria-label="Volume">
+                Volume
+              </ToggleButton>
+              <ToggleButton value="winRate" aria-label="Win Rate">
+                Win Rate
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{
+                top: 10,
+                right: 30,
+                left: 0,
+                bottom: 0
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+              <XAxis
+                dataKey="timestamp"
+                tickFormatter={formatXAxis}
+                stroke={theme.palette.text.secondary}
+              />
+              <YAxis
+                yAxisId="left"
+                stroke={theme.palette.text.secondary}
+                tickFormatter={value => `$${value}`}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke={theme.palette.text.secondary}
+                tickFormatter={value => `${(value * 100).toFixed(0)}%`}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: theme.shape.borderRadius
+                }}
+                formatter={(value: number, name: string) => [
+                  formatValue(value, name as MetricType),
+                  name === 'pnl' ? 'PnL' : name === 'volume' ? 'Volume' : 'Win Rate'
+                ]}
+                labelFormatter={(timestamp: number) => format(new Date(timestamp), 'PPpp')}
+              />
+              <Legend />
+              {selectedMetrics.includes('pnl') && (
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="pnl"
+                  name="PnL"
+                  stroke={getMetricColor('pnl')}
+                  dot={false}
+                />
+              )}
+              {selectedMetrics.includes('volume') && (
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="volume"
+                  name="Volume"
+                  stroke={getMetricColor('volume')}
+                  dot={false}
+                />
+              )}
+              {selectedMetrics.includes('winRate') && (
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="winRate"
+                  name="Win Rate"
+                  stroke={getMetricColor('winRate')}
+                  dot={false}
+                />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+>>>>>>> origin/main

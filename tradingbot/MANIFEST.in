@@ -1,0 +1,61 @@
+# Package metadata
+include LICENSE
+include README.md
+include VERSION
+include CHANGELOG.md
+include CONTRIBUTING.md
+include requirements*.txt
+include pytest.ini
+include setup.py
+include pyproject.toml
+
+# Configuration files
+include .env.example
+include docker-compose*.yml
+include Dockerfile
+recursive-include config *
+recursive-include docker *
+
+# Documentation
+recursive-include docs *
+recursive-exclude docs/_build *
+
+# Source code
+recursive-include src *.py
+recursive-include src *.json
+recursive-include src *.yaml
+recursive-include src *.yml
+recursive-include src *.html
+recursive-include src *.css
+recursive-include src *.js
+
+# Tests
+recursive-include tests *.py
+recursive-include tests/data *
+
+# Scripts
+recursive-include scripts *
+
+# Exclude development and system files
+global-exclude *.py[cod]
+global-exclude __pycache__
+global-exclude *.so
+global-exclude .DS_Store
+global-exclude .env
+global-exclude *.log
+global-exclude .coverage
+global-exclude .pytest_cache
+global-exclude .mypy_cache
+global-exclude .hypothesis
+global-exclude .tox
+global-exclude .idea
+global-exclude .vscode
+global-exclude *.swp
+global-exclude *.swo
+global-exclude *~
+
+# Exclude test and documentation files from binary distributions
+prune tests
+prune docs
+prune examples
+prune scripts

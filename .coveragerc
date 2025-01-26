@@ -1,0 +1,5 @@
+[run]
+source_pkgs = tradingbot
+parallel = true
+platform = darwin
+python_version = 3.11.11-final-0

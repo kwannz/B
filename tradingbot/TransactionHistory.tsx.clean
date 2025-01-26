@@ -1,0 +1,189 @@
+import React, { ReactElement } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  CircularProgress,
+  useTheme,
+  IconButton,
+  Tooltip,
+  SvgIcon
+} from '@mui/material';
+import {
+  Launch,
+  CheckCircle,
+  Error,
+  Schedule,
+  ArrowUpward,
+  ArrowDownward
+} from '@mui/icons-material';
+import { useAgent } from '../hooks/useAgent';
+import { Transaction } from '../services/api/types';
+import { formatDistanceToNow, format } from 'date-fns';
+
+interface TransactionHistoryProps {
+  type: 'trading';
+}
+
+export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ type }) => {
+  const theme = useTheme();
+  const { recentTransactions, isConnected } = useAgent(type);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return theme.palette.success.main;
+      case 'failed':
+        return theme.palette.error.main;
+      case 'pending':
+        return theme.palette.warning.main;
+      default:
+        return theme.palette.grey[500];
+    }
+  };
+
+  const getStatusIcon = (status: string): ReactElement => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle fontSize="small" />;
+      case 'failed':
+        return <Error fontSize="small" />;
+      case 'pending':
+        return <Schedule fontSize="small" />;
+      default:
+        return <SvgIcon />; // Empty icon as fallback
+    }
+  };
+
+  const formatAmount = (transaction: Transaction) => {
+    const amount = parseFloat(transaction.amount);
+    const isPositive = amount >= 0;
+    const formattedAmount = `${isPositive ? '+' : ''}${amount.toFixed(2)} ${
+      transaction.symbol || ''
+    }`;
+
+    return (
+      <Box display="flex" alignItems="center">
+        {isPositive ? (
+          <ArrowUpward fontSize="small" sx={{ color: theme.palette.success.main, mr: 1 }} />
+        ) : (
+          <ArrowDownward fontSize="small" sx={{ color: theme.palette.error.main, mr: 1 }} />
+        )}
+        <Typography color={isPositive ? 'success.main' : 'error.main'} fontWeight="medium">
+          {formattedAmount}
+        </Typography>
+      </Box>
+    );
+  };
+
+  if (!isConnected) {
+    return (
+      <Card>
+        <CardContent>
+          <Typography color="textSecondary" align="center">
+            Connecting to transaction feed...
+          </Typography>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Recent Transactions
+        </Typography>
+
+        {recentTransactions.length === 0 ? (
+          <Typography color="textSecondary" align="center" sx={{ py: 4 }}>
+            No transactions yet
+          </Typography>
+        ) : (
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Type</TableCell>
+                  <TableCell>Amount</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Time</TableCell>
+
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {recentTransactions.map(transaction => (
+                  <TableRow key={transaction.id}>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                        {transaction.type}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{formatAmount(transaction)}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={transaction.status}
+                        sx={{
+                          backgroundColor: getStatusColor(transaction.status),
+                          color: 'white',
+                          '& .MuiChip-icon': {
+                            color: 'inherit'
+                          }
+                        }}
+                        icon={getStatusIcon(transaction.status)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip title={format(new Date(transaction.timestamp), 'PPpp')}>
+                        <Typography variant="body2">
+                          {formatDistanceToNow(new Date(transaction.timestamp), {
+                            addSuffix: true
+                          })}
+                        </Typography>
+                      </Tooltip>
+                    </TableCell>
+
+                        {transaction.protocol && (
+                          <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                            {transaction.protocol}
+                          </Typography>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell align="right">
+                      {transaction.hash && (
+                        <Tooltip title="View on Explorer">
+                          <IconButton
+                            size="small"
+                            onClick={() =>
+                              window.open(
+                                `https://explorer.solana.com/tx/${transaction.hash}`,
+                                '_blank'
+                              )
+                            }
+                          >
+                            <Launch fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+};

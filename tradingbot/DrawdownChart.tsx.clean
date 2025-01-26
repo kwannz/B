@@ -1,0 +1,272 @@
+<<<<<<< HEAD
+||||||| fa1bd03
+import React from 'react';
+import { usePerformanceMetrics } from '../hooks/usePerformanceMetrics';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  useTheme,
+  CircularProgress
+} from '@mui/material';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
+import { format } from 'date-fns';
+// Remove useAgent import
+
+type AgentType = 'trading' | 'defi';
+
+interface DrawdownChartProps {
+  type: AgentType;
+  height?: number;
+}
+
+interface ChartData {
+  timestamp: number;
+  drawdown: number;
+}
+
+export const DrawdownChart: React.FC<DrawdownChartProps> = ({ type, height = 300 }) => {
+  const theme = useTheme();
+  const { drawdown, isConnected } = usePerformanceMetrics(type);
+
+  const chartData = React.useMemo(() => {
+    const now = Date.now();
+    const data: ChartData[] = [];
+    let peak = 0;
+    
+    for (let i = 24; i >= 0; i--) {
+      const value = Math.random() * (drawdown || 5);
+      peak = Math.max(peak, value);
+      const currentDrawdown = ((peak - value) / peak) * 100;
+      
+      data.push({
+        timestamp: now - i * 3600 * 1000,
+        drawdown: currentDrawdown
+      });
+    }
+    return data;
+  }, [drawdown]);
+
+  const formatTooltipValue = (value: number): string => {
+    return `${value.toFixed(2)}%`;
+  };
+
+  const formatXAxis = (timestamp: number): string => {
+    return format(new Date(timestamp), 'HH:mm');
+  };
+
+  if (!isConnected) {
+    return (
+      <Card>
+        <CardContent>
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            height={height}
+          >
+            <CircularProgress />
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Maximum Drawdown
+        </Typography>
+        <Box height={height}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              data={chartData}
+              margin={{
+                top: 10,
+                right: 30,
+                left: 0,
+                bottom: 0,
+              }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={theme.palette.divider}
+              />
+              <XAxis
+                dataKey="timestamp"
+                tickFormatter={formatXAxis}
+                stroke={theme.palette.text.secondary}
+              />
+              <YAxis
+                tickFormatter={(value: number) => `${value}%`}
+                stroke={theme.palette.text.secondary}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: theme.shape.borderRadius,
+                }}
+                formatter={(value: number) => formatTooltipValue(value)}
+                labelFormatter={(timestamp: number) => format(new Date(timestamp), 'PPpp')}
+              />
+              <Area
+                type="monotone"
+                dataKey="drawdown"
+                stroke={theme.palette.error.main}
+                fill={theme.palette.error.main}
+                fillOpacity={0.1}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+=======
+import React from 'react';
+import { usePerformanceMetrics } from '../hooks/usePerformanceMetrics';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  useTheme,
+  CircularProgress
+} from '@mui/material';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
+import { format } from 'date-fns';
+// Remove useAgent import
+
+type AgentType = 'trading';
+
+interface DrawdownChartProps {
+  type: AgentType;
+  height?: number;
+}
+
+interface ChartData {
+  timestamp: number;
+  drawdown: number;
+}
+
+export const DrawdownChart: React.FC<DrawdownChartProps> = ({ type, height = 300 }) => {
+  const theme = useTheme();
+  const { drawdown, isConnected } = usePerformanceMetrics(type);
+
+  const chartData = React.useMemo(() => {
+    const now = Date.now();
+    const data: ChartData[] = [];
+    let peak = 0;
+    
+    for (let i = 24; i >= 0; i--) {
+      const value = Math.random() * (drawdown || 5);
+      peak = Math.max(peak, value);
+      const currentDrawdown = ((peak - value) / peak) * 100;
+      
+      data.push({
+        timestamp: now - i * 3600 * 1000,
+        drawdown: currentDrawdown
+      });
+    }
+    return data;
+  }, [drawdown]);
+
+  const formatTooltipValue = (value: number): string => {
+    return `${value.toFixed(2)}%`;
+  };
+
+  const formatXAxis = (timestamp: number): string => {
+    return format(new Date(timestamp), 'HH:mm');
+  };
+
+  if (!isConnected) {
+    return (
+      <Card>
+        <CardContent>
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            height={height}
+          >
+            <CircularProgress />
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Maximum Drawdown
+        </Typography>
+        <Box height={height}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              data={chartData}
+              margin={{
+                top: 10,
+                right: 30,
+                left: 0,
+                bottom: 0,
+              }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={theme.palette.divider}
+              />
+              <XAxis
+                dataKey="timestamp"
+                tickFormatter={formatXAxis}
+                stroke={theme.palette.text.secondary}
+              />
+              <YAxis
+                tickFormatter={(value: number) => `${value}%`}
+                stroke={theme.palette.text.secondary}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: theme.shape.borderRadius,
+                }}
+                formatter={(value: number) => formatTooltipValue(value)}
+                labelFormatter={(timestamp: number) => format(new Date(timestamp), 'PPpp')}
+              />
+              <Area
+                type="monotone"
+                dataKey="drawdown"
+                stroke={theme.palette.error.main}
+                fill={theme.palette.error.main}
+                fillOpacity={0.1}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+>>>>>>> origin/main
