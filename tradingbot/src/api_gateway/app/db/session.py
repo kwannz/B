@@ -1,25 +1,25 @@
 """Database session management."""
 
 from contextlib import contextmanager
-from typing import Generator, Optional
-from unittest.mock import MagicMock
+from typing import Generator
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 
+from ..core.config import settings
 
-@contextmanager
-def get_tenant_session() -> Generator[MagicMock, None, None]:
-    """Get a database session for tenant operations."""
-    session = MagicMock()
-    try:
-        yield session
-    finally:
-        session.close()
-
+engine = create_engine(settings.DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @contextmanager
-def tenant_session(tenant_id: Optional[str] = None) -> Generator[MagicMock, None, None]:
-    """Get a database session for a specific tenant."""
-    session = MagicMock()
+def get_db() -> Generator[Session, None, None]:
+    """Get a database session."""
+    db = SessionLocal()
     try:
-        yield session
+        yield db
     finally:
-        session.close()
+        db.close()
+
+def init_db():
+    """Initialize database tables."""
+    from .models import Base
+    Base.metadata.create_all(bind=engine)

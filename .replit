@@ -1,0 +1,30 @@
+run = "cd src/frontend && npm install && npm run build && npm run start"
+language = "nodejs"
+entrypoint = "src/frontend/src/index.tsx"
+
+[nix]
+channel = "stable-22_11"
+
+[env]
+PORT = "3000"
+NODE_ENV = "development"
+REACT_APP_API_URL = "http://localhost:8000"
+
+[packager]
+language = "nodejs"
+
+[packager.features]
+packageSearch = true
+guessImports = true
+
+[languages.typescript]
+pattern = "**/{*.ts,*.tsx}"
+syntax = "typescript"
+
+[languages.typescript.languageServer]
+start = [ "typescript-language-server", "--stdio" ]
+
+[deployment]
+build = ["npm", "run", "build"]
+run = ["npm", "start"]
+deploymentTarget = "node"
