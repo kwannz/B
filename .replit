@@ -1,30 +1,43 @@
-run = "cd src/frontend && npm install && npm run build && npm run start"
-language = "nodejs"
-entrypoint = "src/frontend/src/index.tsx"
+run = "bash start.sh"
+language = "python"
+entrypoint = "src/api_gateway/app/main.py"
 
 [nix]
 channel = "stable-22_11"
 
 [env]
+PYTHONPATH = "${PYTHONPATH}:${REPL_HOME}/src"
 PORT = "3000"
 NODE_ENV = "development"
 REACT_APP_API_URL = "http://localhost:8000"
+# Configure these environment variables in your Replit secrets
+# SOLANA_NETWORK
+# SOLANA_RPC_URL
+# TRADING_WALLET_ADDRESS
+# TRADING_WALLET_PRIVATE_KEY
 
 [packager]
-language = "nodejs"
+language = "python3"
 
 [packager.features]
 packageSearch = true
 guessImports = true
+enabledForHosting = false
+
+[languages.python]
+pattern = "**/*.py"
+syntax = "python"
+
+[languages.python.languageServer]
+start = ["pylsp"]
 
 [languages.typescript]
 pattern = "**/{*.ts,*.tsx}"
 syntax = "typescript"
 
 [languages.typescript.languageServer]
-start = [ "typescript-language-server", "--stdio" ]
+start = ["typescript-language-server", "--stdio"]
 
 [deployment]
-build = ["npm", "run", "build"]
-run = ["npm", "start"]
-deploymentTarget = "node"
+run = ["sh", "-c", "bash start.sh"]
+deploymentTarget = "cloudrun"
