@@ -8,33 +8,52 @@ import KeyManagement from './components/steps/KeyManagement';
 import StatusDisplay from './components/steps/StatusDisplay';
 
 const App = () => {
-  const [currentStep, setCurrentStep] = useState(() => {
-    const saved = localStorage.getItem('currentStep');
-    return saved ? parseInt(saved, 10) : 1;
-  });
-  
-  const [workflowData, setWorkflowData] = useState(() => {
-    const saved = localStorage.getItem('workflowData');
-    return saved ? JSON.parse(saved) : {
-      selectedAgent: null,
-      strategy: null,
-      botStatus: null,
-      walletInfo: null,
-      keyStatus: null,
-    };
+  const [currentStep, setCurrentStep] = useState(1);
+  const [workflowData, setWorkflowData] = useState({
+    selectedAgent: null,
+    strategy: null,
+    botStatus: null,
+    walletInfo: null,
+    keyStatus: null,
   });
 
   useEffect(() => {
-    localStorage.setItem('currentStep', currentStep.toString());
-  }, [currentStep]);
-
-  useEffect(() => {
-    localStorage.setItem('workflowData', JSON.stringify(workflowData));
+    console.log('Current workflow data:', JSON.stringify(workflowData, null, 2));
   }, [workflowData]);
 
   const handleStepComplete = (step, data) => {
-    setWorkflowData(prev => ({ ...prev, ...data }));
-    setCurrentStep(step + 1);
+    console.log('Step completed:', step, 'Data:', JSON.stringify(data, null, 2));
+    
+    setWorkflowData(prev => {
+      const newData = { ...prev };
+      
+      switch (step) {
+        case 1:
+          newData.selectedAgent = data;
+          setCurrentStep(2);
+          break;
+        case 2:
+          newData.strategy = data;
+          setCurrentStep(3);
+          break;
+        case 3:
+          newData.botStatus = data;
+          setCurrentStep(4);
+          break;
+        case 4:
+          newData.walletInfo = data;
+          setCurrentStep(5);
+          break;
+        case 5:
+          newData.keyStatus = data;
+          setCurrentStep(6);
+          break;
+        default:
+          break;
+      }
+      
+      return newData;
+    });
   };
 
   const renderCurrentStep = () => {
@@ -42,48 +61,41 @@ const App = () => {
       case 1:
         return (
           <AgentSelection
-            onSelect={(agentType) =>
-              handleStepComplete(1, { selectedAgent: agentType })
-            }
+            onComplete={(agent) => handleStepComplete(1, agent)}
           />
         );
       case 2:
         return (
           <StrategyCreation
-            agentType={workflowData.selectedAgent}
-            onSubmit={(strategy) =>
-              handleStepComplete(2, { strategy })
-            }
+            onComplete={(strategy) => handleStepComplete(2, strategy)}
           />
         );
       case 3:
         return (
           <BotIntegration
             strategy={workflowData.strategy}
-            onComplete={(botStatus) =>
-              handleStepComplete(3, { botStatus })
-            }
+            onComplete={(botStatus) => handleStepComplete(3, botStatus)}
           />
         );
       case 4:
         return (
           <WalletCreation
-            onComplete={(walletInfo) =>
-              handleStepComplete(4, { walletInfo })
-            }
+            onComplete={(walletInfo) => handleStepComplete(4, walletInfo)}
           />
         );
       case 5:
         return (
           <KeyManagement
             walletInfo={workflowData.walletInfo}
-            onComplete={(keyStatus) =>
-              handleStepComplete(5, { keyStatus })
-            }
+            onComplete={(keyStatus) => handleStepComplete(5, keyStatus)}
           />
         );
       case 6:
-        return <StatusDisplay botInfo={workflowData} />;
+        return (
+          <StatusDisplay
+            botInfo={workflowData}
+          />
+        );
       default:
         return null;
     }
@@ -101,12 +113,7 @@ const App = () => {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <StepNavigation
           currentStep={currentStep}
-          onStepClick={(step) => {
-            // Only allow going back to completed steps
-            if (step < currentStep) {
-              setCurrentStep(step);
-            }
-          }}
+          onStepClick={setCurrentStep}
         />
         <div className="mt-8">{renderCurrentStep()}</div>
       </main>

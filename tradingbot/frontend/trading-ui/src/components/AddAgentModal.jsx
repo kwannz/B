@@ -1,117 +1,144 @@
 import React, { useState } from 'react';
 
 const AddAgentModal = ({ onClose, onAgentAdded }) => {
-  const [agentType, setAgentType] = useState('trading');
-  const [agentName, setAgentName] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [strategy, setStrategy] = useState({
+    name: '',
+    description: '',
+    parameters: {},
+    promotionWords: '',
+  });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch(`/api/agents/${agentType}/config`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          is_enabled: true,
-          strategies: [],
-          wallets: [],
-          risk_limits: {},
-          notifications: {}
-        })
-      });
-
-      if (response.ok) {
-        const startResponse = await fetch(`/api/agents/${agentType}/start`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (startResponse.ok) {
-          const newAgent = {
-            id: `agent_${Date.now()}`,
-            name: agentName || `${agentType.charAt(0).toUpperCase() + agentType.slice(1)} Agent`,
-            type: agentType,
-            status: 'active',
-            lastUpdate: new Date().toLocaleTimeString()
-          };
-          onAgentAdded(newAgent);
-          onClose();
-        }
-      }
-    } catch (error) {
-      console.error('Error adding agent:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    const newAgent = {
+      id: `agent_${Date.now()}`,
+      name: strategy.name,
+      type: 'trading',
+      status: 'inactive',
+      lastUpdate: new Date().toLocaleTimeString(),
+      strategy
+    };
+    onAgentAdded(newAgent);
+    onClose();
   };
 
+  const renderTradingParams = () => (
+    <div className="mb-6 p-6 bg-blue-50 rounded-lg border-2 border-blue-200">
+      <h3 className="text-lg font-semibold text-blue-900 mb-4">Trading Parameters</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-blue-900 mb-2">
+            Risk Level
+          </label>
+          <select
+            onChange={(e) =>
+              setStrategy({
+                ...strategy,
+                parameters: { ...strategy.parameters, riskLevel: e.target.value },
+              })
+            }
+            className="w-full p-2 border border-gray-200 rounded"
+            required
+            defaultValue=""
+          >
+            <option value="" disabled>Select Risk Level</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-blue-900 mb-2">
+            Trade Size (%)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="100"
+            onChange={(e) =>
+              setStrategy({
+                ...strategy,
+                parameters: { ...strategy.parameters, tradeSize: e.target.value },
+              })
+            }
+            className="w-full p-2 border border-gray-200 rounded"
+            required
+            placeholder="Enter trade size percentage"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
-      <div className="relative bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
-        <div className="flex justify-between items-start mb-4">
-          <h3 className="text-xl font-semibold">Add New Agent</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4">
+        <div className="flex justify-between items-center p-6 border-b">
+          <h2 className="text-xl font-bold">Add New Agent</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500"
           >
-            <span className="sr-only">Close</span>
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Agent Type
-            </label>
-            <select
-              value={agentType}
-              onChange={(e) => setAgentType(e.target.value)}
-              className="w-full p-2 border rounded"
-              disabled={isSubmitting}
-            >
-              <option value="trading">Trading Agent</option>
-              <option value="defi" disabled>DeFi Agent (Coming Soon)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Agent Name (Optional)
+        <form onSubmit={handleSubmit} className="p-6">
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">
+              Strategy Name
             </label>
             <input
               type="text"
-              value={agentName}
-              onChange={(e) => setAgentName(e.target.value)}
-              placeholder="Enter agent name"
-              className="w-full p-2 border rounded"
-              disabled={isSubmitting}
+              value={strategy.name}
+              onChange={(e) => setStrategy({ ...strategy, name: e.target.value })}
+              className="w-full p-2 border border-gray-200 rounded"
+              required
             />
           </div>
 
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">
+              Description
+            </label>
+            <textarea
+              value={strategy.description}
+              onChange={(e) => setStrategy({ ...strategy, description: e.target.value })}
+              className="w-full p-2 border border-gray-200 rounded"
+              rows="3"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">
+              Prompt Words
+            </label>
+            <textarea
+              value={strategy.promotionWords}
+              onChange={(e) => setStrategy({ ...strategy, promotionWords: e.target.value })}
+              className="w-full p-2 border border-gray-200 rounded"
+              rows="2"
+              placeholder="Enter prompt words..."
+            />
+          </div>
+
+          {renderTradingParams()}
+
+          <div className="flex justify-end space-x-4">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50"
-              disabled={isSubmitting}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
-              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
-              {isSubmitting ? 'Adding...' : 'Add Agent'}
+              Create Agent
             </button>
           </div>
         </form>
