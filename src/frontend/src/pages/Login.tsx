@@ -13,6 +13,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../hooks/useAuth';
 
+export {};
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuthContext();
@@ -24,11 +26,18 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    const success = await login(email, password);
-    if (success) {
-      navigate('/agent-selection');
-    } else {
-      setError('Invalid email or password');
+    try {
+      const success = await login(email, password);
+      if (success) {
+        // Store login state and redirect
+        localStorage.setItem('isAuthenticated', 'true');
+        navigate('/agent-selection');
+      } else {
+        setError('Invalid email or password');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An error occurred during login. Please try again.');
     }
   };
 

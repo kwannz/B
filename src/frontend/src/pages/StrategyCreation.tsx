@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -12,18 +13,30 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
+  SelectChangeEvent,
 } from '@mui/material';
 import apiClient, { StrategyResponse } from '../api/client';
-import { useNavigate } from 'react-router-dom';
 
-const StrategyCreation: React.FC = () => {
+export interface StrategyCreationProps {}
+
+// Using StrategyResponse from api/client
+interface StrategyFormData {
+  name: string;
+  promotion_words: string;
+  trading_pair: string;
+  timeframe: string;
+  risk_level: string;
+  description: string;
+}
+
+const StrategyCreation: React.FC<StrategyCreationProps> = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    strategyName: '',
-    promotionWords: '',
-    tradingPair: 'SOL/USDT',
+  const [formData, setFormData] = useState<StrategyFormData>({
+    name: '',
+    promotion_words: '',
+    trading_pair: 'SOL/USDT',
     timeframe: '1h',
-    riskLevel: 'medium',
+    risk_level: 'medium',
     description: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,7 +48,16 @@ const StrategyCreation: React.FC = () => {
     setError(null);
 
     try {
-      const response = await apiClient.createStrategy(formData);
+      const strategyData = {
+        name: formData.name,
+        promotion_words: formData.promotion_words,
+        trading_pair: formData.trading_pair,
+        timeframe: formData.timeframe,
+        risk_level: formData.risk_level,
+        description: formData.description
+      };
+      
+      const response = await apiClient.createStrategy(strategyData);
       
       if (response.success && response.data) {
         // Store strategy ID in localStorage for the bot integration step
@@ -45,14 +67,24 @@ const StrategyCreation: React.FC = () => {
         setError(response.error || 'Failed to create strategy. Please try again.');
       }
     } catch (err) {
+      console.error('Strategy creation error:', err);
       setError('Failed to create strategy. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleChange = (field: string) => (
-    e: React.ChangeEvent<HTMLInputElement | { value: unknown }>
+  const handleTextChange = (field: string) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: e.target.value,
+    }));
+  };
+
+  const handleSelectChange = (field: string) => (
+    e: SelectChangeEvent<string>
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -79,8 +111,8 @@ const StrategyCreation: React.FC = () => {
               <TextField
                 fullWidth
                 label="Strategy Name"
-                value={formData.strategyName}
-                onChange={handleChange('strategyName')}
+                value={formData.name}
+                onChange={handleTextChange('name')}
                 required
               />
             </Grid>
@@ -89,8 +121,8 @@ const StrategyCreation: React.FC = () => {
               <TextField
                 fullWidth
                 label="Promotion Words"
-                value={formData.promotionWords}
-                onChange={handleChange('promotionWords')}
+                value={formData.promotion_words}
+                onChange={handleTextChange('promotion_words')}
                 multiline
                 rows={3}
                 required
@@ -102,9 +134,9 @@ const StrategyCreation: React.FC = () => {
               <FormControl fullWidth required>
                 <InputLabel>Trading Pair</InputLabel>
                 <Select
-                  value={formData.tradingPair}
+                  value={formData.trading_pair}
                   label="Trading Pair"
-                  onChange={handleChange('tradingPair')}
+                  onChange={handleSelectChange('trading_pair')}
                 >
                   <MenuItem value="SOL/USDT">SOL/USDT</MenuItem>
                   <MenuItem value="SOL/USDC">SOL/USDC</MenuItem>
@@ -118,7 +150,7 @@ const StrategyCreation: React.FC = () => {
                 <Select
                   value={formData.timeframe}
                   label="Timeframe"
-                  onChange={handleChange('timeframe')}
+                  onChange={handleSelectChange('timeframe')}
                 >
                   <MenuItem value="5m">5 minutes</MenuItem>
                   <MenuItem value="15m">15 minutes</MenuItem>
@@ -133,9 +165,9 @@ const StrategyCreation: React.FC = () => {
               <FormControl fullWidth required>
                 <InputLabel>Risk Level</InputLabel>
                 <Select
-                  value={formData.riskLevel}
+                  value={formData.risk_level}
                   label="Risk Level"
-                  onChange={handleChange('riskLevel')}
+                  onChange={handleSelectChange('risk_level')}
                 >
                   <MenuItem value="low">Low</MenuItem>
                   <MenuItem value="medium">Medium</MenuItem>
@@ -149,7 +181,7 @@ const StrategyCreation: React.FC = () => {
                 fullWidth
                 label="Strategy Description"
                 value={formData.description}
-                onChange={handleChange('description')}
+                onChange={handleTextChange('description')}
                 multiline
                 rows={4}
                 required
@@ -178,4 +210,5 @@ const StrategyCreation: React.FC = () => {
   );
 };
 
+export { StrategyCreation };
 export default StrategyCreation;

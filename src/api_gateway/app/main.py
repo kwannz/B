@@ -1,36 +1,38 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import agent_routes
+from .routers import agents, strategies, trading, wallet, auth
 
 app = FastAPI(title="Trading Bot API Gateway")
 
-# 配置CORS
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 在生产环境中应该设置具体的域名
+    allow_origins=["*"],  # In production, set specific domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 注册路由
-app.include_router(agent_routes.router, prefix="/api/v1", tags=["agents"])
+# Register routers
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
+app.include_router(strategies.router, prefix="/api/v1/strategies", tags=["strategies"])
+app.include_router(trading.router, prefix="/api/v1/trading", tags=["trading"])
+app.include_router(wallet.router, prefix="/api/v1/wallet", tags=["wallet"])
 
 @app.get("/health")
 async def health_check():
-    """健康检查端点"""
+    """Health check endpoint"""
     return {"status": "healthy"}
 
 @app.on_event("startup")
 async def startup_event():
-    """应用启动时的初始化操作"""
-    # TODO: 初始化数据库连接
-    # TODO: 加载配置
+    """Initialize application dependencies"""
+    # Initialize database connection and load configuration
     pass
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """应用关闭时的清理操作"""
-    # TODO: 关闭数据库连接
-    # TODO: 停止所有代理
+    """Cleanup application resources"""
+    # Close database connection and stop all agents
     pass

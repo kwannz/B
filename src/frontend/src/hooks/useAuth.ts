@@ -1,48 +1,49 @@
 import { useState, useCallback } from 'react';
+import apiClient from '../api/client';
 
-interface User {
+export interface User {
   id: string;
   email: string;
-  username?: string;
-  roles?: Array<{
+  username: string;
+  roles: Array<{
     name: string;
     permissions: string[];
   }>;
 }
 
-export const useAuthContext = () => {
+export interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  signup: (email: string, username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+}
+
+export const useAuthContext = (): AuthContextType => {
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const token = localStorage.getItem('token');
+    return !!token;
+  });
 
   const signup = useCallback(async (email: string, username: string, password: string) => {
     try {
-      const response = await fetch('/api/v1/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, username, password }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Signup failed:', errorData);
-        return false;
+      const response = await apiClient.signup({ email, username, password });
+      if (response.success && response.data) {
+        // Set user data
+        const newUser: User = {
+          id: username,
+          email,
+          username,
+          roles: [{ name: 'backend_developer', permissions: ['execute_market_maker_trades'] }]
+        };
+        setUser(newUser);
+        setIsAuthenticated(true);
+        window.location.href = '/agent-selection';
+        return true;
       }
-
-      const data = await response.json();
-      localStorage.setItem('token', data.access_token);
-      
-      // Set user data
-      const newUser: User = {
-        id: username, // Temporary ID until we get proper ID from backend
-        email,
-        username,
-        roles: [{ name: 'backend_developer', permissions: ['execute_market_maker_trades'] }]
-      };
-      setUser(newUser);
-      setIsAuthenticated(true);
-      return true;
+      console.error('Signup failed:', response.error);
+      return false;
     } catch (error) {
       console.error('Signup error:', error);
       return false;
@@ -51,34 +52,25 @@ export const useAuthContext = () => {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const formData = new FormData();
-      formData.append('username', email);  // OAuth2 expects username field
-      formData.append('password', password);
-
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Login failed:', errorData);
-        return false;
+      // Send the full email for login
+      const response = await apiClient.login({ username: email, password });
+      console.log('Login response:', response); // Debug log
+      if (response.success && response.data) {
+        // Store the JWT token
+        localStorage.setItem('token', response.data.access_token);
+        // Set user data using email as identifier
+        const newUser: User = {
+          id: email,
+          email,
+          username: email.split('@')[0],
+          roles: [{ name: 'backend_developer', permissions: ['execute_market_maker_trades'] }]
+        };
+        setUser(newUser);
+        setIsAuthenticated(true);
+        return true;
       }
-
-      const data = await response.json();
-      localStorage.setItem('token', data.access_token);
-      
-      // Set user data
-      const newUser: User = {
-        id: email.split('@')[0], // Temporary ID until we get proper ID from backend
-        email,
-        username: email.split('@')[0],
-        roles: [{ name: 'backend_developer', permissions: ['execute_market_maker_trades'] }]
-      };
-      setUser(newUser);
-      setIsAuthenticated(true);
-      return true;
+      console.error('Login failed:', response.error);
+      return false;
     } catch (error) {
       console.error('Login error:', error);
       return false;

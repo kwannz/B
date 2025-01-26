@@ -7,6 +7,22 @@ export interface ApiResponse<T> {
   success: boolean;
 }
 
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+}
+
+export interface SignupData {
+  email: string;
+  username: string;
+  password: string;
+}
+
+export interface LoginData {
+  username: string;
+  password: string;
+}
+
 export interface AgentResponse {
   id: string;
   type: 'trading' | 'defi';
@@ -41,10 +57,19 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: '/api/v1',
+      baseURL: `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1`,
       headers: {
         'Content-Type': 'application/json',
       },
+    });
+
+    // Add request interceptor to include JWT token
+    this.client.interceptors.request.use((config) => {
+      const token = localStorage.getItem('token');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
     });
 
     // Add response interceptor for error handling
@@ -58,6 +83,56 @@ class ApiClient {
         return Promise.reject(error);
       }
     );
+  }
+
+  // Auth Management
+  async signup(data: SignupData): Promise<ApiResponse<AuthResponse>> {
+    try {
+      const formData = new FormData();
+      formData.append('email', data.email);
+      formData.append('username', data.username);
+      formData.append('password', data.password);
+      
+      const response = await this.client.post('/auth/signup', formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
+      }
+      return { data: response.data, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  async login(data: LoginData): Promise<ApiResponse<AuthResponse>> {
+    try {
+      // Create URLSearchParams for x-www-form-urlencoded format
+      const formData = new URLSearchParams();
+      formData.append('username', data.username);
+      formData.append('password', data.password);
+      formData.append('grant_type', 'password');
+      
+      const response = await this.client.post('/auth/login', formData.toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
+      }
+      return { data: response.data, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  async logout(): Promise<void> {
+    localStorage.removeItem('access_token');
   }
 
   // Agent Management
@@ -89,7 +164,14 @@ class ApiClient {
   }
 
   // Strategy Management
-  async createStrategy(strategy: any): Promise<ApiResponse<StrategyResponse>> {
+  async createStrategy(strategy: {
+    name: string;
+    promotion_words: string;
+    trading_pair: string;
+    timeframe: string;
+    risk_level: string;
+    description: string;
+  }): Promise<ApiResponse<StrategyResponse>> {
     try {
       const response = await this.client.post('/strategies/trading/create', strategy);
       return { data: response.data, success: true };

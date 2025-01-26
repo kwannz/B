@@ -1,31 +1,29 @@
-from pydantic import BaseModel
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from datetime import datetime
+from pydantic import BaseModel
 
-class AgentConfig(BaseModel):
-    strategy_type: str
-    parameters: Dict[str, any]
+class AgentBase(BaseModel):
+    name: str
+    type: str  # trading or defi
+    parameters: Dict[str, Any]
     description: Optional[str] = None
     promotionWords: Optional[str] = None
 
-class AgentCreate(BaseModel):
-    agent_id: str
-    name: str
-    config: AgentConfig
+class AgentCreate(AgentBase):
+    pass
 
 class AgentUpdate(BaseModel):
     name: Optional[str] = None
-    config: AgentConfig
+    parameters: Optional[Dict[str, Any]] = None
+    description: Optional[str] = None
+    promotionWords: Optional[str] = None
 
-class AgentResponse(BaseModel):
+class AgentResponse(AgentBase):
     id: str
-    name: str
     status: str
-    last_update: Optional[str] = None
-    strategy_type: str
-    risk_level: str
-    trade_size: float
-    config: Dict
+    created_at: datetime
+    last_update: Optional[datetime] = None
+    wallet_address: Optional[str] = None
 
     class Config:
         from_attributes = True
