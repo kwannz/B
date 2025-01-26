@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import EditAgentModal from '../EditAgentModal';
-import AddAgentModal from '../AddAgentModal';
+import EditAgentModal from '../agents/EditAgentModal';
+import AddAgentModal from '../agents/AddAgentModal';
+import AgentsList from '../agents/AgentsList';
 
 const StatusDisplay = ({ botInfo }) => {
   const [showEditModal, setShowEditModal] = useState(false);
@@ -56,48 +57,13 @@ const StatusDisplay = ({ botInfo }) => {
       </div>
       
       <div className="space-y-6">
-        {/* Agents List */}
-        <div className="bg-white p-6 rounded-lg border-2 border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Active Agents</h3>
-          <div className="space-y-4">
-            {agents.map((agent) => (
-              <div 
-                key={agent.id} 
-                className="bg-gray-50 p-4 rounded-lg border border-gray-200"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h4 className="font-medium">{agent.name}</h4>
-                    <p className="text-sm text-gray-600">Last Updated: {agent.lastUpdate}</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-sm rounded ${
-                      agent.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {agent.status}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setSelectedAgent(agent);
-                        setShowEditModal(true);
-                      }}
-                      className="text-blue-600 hover:text-blue-700"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {agents.length === 0 && (
-              <div className="text-center text-gray-500 py-4">
-                No agents added yet. Click "Add Agent" to create one.
-              </div>
-            )}
-          </div>
-        </div>
+        <AgentsList 
+          agents={agents} 
+          onEditAgent={(agent) => {
+            setSelectedAgent(agent);
+            setShowEditModal(true);
+          }} 
+        />
 
         <div className="bg-green-50 p-6 rounded-lg border-2 border-green-100">
           <div className="flex items-center justify-between mb-4">

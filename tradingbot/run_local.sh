@@ -138,6 +138,52 @@ run_migrations() {
     alembic upgrade head
 }
 
+# 运行测试和检查覆盖率
+run_tests() {
+    print_message "运行测试和检查覆盖率..."
+    
+    # 安装测试依赖
+    pip install pytest pytest-asyncio pytest-cov
+    
+    # 运行测试并生成覆盖率报告
+    pytest --cov=src --cov-report=html
+    
+    # 检查覆盖率是否达到90%
+    COVERAGE=$(coverage report | tail -1 | awk '{print $4}' | sed 's/%//')
+    if (( $(echo "$COVERAGE < 90" | bc -l) )); then
+        print_error "测试覆盖率($COVERAGE%)低于要求的90%"
+        exit 1
+    else
+        print_message "测试覆盖率: $COVERAGE%"
+    fi
+}
+
+# 部署前端
+deploy_frontend() {
+    print_message "部署前端..."
+    cd frontend/trading-ui
+    
+    # 检查Node.js
+    if ! command -v node &> /dev/null; then
+        print_error "未找到Node.js，请先安装Node.js"
+        exit 1
+    fi
+    
+    # 安装依赖
+    npm install || {
+        print_error "前端依赖安装失败"
+        exit 1
+    }
+    
+    # 启动开发服务器
+    npm run dev &
+    FRONTEND_PID=$!
+    echo $FRONTEND_PID > .frontend.pid
+    
+    cd ../..
+    print_message "前端服务已启动: http://localhost:5173"
+}
+
 # 启动应用
 start_app() {
     print_message "启动应用..."
@@ -151,6 +197,9 @@ start_app() {
     # 启动交易代理
     python -m src.trading_agent.main &
     TRADING_PID=$!
+    
+    # 部署前端
+    deploy_frontend
     
     # 等待服务启动
     sleep 5
@@ -174,6 +223,7 @@ start_app() {
     
     print_message "系统已启动！"
     print_message "API文档: http://localhost:8000/docs"
+    print_message "前端界面: http://localhost:5173"
     print_message "使用 Ctrl+C 停止服务"
     
     # 等待用户中断
@@ -183,6 +233,8 @@ start_app() {
 # 清理函数
 cleanup() {
     print_message "正在停止服务..."
+    
+    # 停止后端服务
     if [ -f .api.pid ]; then
         kill $(cat .api.pid) 2>/dev/null
         rm .api.pid
@@ -191,8 +243,15 @@ cleanup() {
         kill $(cat .trading.pid) 2>/dev/null
         rm .trading.pid
     fi
+    
+    # 停止前端服务
+    if [ -f frontend/trading-ui/.frontend.pid ]; then
+        kill $(cat frontend/trading-ui/.frontend.pid) 2>/dev/null
+        rm frontend/trading-ui/.frontend.pid
+    fi
+    
     deactivate 2>/dev/null
-    print_message "服务已停止"
+    print_message "所有服务已停止"
     exit 0
 }
 
@@ -210,6 +269,7 @@ main() {
     install_project
     setup_env
     run_migrations
+    run_tests
     start_app
 }
 
