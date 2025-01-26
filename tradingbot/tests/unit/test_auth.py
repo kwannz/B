@@ -85,8 +85,32 @@ def test_create_access_token():
 @pytest.mark.asyncio
 async def test_get_current_user():
     """Test current user retrieval from token."""
+    # Ensure test mode is set and environment is initialized
+    import os
+    import importlib
+    os.environ['TEST_MODE'] = 'true'
+    
+    # Force reload auth module to ensure test environment is set up
+    from tradingbot.api_gateway.app.core import auth
+    importlib.reload(auth)
+    
+    # Create test user
+    from tests.unit.mocks import UserCreate, UserRole, UserStorage
+    test_user = UserCreate(
+        email="testuser@example.com",
+        username="testuser",
+        hashed_password="hashed_password",
+        disabled=False,
+        roles=[UserRole(
+            name="backend_developer",
+            permissions=["execute_market_maker_trades"]
+        )]
+    )
+    UserStorage.clear_users()
+    await UserStorage.create(test_user)
+    
     # Test with valid token
-    token = create_access_token({"sub": "testuser"})
+    token = create_access_token({"sub": "testuser@example.com"})
     user = await get_current_user(token)
     assert user.username == "testuser"
     assert user.email == "testuser@example.com"
@@ -94,6 +118,17 @@ async def test_get_current_user():
     assert len(user.roles) == 1
     assert user.roles[0].name == "backend_developer"
     assert user.roles[0].permissions == ["execute_market_maker_trades"]
+    
+    # Test with invalid token
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user("invalid_token")
+    assert exc_info.value.status_code == 401
+    
+    # Test with non-existent user
+    non_existent_token = create_access_token({"sub": "nonexistent@example.com"})
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user(non_existent_token)
+    assert exc_info.value.status_code == 401
     
     # Test with invalid token
     with pytest.raises(HTTPException) as exc_info:
@@ -129,8 +164,7 @@ async def test_get_current_user():
 
     # Test user is None case
     valid_token = create_access_token({"sub": "testuser"})
-    with patch('src.api_gateway.app.core.auth.User') as mock_user:
-        mock_user.return_value = None
+    with patch('tests.unit.mocks.UserStorage.get_by_email', return_value=None):
         with pytest.raises(HTTPException) as exc_info:
             await get_current_user(valid_token)
         assert exc_info.value.status_code == 401
@@ -203,26 +237,45 @@ def test_token_models():
 async def test_import_paths():
     """Test import paths for both test and non-test environments."""
     import os
+    import importlib
     
-    # Store original modules
+    # Store original modules and environment
     original_modules = dict(sys.modules)
+    original_test_mode = os.getenv('TEST_MODE')
     
     try:
+        # Remove any existing imports
+        for module in list(sys.modules.keys()):
+            if module.startswith(('tradingbot', 'tests.unit.mocks', 'src.api_gateway')):
+                del sys.modules[module]
+        
         # Test environment
         os.environ['TEST_MODE'] = 'true'
-        if 'src.api_gateway.app.core.auth' in sys.modules:
-            del sys.modules['src.api_gateway.app.core.auth']
+        
+        # Import the test module
+        import tests.unit.mocks
+        importlib.reload(tests.unit.mocks)
+        
+        # Import auth module and verify User class
         from tradingbot.api_gateway.app.core.auth import User as TestUser
         assert TestUser.__module__ == 'tests.unit.mocks'
         
         # Non-test environment
         os.environ['TEST_MODE'] = ''
-        if 'src.api_gateway.app.core.auth' in sys.modules:
-            del sys.modules['src.api_gateway.app.core.auth']
-        with pytest.raises(ImportError):
-            from tradingbot.api_gateway.app.core.auth import User
+        
+        # Clear modules again
+        for module in list(sys.modules.keys()):
+            if module.startswith(('tradingbot', 'tests.unit.mocks', 'src.api_gateway')):
+                del sys.modules[module]
+                
+        # Import should succeed but User should be from models.user
+        from tradingbot.api_gateway.app.core.auth import User as ProdUser
+        assert ProdUser.__module__ == 'tradingbot.api_gateway.app.models.user'
     finally:
-        # Restore original modules
+        # Restore original state
         sys.modules.clear()
         sys.modules.update(original_modules)
-        os.environ['TEST_MODE'] = 'true'  # Reset for other tests
+        if original_test_mode is not None:
+            os.environ['TEST_MODE'] = original_test_mode
+        else:
+            os.environ.pop('TEST_MODE', None)
