@@ -1,7 +1,14 @@
+import os
+import json
+import logging
+import aiohttp
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 from .base_agent import BaseAgent
 from .wallet_manager import WalletManager
+from ...shared.sentiment.sentiment_analyzer import analyzer as sentiment_analyzer
+
+logger = logging.getLogger(__name__)
 
 class TradingAgent(BaseAgent):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
@@ -10,6 +17,84 @@ class TradingAgent(BaseAgent):
         self.risk_level = config.get('parameters', {}).get('riskLevel', 'low')
         self.trade_size = config.get('parameters', {}).get('tradeSize', 1)
         self.wallet = WalletManager()
+        self.api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        self.model = os.getenv("DEEPSEEK_MODEL", "deepseek-v3")
+        self.api_url = "https://api.deepseek.com/v3/completions"
+        self.sentiment_analyzer = sentiment_analyzer
+
+    async def _analyze_market_conditions(self, symbol: str) -> Dict[str, Any]:
+        """Analyze market conditions using sentiment analysis."""
+        try:
+            sentiment = await self.sentiment_analyzer.get_market_sentiment(symbol)
+            news = await self.sentiment_analyzer.analyze_news(symbol, days=1)
+            social = await self.sentiment_analyzer.analyze_social_media("Twitter", f"#{symbol}", limit=50)
+            
+            return {
+                "market_sentiment": sentiment,
+                "news_analysis": news,
+                "social_analysis": social,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Market analysis failed: {str(e)}")
+            return {}
+
+    async def _generate_strategy(self, market_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Generate trading strategy using DeepSeek R1."""
+        # Get market analysis
+        symbol = market_data.get("symbol", "").split("/")[0]  # Extract base symbol (e.g., "SOL" from "SOL/USDT")
+        market_analysis = await self._analyze_market_conditions(symbol)
+        
+        prompt = f"""根据以下市场数据和分析生成交易策略：
+
+市场数据：
+{json.dumps(market_data, ensure_ascii=False, indent=2)}
+
+市场分析：
+{json.dumps(market_analysis, ensure_ascii=False, indent=2)}
+
+交易参数：
+- 策略类型：{self.strategy_type}
+- 风险等级：{self.risk_level}
+- 交易规模：{self.trade_size}
+
+请生成包含以下内容的JSON格式交易策略：
+- action: 交易动作（buy/sell/hold）
+- price: 目标价格
+- size: 交易数量
+- stop_loss: 止损价格
+- take_profit: 止盈价格
+- confidence: 置信度（0-1）
+- reasoning: 策略理由
+- risk_assessment: 风险评估
+- sentiment_impact: 情感分析对策略的影响
+
+请以JSON格式返回策略。"""
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": self.model,
+            "prompt": prompt,
+            "max_tokens": 1500,
+            "temperature": 0.7
+        }
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.api_url, headers=headers, json=data) as response:
+                    if response.status != 200:
+                        logger.error(f"DeepSeek API error: {response.status}")
+                        return None
+                    result = await response.json()
+                    strategy = json.loads(result["choices"][0]["text"])
+                    logger.info(f"Generated strategy for {symbol}: {json.dumps(strategy, ensure_ascii=False)}")
+                    return strategy
+        except Exception as e:
+            logger.error(f"Strategy generation failed: {str(e)}")
+            return None
 
     async def start(self):
         """Start trading operations"""
@@ -19,9 +104,21 @@ class TradingAgent(BaseAgent):
             if balance < 0.5:  # Minimum 0.5 SOL required
                 raise ValueError(f"Insufficient balance: {balance} SOL (minimum 0.5 SOL required)")
             
+            # Generate initial strategy
+            market_data = {
+                "symbol": self.config.get("symbol", "SOL/USDT"),
+                "price": 0.0,  # TODO: Get real-time price
+                "volume_24h": 0.0,  # TODO: Get real volume
+                "market_cap": 0.0,  # TODO: Get market cap
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            strategy = await self._generate_strategy(market_data)
+            if strategy:
+                logger.info(f"Generated strategy: {json.dumps(strategy, ensure_ascii=False)}")
+            
             self.status = "active"
             self.last_update = datetime.now().isoformat()
-            # TODO: Implement trading logic
         except Exception as e:
             self.status = "error"
             self.last_update = datetime.now().isoformat()
