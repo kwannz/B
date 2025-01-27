@@ -1,19 +1,18 @@
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 class User(BaseModel):
-    username: str
-    email: Optional[str] = None
+    email: str  # Required field, no longer optional
     full_name: Optional[str] = None
-    disabled: Optional[bool] = None
+    disabled: Optional[bool] = False
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
+    email: str  # Changed from username to email
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     credentials_exception = HTTPException(
@@ -23,7 +22,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     )
     try:
         # TODO: Implement actual token validation
-        user = User(username="test_user", email="test@example.com")
+        user = User(email="test@example.com")  # Removed username, using email only
         return user
     except Exception:
         raise credentials_exception
