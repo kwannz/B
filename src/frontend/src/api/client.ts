@@ -167,7 +167,6 @@ class ApiClient {
   async createStrategy(strategy: {
     name: string;
     promotion_words: string;
-    trading_pair: string;
     timeframe: string;
     risk_level: string;
     description: string;
@@ -201,10 +200,17 @@ class ApiClient {
 
   async confirmWallet(walletAddress: string): Promise<ApiResponse<void>> {
     try {
-      await this.client.post('/wallet/confirm', { walletAddress, confirmed: true });
+      const response = await this.client.post('/wallet/confirm', { 
+        wallet_address: walletAddress, 
+        confirmed: true 
+      });
+      if (response.data?.success === false) {
+        return { error: response.data.error || 'Confirmation failed', success: false };
+      }
       return { success: true };
     } catch (error) {
-      return { error: this.handleError(error), success: false };
+      const errorMessage = this.handleError(error);
+      return { error: typeof errorMessage === 'string' ? errorMessage : 'Confirmation failed', success: false };
     }
   }
 

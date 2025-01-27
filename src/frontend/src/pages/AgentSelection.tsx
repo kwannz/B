@@ -98,24 +98,24 @@ const AgentSelection: React.FC = () => {
               <CardContent sx={{ flexGrow: 1, textAlign: 'center' }}>
                 <DeFiIcon sx={{ fontSize: 60, color: 'secondary.main', mb: 2 }} />
                 <Typography variant="h5" component="h2" gutterBottom>
-                  DeFi Agent
+                  Marketplace Strategy
                 </Typography>
                 <Typography variant="body1" color="textSecondary">
-                  Automated DeFi protocol interaction. Manages liquidity positions
-                  and yield farming strategies.
+                  Access pre-built trading strategies from our marketplace.
+                  Coming soon!
                 </Typography>
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle2" color="secondary" gutterBottom>
                     Features:
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
-                    • Liquidity pool management
+                    • Pre-built strategies
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
-                    • Yield optimization
+                    • Performance analytics
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
-                    • Protocol interaction
+                    • Easy deployment
                   </Typography>
                 </Box>
               </CardContent>
@@ -124,9 +124,9 @@ const AgentSelection: React.FC = () => {
                   variant="contained"
                   color="secondary"
                   size="large"
-                  onClick={() => handleAgentSelect('defi')}
+                  disabled
                 >
-                  Select DeFi Agent
+                  Coming Soon
                 </Button>
               </CardActions>
             </Card>

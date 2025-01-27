@@ -23,7 +23,6 @@ export interface StrategyCreationProps {}
 interface StrategyFormData {
   name: string;
   promotion_words: string;
-  trading_pair: string;
   timeframe: string;
   risk_level: string;
   description: string;
@@ -34,7 +33,6 @@ const StrategyCreation: React.FC<StrategyCreationProps> = () => {
   const [formData, setFormData] = useState<StrategyFormData>({
     name: '',
     promotion_words: '',
-    trading_pair: 'SOL/USDT',
     timeframe: '1h',
     risk_level: 'medium',
     description: '',
@@ -51,7 +49,6 @@ const StrategyCreation: React.FC<StrategyCreationProps> = () => {
       const strategyData = {
         name: formData.name,
         promotion_words: formData.promotion_words,
-        trading_pair: formData.trading_pair,
         timeframe: formData.timeframe,
         risk_level: formData.risk_level,
         description: formData.description
@@ -128,20 +125,6 @@ const StrategyCreation: React.FC<StrategyCreationProps> = () => {
                 required
                 helperText="Enter keywords or phrases for strategy promotion"
               />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Trading Pair</InputLabel>
-                <Select
-                  value={formData.trading_pair}
-                  label="Trading Pair"
-                  onChange={handleSelectChange('trading_pair')}
-                >
-                  <MenuItem value="SOL/USDT">SOL/USDT</MenuItem>
-                  <MenuItem value="SOL/USDC">SOL/USDC</MenuItem>
-                </Select>
-              </FormControl>
             </Grid>
 
             <Grid item xs={12} md={6}>
