@@ -1,0 +1,285 @@
+# Docker Compose configuration
+version: '3.8'
+
+x-common-env: &common-env
+  ENV: development
+  DEBUG: true
+  DB_USER: tradingbot
+  DB_PASSWORD: tradingbot
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_NAME: tradingbot
+  DATABASE_URL: postgresql+asyncpg://tradingbot:tradingbot@postgres:5432/tradingbot
+  SYNC_DATABASE_URL: postgresql://tradingbot:tradingbot@postgres:5432/tradingbot
+  REDIS_URL: redis://redis:6379/0
+  SOLANA_RPC_URL: https://api.mainnet-beta.solana.com
+  TRADING_SERVICE_URL: http://trading_agent:8001
+  MARKET_DATA_SERVICE_URL: http://market_data:8002
+  ANALYTICS_SERVICE_URL: http://analytics:8003
+  WALLET_SERVICE_URL: http://wallet:8004
+  JUPITER_API_URL: https://quote-api.jup.ag/v6
+  PYTHONPATH: /app
+  LOG_LEVEL: DEBUG
+  ENCRYPTION_MASTER_KEY_PATH: /opt/tradingbot/config/master.key
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: tradingbot
+      POSTGRES_USER: tradingbot
+      POSTGRES_PASSWORD: tradingbot
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradingbot -d tradingbot && psql -U tradingbot -d tradingbot -c 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - tradingbot_network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    stop_grace_period: 30s
+    restart: unless-stopped
+    shm_size: 256mb
+
+  redis:
+    image: redis:7.0-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - tradingbot_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    stop_grace_period: 30s
+    restart: unless-stopped
+    init: true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  api_gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    command: ["uvicorn", "src.api_gateway.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "debug"]
+    environment:
+      <<: *common-env
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1
+      ENCRYPTION_MASTER_KEY_PATH: /opt/tradingbot/config/master.key
+      BACKUP_ROOT_PATH: /opt/tradingbot/backups
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /opt/tradingbot/config:/opt/tradingbot/config
+      - /opt/tradingbot/backups:/opt/tradingbot/backups
+      - /opt/tradingbot/logs:/opt/tradingbot/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tradingbot_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    stop_grace_period: 30s
+    restart: unless-stopped
+    init: true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  trading_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    command: ["python", "-m", "src.trading_agent.main"]
+    environment:
+      <<: *common-env
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1
+      ENCRYPTION_MASTER_KEY_PATH: /opt/tradingbot/config/master.key
+      SOLANA_RPC_URL: https://api.mainnet-beta.solana.com
+      JUPITER_API_URL: https://quote-api.jup.ag/v6
+    volumes:
+      - .:/app
+      - /opt/tradingbot/config:/opt/tradingbot/config
+      - /opt/tradingbot/logs:/opt/tradingbot/logs
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api_gateway:
+        condition: service_healthy
+    networks:
+      - tradingbot_network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    stop_grace_period: 30s
+    restart: unless-stopped
+    init: true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.max-block-duration=2h'
+      - '--storage.tsdb.min-block-duration=2h'
+    networks:
+      - tradingbot_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    stop_grace_period: 30s
+    restart: unless-stopped
+    init: true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  grafana:
+    image: grafana/grafana:10.0.3
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/trading_metrics.json
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - tradingbot_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    stop_grace_period: 30s
+    restart: unless-stopped
+    init: true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  tradingbot_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.32.0/20
+          gateway: 192.168.32.1

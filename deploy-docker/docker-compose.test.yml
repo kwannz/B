@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: docker/test/Dockerfile.test
+    volumes:
+      - .:/app
+      - test-coverage:/app/coverage
+    environment:
+      - PYTHONPATH=/app
+      - ENVIRONMENT=test
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-test_key}
+      - DEEPSEEK_API_URL=${DEEPSEEK_API_URL:-http://test-api.deepseek.com}
+    depends_on:
+      - test-db
+      - test-redis
+
+  test-db:
+    image: postgres:13-alpine
+    environment:
+      - POSTGRES_DB=tradingbot_test
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+    ports:
+      - "5433:5432"  # Different port from main DB
+    volumes:
+      - test-db-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  test-redis:
+    image: redis:6-alpine
+    ports:
+      - "6380:6379"  # Different port from main Redis
+    volumes:
+      - test-redis-data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+
+volumes:
+  test-db-data:
+  test-redis-data:
+  test-coverage:
