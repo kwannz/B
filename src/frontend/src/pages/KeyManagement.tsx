@@ -70,14 +70,15 @@ const KeyManagement: React.FC = () => {
       if (response.success) {
         // Store wallet info in localStorage for other components
         localStorage.setItem('walletAddress', walletAddress);
-        navigate('/dashboard');
+        navigate('/strategy-creation');
       } else {
-        setError(response.error || 'Failed to confirm key management');
+        setError(typeof response.error === 'string' ? response.error : 'Failed to confirm key management');
       }
     } catch (err) {
       setError('Failed to confirm key management. Please try again.');
     } finally {
       setIsSubmitting(false);
+      setConfirmDialogOpen(false);
     }
   };
 
