@@ -1,0 +1,27 @@
+FROM python:3.11-slim-bullseye as builder
+
+WORKDIR /app
+COPY requirements.consolidated.txt .
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && pip install --user --no-cache-dir -r requirements.consolidated.txt \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM python:3.11-slim-bullseye
+WORKDIR /app
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY src/api_gateway src/api_gateway/
+COPY src/core src/core/
+COPY src/shared src/shared/
+
+CMD ["python", "-m", "src.api_gateway.app.main"]
