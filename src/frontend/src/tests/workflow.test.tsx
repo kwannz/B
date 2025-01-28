@@ -1,9 +1,9 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { AgentSelection } from '../components/agent/AgentSelection';
-import { StrategyCreation } from '../components/agent/StrategyCreation';
-import { BotIntegration } from '../components/agent/BotIntegration';
-import { KeyManagement } from '../components/agent/KeyManagement';
+import AgentSelection from '../pages/AgentSelection';
+import StrategyCreation from '../pages/StrategyCreation';
+import BotIntegration from '../pages/BotIntegration';
+import KeyManagement from '../pages/KeyManagement';
 import { AuthProvider } from '../contexts/AuthContext';
 import { Toaster } from '../components/ui/toaster';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -47,7 +47,7 @@ vi.mock('@solana/wallet-adapter-react', async () => {
       signAllTransactions: vi.fn(),
       signMessage: vi.fn(),
     }),
-    WalletProvider: ({ children }) => <>{children}</>,
+    WalletProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   };
 });
 
@@ -148,20 +148,26 @@ describe('Trading Workflow', () => {
       
       // Fill in strategy form
       await act(async () => {
-        fireEvent.change(screen.getByPlaceholderText('Enter strategy name'), {
+        fireEvent.change(screen.getByLabelText('Strategy Name'), {
           target: { value: 'Test Strategy' }
         });
-        fireEvent.change(screen.getByPlaceholderText('Describe your strategy'), {
+        fireEvent.change(screen.getByLabelText('Strategy Description'), {
           target: { value: 'Test Description' }
         });
-        fireEvent.change(screen.getByPlaceholderText('Enter promotion keywords (comma-separated)'), {
+        fireEvent.change(screen.getByLabelText('Promotion Words'), {
           target: { value: 'test, keywords' }
         });
-        fireEvent.change(screen.getByPlaceholderText('Enter target profit percentage'), {
-          target: { value: '10' }
+        fireEvent.change(screen.getByLabelText('Preferred Model'), {
+          target: { value: 'deepseek-v3' }
         });
-        fireEvent.change(screen.getByPlaceholderText('Enter stop loss percentage'), {
-          target: { value: '5' }
+        fireEvent.change(screen.getByLabelText('Minimum Confidence'), {
+          target: { value: '0.7' }
+        });
+        fireEvent.change(screen.getByLabelText('Risk Level'), {
+          target: { value: 'medium' }
+        });
+        fireEvent.change(screen.getByLabelText('Timeframe'), {
+          target: { value: '1h' }
         });
       });
       

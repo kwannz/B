@@ -26,6 +26,8 @@ interface StrategyFormData {
   timeframe: string;
   risk_level: string;
   description: string;
+  preferred_model?: 'deepseek-v3' | 'deepseek-r1';
+  min_confidence?: number;
 }
 
 const StrategyCreation: React.FC<StrategyCreationProps> = () => {
@@ -36,6 +38,8 @@ const StrategyCreation: React.FC<StrategyCreationProps> = () => {
     timeframe: '1h',
     risk_level: 'medium',
     description: '',
+    preferred_model: 'deepseek-v3',
+    min_confidence: 0.7,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +55,9 @@ const StrategyCreation: React.FC<StrategyCreationProps> = () => {
         promotion_words: formData.promotion_words,
         timeframe: formData.timeframe,
         risk_level: formData.risk_level,
-        description: formData.description
+        description: formData.description,
+        preferred_model: formData.preferred_model,
+        min_confidence: formData.min_confidence
       };
       
       const response = await apiClient.createStrategy(strategyData);
@@ -168,6 +174,31 @@ const StrategyCreation: React.FC<StrategyCreationProps> = () => {
                 multiline
                 rows={4}
                 required
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Preferred Model</InputLabel>
+                <Select
+                  value={formData.preferred_model}
+                  label="Preferred Model"
+                  onChange={handleSelectChange('preferred_model')}
+                >
+                  <MenuItem value="deepseek-v3">DeepSeek V3</MenuItem>
+                  <MenuItem value="deepseek-r1">DeepSeek R1</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Minimum Confidence"
+                value={formData.min_confidence}
+                onChange={handleTextChange('min_confidence')}
+                inputProps={{ min: 0, max: 1, step: 0.1 }}
               />
             </Grid>
 

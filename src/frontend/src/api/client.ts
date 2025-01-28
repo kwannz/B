@@ -157,7 +157,13 @@ class ApiClient {
     timeframe: string;
     risk_level: string;
     description: string;
-  }): Promise<ApiResponse<StrategyResponse>> {
+    preferred_model?: 'deepseek-v3' | 'deepseek-r1';
+    min_confidence?: number;
+  }): Promise<ApiResponse<StrategyResponse & {
+    confidence?: number;
+    model_used?: string;
+    fallback_used?: boolean;
+  }>> {
     try {
       const response = await this.client.post('/strategies/trading/create', strategy);
       return { data: response.data, success: true };
