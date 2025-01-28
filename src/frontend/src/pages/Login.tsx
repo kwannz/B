@@ -1,106 +1,63 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Typography,
-  Container,
-  Alert,
-  Link,
-} from '@mui/material';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Alert, AlertDescription } from '../components/ui/alert';
 import { useAuthContext } from '../hooks/useAuth';
 
-export {};
+require('@solana/wallet-adapter-react-ui/styles.css');
 
-const Login: React.FC = () => {
+const MIN_SOL_BALANCE = 0.5;
+
+export default function Login() {
+  const { connected, publicKey, wallet } = useWallet();
+  const { connectWithWallet } = useAuthContext();
   const navigate = useNavigate();
-  const { login } = useAuthContext();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    try {
-      const success = await login(email, password);
-      if (success) {
-        // Store login state and redirect
-        localStorage.setItem('isAuthenticated', 'true');
-        navigate('/agent-selection');
-      } else {
-        setError('Invalid email or password');
+  
+  useEffect(() => {
+    const handleWalletConnection = async () => {
+      if (connected && publicKey) {
+        try {
+          await connectWithWallet();
+          navigate('/agent-selection');
+        } catch (error) {
+          console.error('Wallet connection failed:', error);
+        }
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setError('An error occurred during login. Please try again.');
-    }
-  };
+    };
+
+    handleWalletConnection();
+  }, [connected, publicKey, connectWithWallet, navigate]);
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Card sx={{ width: '100%' }}>
-          <CardContent>
-            <Typography variant="h5" gutterBottom align="center">
-              Login to Lumix Trading
-            </Typography>
-            
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <Card className="w-[400px]">
+        <CardHeader>
+          <CardTitle>Connect Wallet</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <AlertDescription>
+              Connect your Solana wallet to access the trading platform.
+              Minimum balance requirement: {MIN_SOL_BALANCE} SOL
+            </AlertDescription>
+          </Alert>
+          
+          <div className="flex justify-center">
+            <WalletMultiButton />
+          </div>
 
-            <form onSubmit={handleSubmit}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                margin="normal"
-                required
-              />
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                margin="normal"
-                required
-              />
-              <Button
-                fullWidth
-                variant="contained"
-                type="submit"
-                sx={{ mt: 3 }}
-              >
-                Login
-              </Button>
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Link href="/signup" variant="body2">
-                  Don't have an account? Sign up
-                </Link>
-              </Box>
-            </form>
-          </CardContent>
-        </Card>
-      </Box>
-    </Container>
+          {wallet && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Please ensure your wallet has a minimum balance of {MIN_SOL_BALANCE} SOL
+                to access trading features.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
-};
-
-export default Login;
+}
