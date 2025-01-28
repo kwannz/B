@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from .base_agent import BaseAgent
 from .wallet_manager import WalletManager
-from ...shared.sentiment.sentiment_analyzer import analyzer as sentiment_analyzer
+from src.backend.shared.sentiment.sentiment_analyzer import sentiment_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,9 @@ class TradingAgent(BaseAgent):
             # Verify wallet balance before starting
             balance = await self.get_wallet_balance()
             if balance < 0.5:  # Minimum 0.5 SOL required
-                raise ValueError(f"Insufficient balance: {balance} SOL (minimum 0.5 SOL required)")
+                self.status = "error"
+                self.last_update = datetime.now().isoformat()
+                return False
             
             # Generate initial strategy
             market_data = {

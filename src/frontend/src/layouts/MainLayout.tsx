@@ -1,15 +1,10 @@
-import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { Box, AppBar, Toolbar, Typography, Container } from '@mui/material';
+import { Box, Container, CssBaseline } from '@mui/material';
 
-const MainLayout: React.FC = () => {
+const MainLayout = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6">Trading Bot Dashboard</Typography>
-        </Toolbar>
-      </AppBar>
+      <CssBaseline />
       <Container component="main" sx={{ mt: 4, mb: 4, flex: 1 }}>
         <Outlet />
       </Container>

@@ -39,8 +39,13 @@ class AgentManager:
         """Start an agent's operations"""
         agent = await self.get_agent(agent_id)
         if agent:
-            await agent.start()
-            return True
+            try:
+                await agent.start()
+                agent.status = "active"
+                return True
+            except Exception as e:
+                agent.status = "error"
+                return False
         return False
 
     async def stop_agent(self, agent_id: str) -> bool:

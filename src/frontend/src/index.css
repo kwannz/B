@@ -1,32 +1,3 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-:root {
-  --primary: #0070f3;
-  --destructive: #ff4444;
-}
-
-@layer components {
-  .toast {
-    @apply p-4 rounded-lg shadow-lg;
-  }
-  .toast-default {
-    @apply bg-white text-gray-900;
-  }
-  .toast-success {
-    @apply bg-green-500 text-white;
-  }
-  .toast-error {
-    @apply bg-red-500 text-white;
-  }
-  .toast-warning {
-    @apply bg-yellow-500 text-white;
-  }
-  .toast-title {
-    @apply font-semibold mb-1;
-  }
-  .toast-description {
-    @apply text-sm;
-  }
-}

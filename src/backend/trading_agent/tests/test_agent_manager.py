@@ -12,13 +12,6 @@ def agent_config():
         }
     }
 
-@pytest.fixture
-async def agent_manager():
-    manager = AgentManager()
-    yield manager
-    # 清理: 停止所有代理
-    await manager.stop_all_agents()
-
 @pytest.mark.asyncio
 async def test_create_agent(agent_manager, agent_config):
     agent = await agent_manager.create_agent(
@@ -121,16 +114,19 @@ async def test_get_all_agents(agent_manager, agent_config):
 
 @pytest.mark.asyncio
 async def test_stop_all_agents(agent_manager, agent_config):
-    # 创建并启动多个代理
+    # Create and start multiple agents
     await agent_manager.create_agent("test_1", "Test Agent 1", agent_config)
     await agent_manager.create_agent("test_2", "Test Agent 2", agent_config)
     
     await agent_manager.start_agent("test_1")
     await agent_manager.start_agent("test_2")
     
-    # 停止所有代理
+    # Stop all agents
     await agent_manager.stop_all_agents()
     
-    # 验证所有代理都已停止
+    # Verify all agents are stopped
     agents = agent_manager.get_all_agents()
     assert all(a["status"] == "inactive" for a in agents)
+    
+    # Cleanup
+    await agent_manager.stop_all_agents()

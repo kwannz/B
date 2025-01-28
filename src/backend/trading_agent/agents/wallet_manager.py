@@ -1,11 +1,11 @@
 from typing import Optional
-from solana.rpc.api import Client
-from solana.keypair import Keypair
+from solana.rpc.async_api import AsyncClient
+from solders.keypair import Keypair
 from base58 import b58encode, b58decode
 
 class WalletManager:
     def __init__(self):
-        self.client = Client("https://api.testnet.solana.com")
+        self.client = AsyncClient("https://api.testnet.solana.com")
         self._keypair: Optional[Keypair] = None
         self._public_key: Optional[str] = None
         self._private_key: Optional[str] = None
@@ -36,8 +36,10 @@ class WalletManager:
             return 0.0
         
         try:
-            balance = await self.client.get_balance(self._keypair.public_key)
-            return float(balance['result']['value']) / 1e9  # Convert lamports to SOL
+            response = await self.client.get_balance(self._keypair.public_key)
+            if response.value is None:
+                return 0.0
+            return float(response.value) / 1e9  # Convert lamports to SOL
         except Exception as e:
             print(f"Error getting balance: {str(e)}")
             return 0.0
