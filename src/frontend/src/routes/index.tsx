@@ -1,4 +1,3 @@
-import React from 'react';
 import { Navigate, useRoutes } from 'react-router-dom';
 import { useAuthContext } from '../hooks/useAuth';
 
@@ -13,7 +12,6 @@ import BotIntegration from '../pages/BotIntegration';
 import KeyManagement from '../pages/KeyManagement';
 import Dashboard from '../pages/Dashboard';
 import Login from '../pages/Login';
-import SignUp from '../pages/SignUp';
 
 export default function Router() {
   const { isAuthenticated } = useAuthContext();
@@ -53,10 +51,6 @@ export default function Router() {
     {
       path: '/login',
       element: !isAuthenticated ? <Login /> : <Navigate to="/agent-selection" />,
-    },
-    {
-      path: '/signup',
-      element: !isAuthenticated ? <SignUp /> : <Navigate to="/agent-selection" />,
     },
   ]);
 }

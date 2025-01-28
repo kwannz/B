@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { PublicKey } from '@solana/web3.js';
 
 // API Response Types
 export interface ApiResponse<T> {
@@ -8,19 +9,14 @@ export interface ApiResponse<T> {
 }
 
 export interface AuthResponse {
-  access_token: string;
-  token_type: string;
+  token: string;
+  walletAddress: string;
 }
 
-export interface SignupData {
-  email: string;
-  username: string;
-  password: string;
-}
-
-export interface LoginData {
-  username: string;
-  password: string;
+export interface WalletAuthData {
+  walletAddress: string;
+  signature: string;
+  message: string;
 }
 
 export interface AgentResponse {
@@ -52,20 +48,23 @@ export interface WalletResponse {
   }>;
 }
 
+const WALLET_ADDRESS_KEY = 'wallet_address';
+const AUTH_TOKEN_KEY = 'auth_token';
+
 class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1`,
+      baseURL: `${process.env.VITE_API_URL || 'http://localhost:8000'}/api/v1`,
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
-    // Add request interceptor to include JWT token
+    // Add request interceptor to include auth token
     this.client.interceptors.request.use((config) => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem(AUTH_TOKEN_KEY);
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -78,6 +77,8 @@ class ApiClient {
       (error: AxiosError) => {
         if (error.response?.status === 401) {
           // Handle unauthorized access
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+          localStorage.removeItem(WALLET_ADDRESS_KEY);
           window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -85,22 +86,29 @@ class ApiClient {
     );
   }
 
-  // Auth Management
-  async signup(data: SignupData): Promise<ApiResponse<AuthResponse>> {
+  // Wallet Authentication
+  async getAuthMessage(publicKey: PublicKey): Promise<ApiResponse<string>> {
     try {
-      const formData = new FormData();
-      formData.append('email', data.email);
-      formData.append('username', data.username);
-      formData.append('password', data.password);
-      
-      const response = await this.client.post('/auth/signup', formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+      const response = await this.client.post('/auth/message', {
+        wallet_address: publicKey.toString(),
+      });
+      return { data: response.data.message, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  async verifyWallet(data: WalletAuthData): Promise<ApiResponse<AuthResponse>> {
+    try {
+      const response = await this.client.post('/auth/verify', {
+        wallet_address: data.walletAddress,
+        signature: data.signature,
+        message: data.message,
       });
       
-      if (response.data.access_token) {
-        localStorage.setItem('access_token', response.data.access_token);
+      if (response.data.token) {
+        localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
+        localStorage.setItem(WALLET_ADDRESS_KEY, data.walletAddress);
       }
       return { data: response.data, success: true };
     } catch (error) {
@@ -108,31 +116,10 @@ class ApiClient {
     }
   }
 
-  async login(data: LoginData): Promise<ApiResponse<AuthResponse>> {
-    try {
-      // Create URLSearchParams for x-www-form-urlencoded format
-      const formData = new URLSearchParams();
-      formData.append('username', data.username);
-      formData.append('password', data.password);
-      formData.append('grant_type', 'password');
-      
-      const response = await this.client.post('/auth/login', formData.toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-      
-      if (response.data.access_token) {
-        localStorage.setItem('access_token', response.data.access_token);
-      }
-      return { data: response.data, success: true };
-    } catch (error) {
-      return { error: this.handleError(error), success: false };
-    }
-  }
-
-  async logout(): Promise<void> {
-    localStorage.removeItem('access_token');
+  async disconnectWallet(): Promise<void> {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(WALLET_ADDRESS_KEY);
+    await this.client.post('/auth/disconnect');
   }
 
   // Agent Management

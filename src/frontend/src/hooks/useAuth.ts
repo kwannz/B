@@ -1,93 +1,95 @@
 import { useState, useCallback } from 'react';
-import apiClient from '../api/client';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { toast } from '../components/ui/use-toast';
 
-export interface User {
-  id: string;
-  email: string;
-  username: string;
-  roles: Array<{
-    name: string;
-    permissions: string[];
-  }>;
-}
+const MIN_SOL_BALANCE = 0.5;
+const WALLET_ADDRESS_KEY = 'wallet_address';
 
 export interface AuthContextType {
-  user: User | null;
   isAuthenticated: boolean;
-  signup: (email: string, username: string, password: string) => Promise<boolean>;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  walletAddress: string | null;
+  connectWithWallet: () => Promise<void>;
+  disconnectWallet: () => void;
+  checkWalletBalance: () => Promise<number>;
 }
 
 export const useAuthContext = (): AuthContextType => {
-  const [user, setUser] = useState<User | null>(null);
+  const { connected, publicKey, disconnect, wallet } = useWallet();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const token = localStorage.getItem('token');
-    return !!token;
+    const address = localStorage.getItem(WALLET_ADDRESS_KEY);
+    return !!address;
   });
+  const [walletAddress, setWalletAddress] = useState<string | null>(
+    localStorage.getItem(WALLET_ADDRESS_KEY)
+  );
 
-  const signup = useCallback(async (email: string, username: string, password: string) => {
-    try {
-      const response = await apiClient.signup({ email, username, password });
-      if (response.success && response.data) {
-        // Set user data
-        const newUser: User = {
-          id: username,
-          email,
-          username,
-          roles: [{ name: 'backend_developer', permissions: ['execute_market_maker_trades'] }]
-        };
-        setUser(newUser);
-        setIsAuthenticated(true);
-        window.location.href = '/agent-selection';
-        return true;
-      }
-      console.error('Signup failed:', response.error);
-      return false;
-    } catch (error) {
-      console.error('Signup error:', error);
-      return false;
+  const checkWalletBalance = useCallback(async (): Promise<number> => {
+    if (!publicKey || !wallet?.adapter) {
+      return 0;
     }
-  }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
     try {
-      // Send the full email for login
-      const response = await apiClient.login({ username: email, password });
-      console.log('Login response:', response); // Debug log
-      if (response.success && response.data) {
-        // Store the JWT token
-        localStorage.setItem('token', response.data.access_token);
-        // Set user data using email as identifier
-        const newUser: User = {
-          id: email,
-          email,
-          username: email.split('@')[0],
-          roles: [{ name: 'backend_developer', permissions: ['execute_market_maker_trades'] }]
-        };
-        setUser(newUser);
-        setIsAuthenticated(true);
-        return true;
-      }
-      console.error('Login failed:', response.error);
-      return false;
+      const balance = await wallet.adapter.getBalance();
+      return balance.value / 1e9; // Convert lamports to SOL
     } catch (error) {
-      console.error('Login error:', error);
-      return false;
+      console.error('Error checking wallet balance:', error);
+      toast({
+        variant: "destructive",
+        title: "Error checking wallet balance",
+        description: "Please try again or use a different wallet",
+      });
+      return 0;
     }
-  }, []);
+  }, [publicKey, wallet]);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    setUser(null);
+  const connectWithWallet = useCallback(async () => {
+    if (!publicKey) {
+      toast({
+        variant: "destructive",
+        title: "Wallet not connected",
+        description: "Please connect your wallet first",
+      });
+      throw new Error('Wallet not connected');
+    }
+
+    const balance = await checkWalletBalance();
+    if (balance < MIN_SOL_BALANCE) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient balance",
+        description: `Minimum required: ${MIN_SOL_BALANCE} SOL`,
+      });
+      throw new Error(`Insufficient balance. Minimum required: ${MIN_SOL_BALANCE} SOL`);
+    }
+
+    const address = publicKey.toString();
+    localStorage.setItem(WALLET_ADDRESS_KEY, address);
+    setWalletAddress(address);
+    setIsAuthenticated(true);
+    
+    toast({
+      title: "Successfully connected",
+      description: "Your wallet has been connected",
+    });
+  }, [publicKey, checkWalletBalance]);
+
+  const disconnectWallet = useCallback(() => {
+    disconnect();
+    localStorage.removeItem(WALLET_ADDRESS_KEY);
+    setWalletAddress(null);
     setIsAuthenticated(false);
-  }, []);
+    
+    toast({
+      title: "Disconnected",
+      description: "Your wallet has been disconnected",
+    });
+  }, [disconnect]);
 
   return {
-    user,
     isAuthenticated,
-    login,
-    signup,
-    logout,
+    walletAddress,
+    connectWithWallet,
+    disconnectWallet,
+    checkWalletBalance,
   };
 };
