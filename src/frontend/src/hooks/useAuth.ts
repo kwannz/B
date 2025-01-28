@@ -1,95 +1,78 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { toast } from '../components/ui/use-toast';
-
-const MIN_SOL_BALANCE = 0.5;
-const WALLET_ADDRESS_KEY = 'wallet_address';
+import useWalletStore from '../store/useWalletStore';
+import { useErrorHandler } from './useErrorHandler';
 
 export interface AuthContextType {
   isAuthenticated: boolean;
   walletAddress: string | null;
+  isConnecting: boolean;
+  error: string | null;
   connectWithWallet: () => Promise<void>;
   disconnectWallet: () => void;
   checkWalletBalance: () => Promise<number>;
 }
 
 export const useAuthContext = (): AuthContextType => {
-  const { connected, publicKey, disconnect, wallet } = useWallet();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const address = localStorage.getItem(WALLET_ADDRESS_KEY);
-    return !!address;
-  });
-  const [walletAddress, setWalletAddress] = useState<string | null>(
-    localStorage.getItem(WALLET_ADDRESS_KEY)
-  );
+  const navigate = useNavigate();
+  const { publicKey, wallet, disconnect } = useWallet();
+  const { handleError } = useErrorHandler();
+  
+  const {
+    isAuthenticated,
+    walletAddress,
+    isConnecting,
+    error,
+    connectWallet,
+    disconnectWallet,
+    checkWalletBalance,
+  } = useWalletStore();
 
-  const checkWalletBalance = useCallback(async (): Promise<number> => {
-    if (!publicKey || !wallet?.adapter) {
-      return 0;
-    }
-
+  const handleConnectWallet = useCallback(async () => {
     try {
-      const balance = await wallet.adapter.getBalance();
-      return balance.value / 1e9; // Convert lamports to SOL
+      if (!publicKey || !wallet?.adapter) {
+        throw new Error('Please connect your wallet first');
+      }
+      
+      // Check minimum balance requirement
+      const balance = await checkWalletBalance(publicKey, wallet.adapter);
+      if (balance < 0.5) { // 0.5 SOL minimum requirement
+        throw new Error('Insufficient balance. Minimum 0.5 SOL required.');
+      }
+
+      await connectWallet(publicKey, wallet.adapter);
+      navigate('/dashboard');
     } catch (error) {
-      console.error('Error checking wallet balance:', error);
-      toast({
-        variant: "destructive",
-        title: "Error checking wallet balance",
-        description: "Please try again or use a different wallet",
+      handleError(error, {
+        title: 'Wallet Connection Error',
+        fallbackMessage: 'Failed to connect wallet',
+        shouldRetry: true,
+        onRetry: () => handleConnectWallet(),
       });
-      return 0;
     }
-  }, [publicKey, wallet]);
+  }, [publicKey, wallet, connectWallet, checkWalletBalance, navigate, handleError]);
 
-  const connectWithWallet = useCallback(async () => {
-    if (!publicKey) {
-      toast({
-        variant: "destructive",
-        title: "Wallet not connected",
-        description: "Please connect your wallet first",
+  const handleDisconnectWallet = useCallback(async () => {
+    try {
+      await disconnect();
+      disconnectWallet();
+      navigate('/login');
+    } catch (error) {
+      handleError(error, {
+        title: 'Wallet Disconnection Error',
+        fallbackMessage: 'Failed to disconnect wallet',
       });
-      throw new Error('Wallet not connected');
     }
-
-    const balance = await checkWalletBalance();
-    if (balance < MIN_SOL_BALANCE) {
-      toast({
-        variant: "destructive",
-        title: "Insufficient balance",
-        description: `Minimum required: ${MIN_SOL_BALANCE} SOL`,
-      });
-      throw new Error(`Insufficient balance. Minimum required: ${MIN_SOL_BALANCE} SOL`);
-    }
-
-    const address = publicKey.toString();
-    localStorage.setItem(WALLET_ADDRESS_KEY, address);
-    setWalletAddress(address);
-    setIsAuthenticated(true);
-    
-    toast({
-      title: "Successfully connected",
-      description: "Your wallet has been connected",
-    });
-  }, [publicKey, checkWalletBalance]);
-
-  const disconnectWallet = useCallback(() => {
-    disconnect();
-    localStorage.removeItem(WALLET_ADDRESS_KEY);
-    setWalletAddress(null);
-    setIsAuthenticated(false);
-    
-    toast({
-      title: "Disconnected",
-      description: "Your wallet has been disconnected",
-    });
-  }, [disconnect]);
+  }, [disconnect, disconnectWallet, navigate, handleError]);
 
   return {
     isAuthenticated,
     walletAddress,
-    connectWithWallet,
-    disconnectWallet,
-    checkWalletBalance,
+    isConnecting,
+    error,
+    connectWithWallet: handleConnectWallet,
+    disconnectWallet: handleDisconnectWallet,
+    checkWalletBalance: () => checkWalletBalance(publicKey!, wallet?.adapter!),
   };
 };

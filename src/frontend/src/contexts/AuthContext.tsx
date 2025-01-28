@@ -1,72 +1,90 @@
-import React, { createContext, useContext, ReactNode, useState, useCallback } from 'react';
+import React, { createContext, useContext, ReactNode, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletContextState } from '@solana/wallet-adapter-react';
+import { useWallet as useWalletHook } from '../hooks/useWallet';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { usePersistentStorage } from '../hooks/usePersistentStorage';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   walletAddress: string | null;
-  connectWithWallet: () => Promise<void>;
+  balance: number;
+  isConnecting: boolean;
+  error: string | null;
+  connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  checkWalletBalance: () => Promise<number>;
+  checkBalance: () => Promise<number>;
 }
-
-const MIN_SOL_BALANCE = 0.5;
-const WALLET_ADDRESS_KEY = 'wallet_address';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { connected, publicKey, disconnect, wallet } = useWallet();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [walletAddress, setWalletAddress] = useState<string | null>(
-    localStorage.getItem(WALLET_ADDRESS_KEY)
-  );
+  const { publicKey, wallet } = useWallet();
+  const {
+    isAuthenticated,
+    walletAddress,
+    balance,
+    isConnecting,
+    error,
+    connect,
+    disconnect,
+    checkBalance,
+  } = useWalletHook();
+  const { handleError } = useErrorHandler();
+  const storage = usePersistentStorage({ prefix: 'auth_' });
 
-  const checkWalletBalance = useCallback(async (): Promise<number> => {
-    if (!publicKey || !wallet?.adapter) {
-      return 0;
-    }
-
+  const handleConnectWallet = useCallback(async () => {
     try {
-      const balance = await wallet.adapter.getBalance();
-      return balance.value / 1e9; // Convert lamports to SOL
+      if (!publicKey || !wallet?.adapter) {
+        throw new Error('Please connect your wallet first');
+      }
+      await connect(publicKey, wallet.adapter);
+      storage.setItem('lastConnected', Date.now());
     } catch (error) {
-      console.error('Error checking wallet balance:', error);
+      handleError(error, {
+        title: 'Wallet Connection Error',
+        fallbackMessage: 'Failed to connect wallet',
+      });
+    }
+  }, [publicKey, wallet, connect, storage, handleError]);
+
+  const handleDisconnectWallet = useCallback(() => {
+    try {
+      disconnect();
+      storage.removeItem('lastConnected');
+    } catch (error) {
+      handleError(error, {
+        title: 'Wallet Disconnection Error',
+        fallbackMessage: 'Failed to disconnect wallet',
+      });
+    }
+  }, [disconnect, storage, handleError]);
+
+  const handleCheckBalance = useCallback(async () => {
+    try {
+      if (!publicKey || !wallet?.adapter) {
+        throw new Error('Wallet not connected');
+      }
+      return await checkBalance(publicKey, wallet.adapter);
+    } catch (error) {
+      handleError(error, {
+        title: 'Balance Check Error',
+        fallbackMessage: 'Failed to check wallet balance',
+      });
       return 0;
     }
-  }, [publicKey, wallet]);
-
-  const connectWithWallet = useCallback(async () => {
-    if (!publicKey) {
-      throw new Error('Wallet not connected');
-    }
-
-    const balance = await checkWalletBalance();
-    if (balance < MIN_SOL_BALANCE) {
-      throw new Error(`Insufficient balance. Minimum required: ${MIN_SOL_BALANCE} SOL`);
-    }
-
-    const address = publicKey.toString();
-    localStorage.setItem(WALLET_ADDRESS_KEY, address);
-    setWalletAddress(address);
-    setIsAuthenticated(true);
-  }, [publicKey, checkWalletBalance]);
-
-  const disconnectWallet = useCallback(() => {
-    disconnect();
-    localStorage.removeItem(WALLET_ADDRESS_KEY);
-    setWalletAddress(null);
-    setIsAuthenticated(false);
-  }, [disconnect]);
+  }, [publicKey, wallet, checkBalance, handleError]);
 
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
         walletAddress,
-        connectWithWallet,
-        disconnectWallet,
-        checkWalletBalance,
+        balance,
+        isConnecting,
+        error,
+        connectWallet: handleConnectWallet,
+        disconnectWallet: handleDisconnectWallet,
+        checkBalance: handleCheckBalance,
       }}
     >
       {children}

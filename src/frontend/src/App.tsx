@@ -9,6 +9,7 @@ import { clusterApiUrl } from '@solana/web3.js';
 import { ThemeProvider } from './components/theme-provider';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from './components/ui/toaster';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import AppRoutes from './routes/index';
 
 // Default to 'testnet' for development
@@ -17,19 +18,21 @@ const wallets = [new PhantomWalletAdapter()];
 
 export default function App() {
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="tradingbot-ui-theme">
-      <ConnectionProvider endpoint={endpoint}>
-        <WalletProvider wallets={wallets} autoConnect>
-          <WalletModalProvider>
-            <BrowserRouter>
-              <AuthProvider>
-                <AppRoutes />
-                <Toaster />
-              </AuthProvider>
-            </BrowserRouter>
-          </WalletModalProvider>
-        </WalletProvider>
-      </ConnectionProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider defaultTheme="dark" storageKey="tradingbot-ui-theme">
+        <ConnectionProvider endpoint={endpoint}>
+          <WalletProvider wallets={wallets} autoConnect>
+            <WalletModalProvider>
+              <BrowserRouter>
+                <AuthProvider>
+                  <AppRoutes />
+                  <Toaster />
+                </AuthProvider>
+              </BrowserRouter>
+            </WalletModalProvider>
+          </WalletProvider>
+        </ConnectionProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
