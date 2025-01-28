@@ -6,7 +6,12 @@ import { useErrorHandler } from '@/hooks/useErrorHandler';
 export function OrderBook() {
   const { orderBook, refreshData, isLoading } = useTrading();
   const { handleError } = useErrorHandler();
-  const { asks, bids, currentPrice } = orderBook;
+  
+  const { asks, bids, currentPrice } = useMemo(() => ({
+    asks: orderBook.asks || [],
+    bids: orderBook.bids || [],
+    currentPrice: orderBook.currentPrice || 0,
+  }), [orderBook]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -16,6 +21,8 @@ export function OrderBook() {
         handleError(error, {
           title: 'Order Book Error',
           fallbackMessage: 'Failed to fetch order book data',
+          shouldRetry: true,
+          onRetry: refreshData,
         });
       }
     };

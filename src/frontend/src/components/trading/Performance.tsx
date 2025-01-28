@@ -8,14 +8,31 @@ import { useEffect } from 'react';
 
 export function Performance() {
   const { totalPnl, trades, refreshData, isLoading } = useTrading();
-  const avgWinRate = trades.total > 0 ? Math.round((trades.successful / trades.total) * 100) : 0;
-  const avgTradeValue = trades.total > 0 ? Math.round(totalPnl / trades.total) : 0;
+  const { handleError } = useErrorHandler();
+  
+  const { avgWinRate, avgTradeValue } = useMemo(() => ({
+    avgWinRate: trades.total > 0 ? Math.round((trades.successful / trades.total) * 100) : 0,
+    avgTradeValue: trades.total > 0 ? Math.round(totalPnl / trades.total) : 0,
+  }), [trades.total, trades.successful, totalPnl]);
 
   useEffect(() => {
-    refreshData();
-    const interval = setInterval(refreshData, 5000); // Update every 5 seconds
+    const fetchData = async () => {
+      try {
+        await refreshData();
+      } catch (error) {
+        handleError(error, {
+          title: 'Performance Data Error',
+          fallbackMessage: 'Failed to fetch performance data',
+          shouldRetry: true,
+          onRetry: refreshData,
+        });
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 5000); // Update every 5 seconds
     return () => clearInterval(interval);
-  }, [refreshData]);
+  }, [refreshData, handleError]);
 
   return (
     <div className="space-y-8 relative">

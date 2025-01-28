@@ -1,28 +1,18 @@
 import create from 'zustand';
-import { persist } from 'zustand/middleware';
 import { PublicKey } from '@solana/web3.js';
 import { toast } from '../components/ui/use-toast';
 import solanaService from '../services/solana';
 import { logger } from './middleware/logger';
+import { errorBoundary } from './middleware/errorBoundary';
+import { configurePersist } from './middleware/persistMiddleware';
+import { WalletState } from '../types/trading';
 
-interface WalletState {
-  isAuthenticated: boolean;
-  walletAddress: string | null;
-  balance: number;
-  isConnecting: boolean;
-  error: string | null;
-  setWalletAddress: (address: string | null) => void;
-  setBalance: (balance: number) => void;
-  setIsAuthenticated: (isAuthenticated: boolean) => void;
-  setError: (error: string | null) => void;
-  connectWallet: (publicKey: PublicKey, adapter: any) => Promise<void>;
-  disconnectWallet: () => void;
-  checkWalletBalance: (publicKey: PublicKey, adapter: any) => Promise<number>;
-}
+// Using types from trading.ts
 
 const useWalletStore = create<WalletState>(
   logger(
-    persist(
+    errorBoundary(
+      configurePersist(
       (set, get) => ({
   isAuthenticated: false,
   walletAddress: localStorage.getItem('wallet_address'),
@@ -110,8 +100,10 @@ const useWalletStore = create<WalletState>(
         getStorage: () => localStorage,
       }
     ),
-    'walletStore'
-  )
+    { name: 'wallet-store' }
+  ),
+  'walletStore'
+)
 );
 
 export default useWalletStore;

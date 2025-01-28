@@ -37,33 +37,33 @@ export function TradingChart() {
 
   // Transform order book data for visualization
   const chartData = useMemo(() => {
-    const data = orderBook.asks.map((ask) => ({
+    const data: ChartData[] = orderBook.asks.map((ask: OrderBookEntry) => ({
       time: new Date().toLocaleTimeString(),
       price: ask.price,
       volume: ask.size,
-      type: 'ask'
-    })).concat(orderBook.bids.map((bid) => ({
+      type: 'ask' as const
+    })).concat(orderBook.bids.map((bid: OrderBookEntry) => ({
       time: new Date().toLocaleTimeString(),
       price: bid.price,
       volume: bid.size,
-      type: 'bid'
+      type: 'bid' as const
     }))).sort((a, b) => a.price - b.price);
 
     // Calculate simple moving averages
-    const prices = data.map(d => d.price);
-    const ma20 = prices.map((_, i) => {
+    const prices = data.map((d: ChartData) => d.price);
+    const ma20 = prices.map((_: number, i: number) => {
       if (i < 19) return null;
       const slice = prices.slice(i - 19, i + 1);
-      return slice.reduce((a, b) => a + b, 0) / 20;
+      return slice.reduce((a: number, b: number) => a + b, 0) / 20;
     });
-    const ma50 = prices.map((_, i) => {
+    const ma50 = prices.map((_: number, i: number) => {
       if (i < 49) return null;
       const slice = prices.slice(i - 49, i + 1);
-      return slice.reduce((a, b) => a + b, 0) / 50;
+      return slice.reduce((a: number, b: number) => a + b, 0) / 50;
     });
 
     // Add moving averages to chart data
-    return data.map((d, i) => ({
+    return data.map((d: ChartData, i: number) => ({
       ...d,
       ma20: ma20[i],
       ma50: ma50[i],

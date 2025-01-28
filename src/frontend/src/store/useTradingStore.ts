@@ -1,45 +1,16 @@
 import create from 'zustand';
-import { persist } from 'zustand/middleware';
 import { toast } from '../components/ui/use-toast';
 import { logger } from './middleware/logger';
+import { errorBoundary } from './middleware/errorBoundary';
+import { configurePersist } from './middleware/persistMiddleware';
+import { Position, OrderBook, TradingState } from '../types/trading';
 
-interface Position {
-  id: string;
-  symbol: string;
-  size: number;
-  entryPrice: number;
-  currentPrice: number;
-  pnl: number;
-  type: 'long' | 'short';
-}
-
-interface OrderBook {
-  asks: Array<{ price: number; size: number }>;
-  bids: Array<{ price: number; size: number }>;
-  currentPrice: number;
-}
-
-interface TradingState {
-  positions: Position[];
-  orderBook: OrderBook;
-  totalPnl: number;
-  trades: {
-    total: number;
-    successful: number;
-  };
-  isLoading: boolean;
-  error: string | null;
-  setPositions: (positions: Position[]) => void;
-  setOrderBook: (orderBook: OrderBook) => void;
-  updatePosition: (positionId: string, updates: Partial<Position>) => void;
-  closePosition: (positionId: string) => Promise<void>;
-  fetchOrderBook: () => Promise<void>;
-  fetchPositions: () => Promise<void>;
-}
+// Using types from trading.ts
 
 const useTradingStore = create<TradingState>(
   logger(
-    persist(
+    errorBoundary(
+      configurePersist(
       (set, get) => ({
   positions: [],
   orderBook: {
@@ -161,8 +132,10 @@ const useTradingStore = create<TradingState>(
         getStorage: () => localStorage,
       }
     ),
-    'tradingStore'
-  )
+    { name: 'trading-store' }
+  ),
+  'tradingStore'
+)
 );
 
 export default useTradingStore;

@@ -4,14 +4,20 @@ import { toast } from '../components/ui/use-toast';
 interface ErrorOptions {
   title?: string;
   fallbackMessage?: string;
+  shouldRetry?: boolean;
+  retryCount?: number;
+  onRetry?: () => Promise<void>;
   shouldRethrow?: boolean;
 }
 
 export const useErrorHandler = () => {
-  const handleError = useCallback((error: unknown, options: ErrorOptions = {}) => {
+  const handleError = useCallback(async (error: unknown, options: ErrorOptions = {}) => {
     const {
       title = 'Error',
       fallbackMessage = 'An unexpected error occurred',
+      shouldRetry = false,
+      retryCount = 3,
+      onRetry,
       shouldRethrow = false,
     } = options;
 
@@ -22,14 +28,53 @@ export const useErrorHandler = () => {
       error,
       title,
       message: errorMessage,
+      retryCount,
     });
 
-    // Show toast notification
-    toast({
-      variant: 'destructive',
-      title,
-      description: errorMessage,
-    });
+    // If retry is enabled and we have a retry function
+    if (shouldRetry && onRetry && retryCount > 0) {
+      toast({
+        variant: 'destructive',
+        title,
+        description: `${errorMessage}. Retrying... (${retryCount} attempts left)`,
+        action: {
+          label: 'Cancel',
+          onClick: () => {
+            console.log('Retry cancelled by user');
+          },
+        },
+      });
+
+      try {
+        await onRetry();
+        toast({
+          title: 'Success',
+          description: 'Operation completed successfully after retry',
+        });
+      } catch (retryError) {
+        // If we still have retries left, try again with decremented count
+        if (retryCount > 1) {
+          await handleError(retryError, {
+            ...options,
+            retryCount: retryCount - 1,
+          });
+        } else {
+          // No more retries, show final error
+          toast({
+            variant: 'destructive',
+            title,
+            description: `${errorMessage}. All retry attempts failed.`,
+          });
+        }
+      }
+    } else {
+      // No retry requested or available, just show the error
+      toast({
+        variant: 'destructive',
+        title,
+        description: errorMessage,
+      });
+    }
 
     // Optionally rethrow the error for the caller to handle
     if (shouldRethrow) {
@@ -50,30 +95,8 @@ export const withErrorHandler = <T extends (...args: any[]) => Promise<any>>(
     try {
       return await fn(...args);
     } catch (error) {
-      const {
-        title = 'Error',
-        fallbackMessage = 'An unexpected error occurred',
-        shouldRethrow = false,
-      } = options;
-
-      const errorMessage = error instanceof Error ? error.message : fallbackMessage;
-
-      console.error('[Error Handler]:', {
-        error,
-        title,
-        message: errorMessage,
-      });
-
-      toast({
-        variant: 'destructive',
-        title,
-        description: errorMessage,
-      });
-
-      if (shouldRethrow) {
-        throw error;
-      }
-
+      const handler = useErrorHandler();
+      await handler.handleError(error, options);
       return Promise.reject(error);
     }
   };

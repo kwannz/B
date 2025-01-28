@@ -16,6 +16,10 @@ import { useErrorHandler } from '@/hooks/useErrorHandler';
 export function PositionsTable() {
   const { positions, refreshData, closePosition, isLoading } = useTrading();
   const { handleError } = useErrorHandler();
+  
+  type PositionWithActions = Position & {
+    handleClose: () => Promise<void>;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
