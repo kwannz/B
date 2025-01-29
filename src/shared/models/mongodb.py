@@ -10,10 +10,12 @@ class RawNewsArticle(BaseModel):
     author: Optional[str] = None
     published_at: datetime
     analysis_metadata: Dict[str, Any] = Field(default_factory=dict)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_info: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "protected_namespaces": ()
+    }
 
 class RawSocialMediaPost(BaseModel):
     platform: str
@@ -22,10 +24,12 @@ class RawSocialMediaPost(BaseModel):
     author: str
     posted_at: datetime
     engagement_metrics: Dict[str, int] = Field(default_factory=dict)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_info: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "protected_namespaces": ()
+    }
 
 class MarketDataSnapshot(BaseModel):
     symbol: str
@@ -34,10 +38,12 @@ class MarketDataSnapshot(BaseModel):
     volume: float
     exchange: str
     raw_data: Dict[str, Any] = Field(default_factory=dict)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_info: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "protected_namespaces": ()
+    }
 
 class UnstructuredAnalysis(BaseModel):
     source_type: str
@@ -46,10 +52,12 @@ class UnstructuredAnalysis(BaseModel):
     timestamp: datetime
     raw_text: str
     model_output: Dict[str, Any] = Field(default_factory=dict)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_info: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "protected_namespaces": ()
+    }
 
 class AgentAnalysisResult(BaseModel):
     agent_id: str
@@ -58,7 +66,9 @@ class AgentAnalysisResult(BaseModel):
     input_data: Dict[str, Any] = Field(default_factory=dict)
     analysis_result: Dict[str, Any] = Field(default_factory=dict)
     confidence_score: float = Field(ge=0.0, le=1.0)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_info: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "protected_namespaces": ()
+    }

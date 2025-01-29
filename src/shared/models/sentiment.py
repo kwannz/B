@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, JSON
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from datetime import datetime
 
 Base = declarative_base()
@@ -25,7 +25,7 @@ class AgentSentimentSignal(Base):
     sentiment_score = Column(Float, nullable=False)
     confidence = Column(Float, nullable=False)
     signal_strength = Column(Float, nullable=False)
-    metadata = Column(JSON, nullable=False)
+    meta_info = Column(JSON, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
