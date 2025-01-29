@@ -8,7 +8,7 @@ groups:
           severity: warning
         annotations:
           summary: High local model latency detected
-          description: Local model requests P95 latency is above 2 seconds
+          description: Local model requests P95 latency is above 2 seconds for {{ $labels.language }}
 
       - alert: HighRemoteModelLatency
         expr: histogram_quantile(0.95, rate(model_request_duration_seconds_bucket{mode="remote"}[5m])) > 5
@@ -17,25 +17,25 @@ groups:
           severity: warning
         annotations:
           summary: High remote model latency detected
-          description: Remote model requests P95 latency is above 5 seconds
+          description: Remote model requests P95 latency is above 5 seconds for {{ $labels.language }}
 
       - alert: HighLocalModelErrorRate
-        expr: rate(local_model_requests_total{status="error"}[5m]) / rate(local_model_requests_total[5m]) > 0.1
+        expr: sum(rate(local_model_requests_total{status="error"}[5m])) by (language) / sum(rate(local_model_requests_total[5m])) by (language) > 0.1
         for: 5m
         labels:
           severity: critical
         annotations:
           summary: High local model error rate
-          description: Local model error rate is above 10% in the last 5 minutes
+          description: Local model error rate is above 10% for {{ $labels.language }}
 
       - alert: HighRemoteModelErrorRate
-        expr: rate(remote_model_requests_total{status="error"}[5m]) / rate(remote_model_requests_total[5m]) > 0.1
+        expr: sum(rate(remote_model_requests_total{status="error"}[5m])) by (language) / sum(rate(remote_model_requests_total[5m])) by (language) > 0.1
         for: 5m
         labels:
           severity: critical
         annotations:
           summary: High remote model error rate
-          description: Remote model error rate is above 10% in the last 5 minutes
+          description: Remote model error rate is above 10% for {{ $labels.language }}
 
       - alert: ModelMemoryUsageHigh
         expr: model_memory_usage_bytes > 1e9
@@ -44,7 +44,7 @@ groups:
           severity: warning
         annotations:
           summary: High model memory usage
-          description: Model memory usage is above 1GB
+          description: Model memory usage is above 1GB for {{ $labels.model_name }}
 
       - alert: NoModelRequests
         expr: rate(local_model_requests_total[15m]) == 0 and rate(remote_model_requests_total[15m]) == 0
@@ -54,3 +54,21 @@ groups:
         annotations:
           summary: No model requests detected
           description: No model requests have been detected in the last 15 minutes
+
+      - alert: HighModelFallbackRate
+        expr: rate(model_fallback_total[5m]) / rate(local_model_requests_total[5m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High model fallback rate
+          description: More than 20% of requests are falling back to remote model
+
+      - alert: AbnormalSentimentDistribution
+        expr: histogram_quantile(0.95, rate(sentiment_score_bucket[1h])) - histogram_quantile(0.05, rate(sentiment_score_bucket[1h])) < 0.2
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: Abnormal sentiment distribution detected
+          description: Sentiment scores show unusually low variance for {{ $labels.language }}
