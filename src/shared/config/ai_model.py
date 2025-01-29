@@ -1,7 +1,7 @@
 import os
 
 # Model deployment mode
-AI_MODEL_MODE = os.getenv("AI_MODEL_MODE", "REMOTE")
+AI_MODEL_MODE = os.getenv("AI_MODEL_MODE", "LOCAL")
 
 # Model endpoints
 LOCAL_MODEL_ENDPOINT = "http://localhost:11434"

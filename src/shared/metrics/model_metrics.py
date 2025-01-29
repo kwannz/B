@@ -1,5 +1,24 @@
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram, Gauge, Info
 import time
+import psutil
+
+# Model info
+model_info = Info('model_info', 'Information about the model deployment')
+
+# Memory usage
+model_memory_usage = Gauge(
+    'model_memory_usage_bytes',
+    'Memory usage of the model in bytes',
+    ['model_name']
+)
+
+# Sentiment score distribution
+sentiment_score = Histogram(
+    'sentiment_score',
+    'Distribution of sentiment scores',
+    ['model_name', 'language'],
+    buckets=(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+)
 
 # Request counters
 local_model_requests = Counter(
@@ -49,6 +68,19 @@ class ModelMetrics:
     def track_request(func):
         async def wrapper(*args, **kwargs):
             from tradingbot.shared.config.ai_model import AI_MODEL_MODE, LOCAL_MODEL_NAME, REMOTE_MODEL_NAME
+            
+            # Update model info
+            model_info.info({
+                'mode': AI_MODEL_MODE,
+                'local_model': LOCAL_MODEL_NAME,
+                'remote_model': REMOTE_MODEL_NAME
+            })
+            
+            # Track memory usage
+            memory = psutil.Process().memory_info()
+            model_memory_usage.labels(
+                model_name=LOCAL_MODEL_NAME if AI_MODEL_MODE == 'LOCAL' else REMOTE_MODEL_NAME
+            ).set(memory.rss)
             
             start_time = time.time()
             text = args[0] if args else kwargs.get('text', '')
