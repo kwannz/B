@@ -1,66 +1,52 @@
-import { useState } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  TextField,
-  Typography,
-  Grid
-} from '@mui/material';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Box, Button, TextField, Typography } from '@mui/material';
 
 const StrategyCreation = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    promotionWords: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle strategy creation
+    try {
+      localStorage.setItem('strategyData', JSON.stringify(formData));
+      navigate('/bot-integration');
+    } catch (error) {
+      console.error('Failed to create strategy:', error);
+    }
   };
 
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto', mt: 4 }}>
-      <Card>
-        <CardContent>
-          <Typography variant="h5" component="h1" gutterBottom>
-            Create Trading Strategy
-          </Typography>
-          <form onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Strategy Name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={4}
-                  label="Strategy Description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  fullWidth
-                >
-                  Create Strategy
-                </Button>
-              </Grid>
-            </Grid>
-          </form>
-        </CardContent>
-      </Card>
+    <Box component="form" onSubmit={handleSubmit} sx={{ p: 4 }}>
+      <Typography variant="h4">Create Strategy</Typography>
+      <Box sx={{ mt: 4 }}>
+        <TextField
+          fullWidth
+          label="Strategy Name"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          sx={{ mb: 2 }}
+        />
+        <TextField
+          fullWidth
+          label="Description"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          sx={{ mb: 2 }}
+        />
+        <TextField
+          fullWidth
+          label="Promotion Words"
+          value={formData.promotionWords}
+          onChange={(e) => setFormData({ ...formData, promotionWords: e.target.value })}
+          sx={{ mb: 2 }}
+        />
+        <Button type="submit" variant="contained">Create Strategy</Button>
+      </Box>
     </Box>
   );
 };
