@@ -1,4 +1,36 @@
-export const mockPerformanceData = {
+export interface Trade {
+  total: number;
+  successful: number;
+  failed: number;
+}
+
+export interface PerformanceData {
+  totalPnl: number;
+  dailyPnl: number;
+  weeklyPnl: number;
+  monthlyPnl: number;
+  trades: Trade;
+  performance: {
+    daily: Array<{ date: string; value: number }>;
+    weekly: Array<{ date: string; value: number }>;
+    monthly: Array<{ date: string; value: number }>;
+  };
+}
+
+export interface Position {
+  id: string;
+  symbol: string;
+  side: 'long' | 'short';
+  size: number;
+  entryPrice: number;
+  markPrice: number;
+  pnl: number;
+  pnlPercentage: number;
+  liquidationPrice: number;
+  timestamp: string;
+}
+
+export const mockPerformanceData: PerformanceData = {
   totalPnl: 12500.50,
   dailyPnl: 450.25,
   weeklyPnl: 2150.75,
@@ -33,21 +65,7 @@ export const mockPerformanceData = {
   }
 };
 
-export const mockOrderBookData = {
-  asks: [
-    { price: 45200, size: 1.2 },
-    { price: 45150, size: 0.8 },
-    { price: 45100, size: 2.1 },
-  ],
-  bids: [
-    { price: 45050, size: 1.5 },
-    { price: 45000, size: 2.0 },
-    { price: 44950, size: 1.1 },
-  ],
-  currentPrice: 45100.00
-};
-
-export const mockPositionsData = [
+export const mockPositionsData: Position[] = [
   {
     id: '1',
     symbol: 'BTC-PERP',
@@ -73,18 +91,3 @@ export const mockPositionsData = [
     timestamp: '2024-01-26T11:15:00Z'
   }
 ];
-
-export const mockTradingChartData = {
-  candlesticks: [
-    { time: '2024-01-26T10:00:00Z', open: 44500, high: 44800, low: 44400, close: 44750, volume: 120 },
-    { time: '2024-01-26T10:15:00Z', open: 44750, high: 45000, low: 44700, close: 44900, volume: 150 },
-    { time: '2024-01-26T10:30:00Z', open: 44900, high: 45200, low: 44850, close: 45100, volume: 180 },
-    { time: '2024-01-26T10:45:00Z', open: 45100, high: 45300, low: 45000, close: 45200, volume: 200 },
-    { time: '2024-01-26T11:00:00Z', open: 45200, high: 45400, low: 45100, close: 45300, volume: 160 }
-  ],
-  indicators: {
-    ma20: [44800, 44900, 45000, 45100, 45200],
-    ma50: [44750, 44850, 44950, 45050, 45150],
-    rsi: [55, 58, 62, 65, 63]
-  }
-};
