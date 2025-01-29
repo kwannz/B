@@ -3,6 +3,7 @@ from datetime import datetime
 from .base_executor import BaseExecutor
 from ...shared.errors import TradingError
 from ...trading_agent.agents.wallet_manager import WalletManager
+from .grpc_client import TradeServiceClient
 
 class TradeExecutor(BaseExecutor):
     def __init__(self, config: Dict[str, Any]):
@@ -10,6 +11,7 @@ class TradeExecutor(BaseExecutor):
         self.wallet_manager = WalletManager()
         self.active_trades: Dict[str, Dict[str, Any]] = {}
         self.trade_history: List[Dict[str, Any]] = []
+        self.grpc_client = TradeServiceClient()
 
     async def execute_trade(self, trade_params: Dict[str, Any]) -> Dict[str, Any]:
         if not self.wallet_manager.is_initialized():
@@ -19,17 +21,30 @@ class TradeExecutor(BaseExecutor):
         if balance < 0.5:
             raise TradingError("Insufficient balance (minimum 0.5 SOL required)")
 
-        trade_id = f"trade_{int(datetime.now().timestamp())}"
-        trade = {
-            "id": trade_id,
-            "params": trade_params,
-            "status": "pending",
-            "timestamp": datetime.now().isoformat(),
-            "wallet": self.wallet_manager.get_public_key()
-        }
-        
-        self.active_trades[trade_id] = trade
-        return trade
+        try:
+            response = self.grpc_client.execute_trade(
+                symbol=trade_params.get("symbol"),
+                side=trade_params.get("side"),
+                amount=float(trade_params.get("amount", 0)),
+                price=float(trade_params.get("price", 0)),
+                order_type=trade_params.get("order_type", "market"),
+                slippage=float(trade_params.get("slippage", 1.0))
+            )
+            
+            trade = {
+                "id": response["order_id"],
+                "params": trade_params,
+                "status": response["status"],
+                "executed_price": response["executed_price"],
+                "executed_amount": response["executed_amount"],
+                "timestamp": datetime.fromtimestamp(response["timestamp"]).isoformat(),
+                "wallet": self.wallet_manager.get_public_key()
+            }
+            
+            self.active_trades[response["order_id"]] = trade
+            return trade
+        except Exception as e:
+            raise TradingError(f"Failed to execute trade: {str(e)}")
 
     async def cancel_trade(self, trade_id: str) -> bool:
         if trade_id not in self.active_trades:
@@ -44,10 +59,30 @@ class TradeExecutor(BaseExecutor):
         return True
 
     async def get_trade_status(self, trade_id: str) -> Optional[Dict[str, Any]]:
-        return self.active_trades.get(trade_id) or next(
-            (trade for trade in self.trade_history if trade["id"] == trade_id),
-            None
-        )
+        try:
+            status = self.grpc_client.get_order_status(trade_id)
+            if status["status"] == "not_found":
+                return next(
+                    (trade for trade in self.trade_history if trade["id"] == trade_id),
+                    None
+                )
+            
+            trade = self.active_trades.get(trade_id)
+            if trade:
+                trade.update({
+                    "status": status["status"],
+                    "filled_amount": status["filled_amount"],
+                    "average_price": status["average_price"]
+                })
+                if status["status"] not in ["pending", "executing"]:
+                    self.trade_history.append(trade)
+                    del self.active_trades[trade_id]
+            return trade
+        except Exception:
+            return self.active_trades.get(trade_id) or next(
+                (trade for trade in self.trade_history if trade["id"] == trade_id),
+                None
+            )
 
     def get_active_trades(self) -> List[Dict[str, Any]]:
         return list(self.active_trades.values())
