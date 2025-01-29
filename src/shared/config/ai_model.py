@@ -8,7 +8,7 @@ LOCAL_MODEL_ENDPOINT = "http://localhost:11434"
 REMOTE_MODEL_ENDPOINT = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com/v3/completions")
 
 # Model configurations
-LOCAL_MODEL_NAME = os.getenv("LOCAL_MODEL_NAME", "sentiment-analyzer")
+LOCAL_MODEL_NAME = os.getenv("LOCAL_MODEL_NAME", "deepseek-sentiment")
 REMOTE_MODEL_NAME = os.getenv("DEEPSEEK_MODEL", "deepseek-v3")
 
 # API configuration

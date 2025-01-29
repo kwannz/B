@@ -16,9 +16,26 @@ services:
       - MONGODB_URL=mongodb://mongodb:27017/tradingbot
       - REDIS_URL=redis://redis:6379/0
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - AI_MODEL_MODE=LOCAL
+      - LOCAL_MODEL_ENDPOINT=http://ollama:11434
+      - LOCAL_MODEL_NAME=deepseek-sentiment
     depends_on:
       - mongodb
       - redis
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
@@ -88,3 +105,4 @@ volumes:
   redis_data:
   prometheus_data:
   grafana_data:
+  ollama_data:
