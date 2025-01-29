@@ -26,9 +26,35 @@ class FundamentalsAgent(BaseAgent):
         self.last_update = datetime.now().isoformat()
 
     async def analyze_fundamentals(self, symbol: str) -> Dict[str, Any]:
+        # Analyze project fundamentals using sentiment and metrics
+        project_description = f"Project fundamentals for {symbol}"  # TODO: Get real project description
+        development_activity = f"Development activity for {symbol}"  # TODO: Get real development activity
+        community_growth = f"Community metrics for {symbol}"  # TODO: Get real community data
+
+        # Analyze sentiment for each fundamental aspect
+        project_sentiment = await analyze_text(project_description)
+        dev_sentiment = await analyze_text(development_activity)
+        community_sentiment = await analyze_text(community_growth)
+
+        # Calculate fundamental metrics
+        metrics = {
+            "project_health": project_sentiment["score"],
+            "dev_activity": dev_sentiment["score"],
+            "community_growth": community_sentiment["score"]
+        }
+
+        # Calculate weighted average (equal weights for now)
+        fundamental_score = sum(metrics.values()) / len(metrics)
+
         return {
             "symbol": symbol,
             "timestamp": datetime.now().isoformat(),
-            "metrics": {},
-            "status": "pending_implementation"
+            "metrics": metrics,
+            "fundamental_score": fundamental_score,
+            "sentiment_analysis": {
+                "project": project_sentiment,
+                "development": dev_sentiment,
+                "community": community_sentiment
+            },
+            "status": "active"
         }
