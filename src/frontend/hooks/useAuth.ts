@@ -1,78 +1,93 @@
-import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletStore } from '../store/useWalletStore';
-import { useErrorHandler } from './useErrorHandler';
+import { useState, useCallback } from 'react';
+import apiClient from '../api/client';
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  roles: Array<{
+    name: string;
+    permissions: string[];
+  }>;
+}
 
 export interface AuthContextType {
+  user: User | null;
   isAuthenticated: boolean;
-  walletAddress: string | null;
-  isConnecting: boolean;
-  error: string | null;
-  connectWithWallet: () => Promise<void>;
-  disconnectWallet: () => void;
-  checkWalletBalance: () => Promise<number>;
+  signup: (email: string, username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
 }
 
 export const useAuthContext = (): AuthContextType => {
-  const navigate = useNavigate();
-  const { publicKey, wallet, disconnect } = useWallet();
-  const { handleError } = useErrorHandler();
-  
-  const {
-    isAuthenticated,
-    walletAddress,
-    isConnecting,
-    error,
-    connectWallet,
-    disconnectWallet,
-    checkWalletBalance,
-  } = useWalletStore();
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const token = localStorage.getItem('token');
+    return !!token;
+  });
 
-  const handleConnectWallet = useCallback(async () => {
+  const signup = useCallback(async (email: string, username: string, password: string) => {
     try {
-      if (!publicKey || !wallet?.adapter) {
-        throw new Error('Please connect your wallet first');
+      const response = await apiClient.signup({ email, username, password });
+      if (response.success && response.data) {
+        // Set user data
+        const newUser: User = {
+          id: username,
+          email,
+          username,
+          roles: [{ name: 'backend_developer', permissions: ['execute_market_maker_trades'] }]
+        };
+        setUser(newUser);
+        setIsAuthenticated(true);
+        window.location.href = '/agent-selection';
+        return true;
       }
-      
-      // Check minimum balance requirement
-      const balance = await checkWalletBalance(publicKey.toString(), wallet.adapter);
-      if (balance < 0.5) { // 0.5 SOL minimum requirement
-        throw new Error('Insufficient balance. Minimum 0.5 SOL required.');
-      }
-
-      await connectWallet(publicKey.toString(), wallet.adapter);
-      navigate('/dashboard');
+      console.error('Signup failed:', response.error);
+      return false;
     } catch (error) {
-      handleError(error, {
-        title: 'Wallet Connection Error',
-        fallbackMessage: 'Failed to connect wallet',
-        shouldRetry: true,
-        onRetry: () => handleConnectWallet(),
-      });
+      console.error('Signup error:', error);
+      return false;
     }
-  }, [publicKey, wallet, connectWallet, checkWalletBalance, navigate, handleError]);
+  }, []);
 
-  const handleDisconnectWallet = useCallback(async () => {
+  const login = useCallback(async (email: string, password: string) => {
     try {
-      await disconnect();
-      disconnectWallet();
-      navigate('/login');
+      // Send the full email for login
+      const response = await apiClient.login({ username: email, password });
+      console.log('Login response:', response); // Debug log
+      if (response.success && response.data) {
+        // Store the JWT token
+        localStorage.setItem('token', response.data.access_token);
+        // Set user data using email as identifier
+        const newUser: User = {
+          id: email,
+          email,
+          username: email.split('@')[0],
+          roles: [{ name: 'backend_developer', permissions: ['execute_market_maker_trades'] }]
+        };
+        setUser(newUser);
+        setIsAuthenticated(true);
+        return true;
+      }
+      console.error('Login failed:', response.error);
+      return false;
     } catch (error) {
-      handleError(error, {
-        title: 'Wallet Disconnection Error',
-        fallbackMessage: 'Failed to disconnect wallet',
-      });
+      console.error('Login error:', error);
+      return false;
     }
-  }, [disconnect, disconnectWallet, navigate, handleError]);
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    setUser(null);
+    setIsAuthenticated(false);
+  }, []);
 
   return {
+    user,
     isAuthenticated,
-    walletAddress,
-    isConnecting,
-    error,
-    connectWithWallet: handleConnectWallet,
-    disconnectWallet: handleDisconnectWallet,
-    checkWalletBalance: () => checkWalletBalance(publicKey!, wallet?.adapter!),
+    login,
+    signup,
+    logout,
   };
 };

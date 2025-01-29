@@ -1,9 +1,29 @@
-import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
-import { AuthProvider } from './contexts/AuthContext';
-import AppRoutes from './routes/index';
+import { ThirdwebProvider, phantomWallet } from "@thirdweb-dev/react";
+import AppRoutes from './routes';
+
+const solanaConfig = {
+  name: "Solana",
+  chain: "SOL",
+  rpc: ["https://api.devnet.solana.com"],
+  nativeCurrency: {
+    name: "SOL",
+    symbol: "SOL",
+    decimals: 9,
+  },
+  shortName: "sol",
+  chainId: 103,
+  testnet: true,
+  slug: "solana-devnet",
+  icon: {
+    url: "https://solana.com/favicon.ico",
+    width: 32,
+    height: 32,
+    format: "png"
+  }
+} as const;
 
 const theme = createTheme({
   palette: {
@@ -14,20 +34,36 @@ const theme = createTheme({
     secondary: {
       main: '#dc004e',
     },
+    background: {
+      default: '#121212',
+      paper: '#1e1e1e',
+    },
   },
 });
 
-const App: React.FC = () => {
+function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <BrowserRouter>
-        <AuthProvider>
+    <ThirdwebProvider
+      activeChain={solanaConfig}
+      clientId={import.meta.env.VITE_THIRDWEB_CLIENT_ID}
+      supportedWallets={[phantomWallet()]}
+      autoConnect={false}
+      dAppMeta={{
+        name: "Trading Bot",
+        description: "Solana Trading Bot Platform",
+        logoUrl: "https://solana.com/favicon.ico",
+        url: window.location.origin,
+        isDarkMode: true,
+      }}
+    >
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <BrowserRouter>
           <AppRoutes />
-        </AuthProvider>
-      </BrowserRouter>
-    </ThemeProvider>
+        </BrowserRouter>
+      </ThemeProvider>
+    </ThirdwebProvider>
   );
-};
+}
 
 export default App;

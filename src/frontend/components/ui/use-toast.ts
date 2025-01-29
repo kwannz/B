@@ -26,55 +26,19 @@ const useToastStore = create<ToastStore>((set) => ({
     })),
 }));
 
-export interface ToastOptions {
-  title?: string;
-  description?: string;
-  variant?: 'default' | 'destructive';
-  action?: React.ReactNode;
-  duration?: number;
-}
-
-export function toast(options: ToastOptions) {
-  const { addToast } = useToastStore.getState();
-  addToast({
-    title: options.title,
-    description: options.description || '',
-    type: options.variant === 'destructive' ? 'error' : 'default',
-    duration: options.duration || 5000,
-  });
-}
-
-export type ToastFunction = {
-  (options: ToastOptions): void;
-  success: (message: string, options?: Omit<ToastOptions, 'variant'>) => void;
-  error: (message: string, options?: Omit<ToastOptions, 'variant'>) => void;
-  info: (message: string, options?: Omit<ToastOptions, 'variant'>) => void;
-  warning: (message: string, options?: Omit<ToastOptions, 'variant'>) => void;
-};
-
 export const useToast = () => {
-  const { addToast } = useToastStore();
+  const { toasts, addToast, removeToast } = useToastStore();
   
-  const toastFn = ((options: ToastOptions) => {
-    addToast({
-      title: options.title,
-      description: options.description || '',
-      type: options.variant === 'destructive' ? 'error' : 'default',
-      duration: options.duration || 5000,
-    });
-  }) as ToastFunction;
+  const toast = (options: Omit<Toast, 'id'>) => {
+    addToast(options);
+  };
 
-  toastFn.success = (message: string, options?: Omit<ToastOptions, 'variant'>) => 
+  toast.success = (message: string, options?: Partial<Omit<Toast, 'id' | 'type'>>) => 
     addToast({ description: message, type: 'success', ...options });
-  toastFn.error = (message: string, options?: Omit<ToastOptions, 'variant'>) => 
+  toast.error = (message: string, options?: Partial<Omit<Toast, 'id' | 'type'>>) => 
     addToast({ description: message, type: 'error', ...options });
-  toastFn.info = (message: string, options?: Omit<ToastOptions, 'variant'>) => 
-    addToast({ description: message, type: 'default', ...options });
-  toastFn.warning = (message: string, options?: Omit<ToastOptions, 'variant'>) => 
+  toast.warning = (message: string, options?: Partial<Omit<Toast, 'id' | 'type'>>) => 
     addToast({ description: message, type: 'warning', ...options });
 
-  return {
-    toast: toastFn,
-    toasts: useToastStore((state) => state.toasts)
-  };
-}
+  return { toast, toasts, removeToast };
+};

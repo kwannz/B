@@ -4,25 +4,23 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  root: '.',
   base: '/',
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(__dirname, 'src')
     }
+  },
+  define: {
+    'import.meta.env.VITE_THIRDWEB_CLIENT_ID': JSON.stringify('a3e2d3f54b3416c87c25630e9431adce')
   },
   server: {
     port: 3001,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
-        changeOrigin: true
+        changeOrigin: true,
+        secure: false
       }
     }
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-    emptyOutDir: true
   }
 });
