@@ -114,6 +114,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isGoogleAuthenticated,
     googleLogout
   };
+>>>>>>> origin/main
 
   return (
     <AuthContext.Provider value={value}>
@@ -122,5 +123,4 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 };
 
-// Export the hook at the bottom
-;
+// End of file

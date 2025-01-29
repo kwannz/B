@@ -89,10 +89,16 @@ MIN_MEME_HOLDERS=1000
 MAX_MEME_RISK=0.7
 
 # Risk Management
-RISK_PER_TRADE=0.02
-MAX_DRAWDOWN=0.1
-STOP_LOSS_MULTIPLIER=2
-TAKE_PROFIT_MULTIPLIER=3
+RISK_PER_TRADE=0.02                  # Maximum risk per trade (2% of account)
+MAX_DRAWDOWN=0.1                     # Maximum drawdown allowed (10%)
+STOP_LOSS_MULTIPLIER=2.0             # Dynamic stop-loss distance multiplier
+TAKE_PROFIT_MULTIPLIER=3.0           # Dynamic take-profit distance multiplier
+VOLATILITY_SCALE_THRESHOLD=1.5       # Reduce position above this volatility
+POSITION_REDUCTION_RATE=0.7          # Position size multiplier in high volatility
+MIN_LIQUIDITY=100000                 # Minimum market liquidity requirement
+MAX_SLIPPAGE=0.02                    # Maximum allowed slippage (2%)
+TRAILING_STOP_ACTIVATION=1.5         # Activate trailing stop at 1.5x take-profit
+DYNAMIC_TAKE_PROFIT_LEVELS=[0.33,0.5,1.0]  # Multiple take-profit levels
 ```
 
 ### API Gateway (.env)
