@@ -1,9 +1,7 @@
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
-// Thirdweb styles are now included in the package
 import { ThirdwebProvider, phantomWallet } from "@thirdweb-dev/react";
-import { Chain } from "@thirdweb-dev/chains";
 import AppRoutes from './routes';
 
 const solanaConfig = {
