@@ -14,8 +14,15 @@ from ..models.trading import Strategy, Wallet
 
 class DatabaseManager:
     def __init__(self, mongodb_url: str, postgres_url: str):
-        # MongoDB setup
-        self.mongodb_client = motor.motor_asyncio.AsyncIOMotorClient(mongodb_url)
+        # MongoDB setup with authentication
+        from ..config.credentials import get_credentials
+        creds = get_credentials("trading_client")
+        
+        self.mongodb_client = motor.motor_asyncio.AsyncIOMotorClient(
+            mongodb_url,
+            username=creds.get("client_id"),
+            password=creds.get("secret_key")
+        )
         self.mongodb = self.mongodb_client.tradingbot
         
         # PostgreSQL setup
