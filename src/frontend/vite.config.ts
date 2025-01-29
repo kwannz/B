@@ -8,8 +8,12 @@ export default defineConfig({
   base: '/',
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(__dirname, 'src')
     }
+  },
+  define: {
+    'process.env': process.env,
+    'process.env.VITE_THIRDWEB_CLIENT_ID': JSON.stringify('a3e2d3f54b3416c87c25630e9431adce')
   },
   server: {
     port: 3001,

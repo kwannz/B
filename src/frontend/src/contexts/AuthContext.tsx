@@ -1,21 +1,30 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useAuthContext as useAuth } from '../hooks/useAuth';
+import { useAddress, useDisconnect, useConnectionStatus } from "@thirdweb-dev/react";
 
 interface AuthContextType {
-  user: any;
+  address: string | undefined;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  connectionStatus: "unknown" | "connecting" | "connected" | "disconnected";
+  disconnect: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const auth = useAuth();
+  const address = useAddress();
+  const disconnect = useDisconnect();
+  const connectionStatus = useConnectionStatus();
+  const isAuthenticated = !!address && connectionStatus === "connected";
+
+  const value = {
+    address,
+    isAuthenticated,
+    connectionStatus,
+    disconnect
+  };
 
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
