@@ -5,7 +5,7 @@ import type { Position } from '../lib/mock-data';
 import { mockPerformanceData, mockPositionsData } from '../lib/mock-data';
 import AgentStatus from '../components/AgentStatus';
 
-const HomePage: React.FC = () => {
+const HomePage = () => {
   const navigate = useNavigate();
   const address = useAddress();
   const { data: balance, isLoading: isBalanceLoading } = useBalance();
