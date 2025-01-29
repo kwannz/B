@@ -11,7 +11,10 @@ export default defineConfig({
     }
   },
   define: {
-    'import.meta.env.VITE_THIRDWEB_CLIENT_ID': JSON.stringify('a3e2d3f54b3416c87c25630e9431adce')
+    'window.env': {
+      NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development')
+    },
+    'process.env.VITE_THIRDWEB_CLIENT_ID': JSON.stringify('a3e2d3f54b3416c87c25630e9431adce')
   },
   server: {
     port: 3001,
@@ -22,5 +25,10 @@ export default defineConfig({
         secure: false
       }
     }
+  },
+  build: {
+    sourcemap: true,
+    outDir: 'dist',
+    emptyOutDir: true
   }
 });

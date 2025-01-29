@@ -1,35 +1,31 @@
 import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
 import { Box, AppBar, Toolbar, Typography, Container } from '@mui/material';
+import { ReactNode } from 'react';
+import { Outlet } from 'react-router-dom';
 
-const MainLayout: React.FC = () => {
-  const location = useLocation();
-  const isLoginPage = location.pathname === '/login';
+interface MainLayoutProps extends React.HTMLAttributes<HTMLDivElement> {
+  children?: ReactNode;
+}
 
+const MainLayout: React.FC<MainLayoutProps> = ({ children, className, style }) => {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {!isLoginPage && (
-        <AppBar position="static">
-          <Toolbar>
-            <Typography variant="h6">Trading Bot Dashboard</Typography>
-          </Toolbar>
-        </AppBar>
-      )}
-      <Container 
-        component="main" 
-        maxWidth={isLoginPage ? "sm" : "lg"}
-        sx={{ 
-          mt: isLoginPage ? 0 : 4, 
-          mb: isLoginPage ? 0 : 4, 
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: isLoginPage ? 'center' : 'flex-start',
-          height: '100%'
-        }}
-      >
-        <Outlet />
-      </Container>
+    <Box className={className} style={style} sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      minHeight: '100vh',
+      bgcolor: '#121212',
+      color: '#ffffff'
+    }}>
+      <AppBar position="fixed" sx={{ bgcolor: '#1e1e1e', boxShadow: 1 }}>
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: '#ffffff' }}>
+            Trading Bot Dashboard
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Box component="main" sx={{ mt: 8, width: '100%', flex: 1 }}>
+        {children || <Outlet />}
+      </Box>
     </Box>
   );
 };
