@@ -2,6 +2,7 @@ from typing import Dict, Any
 import aiohttp
 import json
 from datetime import datetime
+from functools import wraps
 
 from tradingbot.shared.config.ai_model import (
     AI_MODEL_MODE, LOCAL_MODEL_ENDPOINT, REMOTE_MODEL_ENDPOINT,
@@ -9,6 +10,9 @@ from tradingbot.shared.config.ai_model import (
     MIN_CONFIDENCE, MAX_RETRIES, RETRY_DELAY
 )
 
+from tradingbot.shared.metrics.model_metrics import ModelMetrics
+
+@ModelMetrics.track_request
 async def analyze_text(text: str, language: str = "en") -> Dict[str, Any]:
     async with aiohttp.ClientSession() as session:
         if AI_MODEL_MODE == "LOCAL":
