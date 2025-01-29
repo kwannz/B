@@ -1,11 +1,12 @@
-import grpc
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+import grpc
 import redis
 import time
+import json
 
-from .grpc_stubs import trade_service_pb2 as pb
-from .grpc_stubs import trade_service_pb2_grpc as pb_grpc
+from .grpc_stubs.tradingbot.proto import trade_service_pb2 as pb
+from .grpc_stubs.tradingbot.proto import trade_service_pb2_grpc as pb_grpc
 
 class TradeServiceClient:
     def __init__(
@@ -34,9 +35,10 @@ class TradeServiceClient:
                 ]
             )
             stub = pb_grpc.TradeServiceStub(channel)
+            stub = pb_grpc.TradeServiceStub(channel)
             self.channel_pool.append(stub)
 
-    def _get_stub(self) -> pb_grpc.TradeServiceStub:
+    def _get_stub(self) -> 'pb_grpc.TradeServiceStub':
         return self.channel_pool[int(time.time() * 1000) % self.pool_size]
 
     def get_market_data(
@@ -51,7 +53,10 @@ class TradeServiceClient:
         if use_cache:
             cached_data = self.redis_client.get(cache_key)
             if cached_data:
-                return cached_data
+                try:
+                    return eval(cached_data.decode('utf-8'))
+                except:
+                    pass
 
         request = pb.MarketDataRequest(
             symbol=symbol,
@@ -71,7 +76,7 @@ class TradeServiceClient:
         } for c in response.candles]
 
         if use_cache:
-            self.redis_client.setex(cache_key, 5, str(candles))
+            self.redis_client.setex(cache_key, 5, json.dumps(candles))
         
         return candles
 
