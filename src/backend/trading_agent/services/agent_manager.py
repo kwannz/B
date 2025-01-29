@@ -1,9 +1,22 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from ..agents.trading_agent import TradingAgent
+from ..agents.market_data_agent import MarketDataAgent
+from ..agents.valuation_agent import ValuationAgent
+from ..agents.sentiment_agent import SentimentAgent
+from ..agents.fundamentals_agent import FundamentalsAgent
+from ..agents.technical_analyst_agent import TechnicalAnalystAgent
+from ..agents.risk_manager_agent import RiskManagerAgent
+from ..agents.portfolio_manager_agent import PortfolioManagerAgent
+from ..agents.base_agent import BaseAgent
+
+AgentType = Union[
+    TradingAgent, MarketDataAgent, ValuationAgent, SentimentAgent,
+    FundamentalsAgent, TechnicalAnalystAgent, RiskManagerAgent, PortfolioManagerAgent
+]
 
 class AgentManager:
     def __init__(self):
-        self.agents: Dict[str, TradingAgent] = {}
+        self.agents: Dict[str, AgentType] = {}
 
     async def create_agent(self, agent_id: str, name: str, config: Dict) -> TradingAgent:
         """Create a new trading agent"""
@@ -14,11 +27,38 @@ class AgentManager:
         self.agents[agent_id] = agent
         return agent
 
-    async def get_agent(self, agent_id: str) -> Optional[TradingAgent]:
+    async def create_specialized_agent(
+        self, agent_type: str, agent_id: str, name: str, config: Dict
+    ) -> AgentType:
+        if agent_id in self.agents:
+            raise ValueError(f"Agent with ID {agent_id} already exists")
+
+        agent: AgentType
+        if agent_type == "market_data":
+            agent = MarketDataAgent(agent_id, name, config)
+        elif agent_type == "valuation":
+            agent = ValuationAgent(agent_id, name, config)
+        elif agent_type == "sentiment":
+            agent = SentimentAgent(agent_id, name, config)
+        elif agent_type == "fundamentals":
+            agent = FundamentalsAgent(agent_id, name, config)
+        elif agent_type == "technical":
+            agent = TechnicalAnalystAgent(agent_id, name, config)
+        elif agent_type == "risk":
+            agent = RiskManagerAgent(agent_id, name, config)
+        elif agent_type == "portfolio":
+            agent = PortfolioManagerAgent(agent_id, name, config)
+        else:
+            raise ValueError(f"Unknown agent type: {agent_type}")
+
+        self.agents[agent_id] = agent
+        return agent
+
+    async def get_agent(self, agent_id: str) -> Optional[AgentType]:
         """Get an agent by ID"""
         return self.agents.get(agent_id)
 
-    async def update_agent(self, agent_id: str, config: Dict) -> Optional[TradingAgent]:
+    async def update_agent(self, agent_id: str, config: Dict) -> Optional[AgentType]:
         """Update an existing agent's configuration"""
         agent = await self.get_agent(agent_id)
         if agent:
