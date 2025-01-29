@@ -1,8 +1,9 @@
-module tradingbot/go_executor
+module github.com/kwanRoshi/tradingbot/go_executor
 
 go 1.18
 
 require (
+	github.com/gorilla/mux v1.8.1
 	github.com/redis/go-redis/v9 v9.7.0
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.31.0
