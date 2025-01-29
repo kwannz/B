@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package tradingbot;
+
+option go_package = "tradingbot/proto";
+
+service TradeService {
+  rpc GetMarketData (MarketDataRequest) returns (MarketDataReply);
+  rpc ExecuteTrade (TradeRequest) returns (TradeReply);
+  rpc GetOrderStatus (OrderStatusRequest) returns (OrderStatusReply);
+  rpc SubscribePriceUpdates (PriceSubscriptionRequest) returns (stream PriceUpdateReply);
+}
+
+message MarketDataRequest {
+  string symbol = 1;
+  string timeframe = 2;
+  int32 limit = 3;
+}
+
+message MarketDataReply {
+  repeated Candle candles = 1;
+}
+
+message Candle {
+  double open = 1;
+  double high = 2;
+  double low = 3;
+  double close = 4;
+  double volume = 5;
+  int64 timestamp = 6;
+}
+
+message TradeRequest {
+  string symbol = 1;
+  string side = 2;
+  double amount = 3;
+  double price = 4;
+  string order_type = 5;
+  double slippage = 6;
+}
+
+message TradeReply {
+  string order_id = 1;
+  string status = 2;
+  double executed_price = 3;
+  double executed_amount = 4;
+  int64 timestamp = 5;
+}
+
+message OrderStatusRequest {
+  string order_id = 1;
+}
+
+message OrderStatusReply {
+  string order_id = 1;
+  string status = 2;
+  double filled_amount = 3;
+  double average_price = 4;
+  string error_message = 5;
+}
+
+message PriceSubscriptionRequest {
+  repeated string symbols = 1;
+  int32 update_interval_ms = 2;
+}
+
+message PriceUpdateReply {
+  string symbol = 1;
+  double price = 2;
+  double volume = 3;
+  int64 timestamp = 4;
+  double bid = 5;
+  double ask = 6;
+}
