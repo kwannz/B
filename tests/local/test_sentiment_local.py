@@ -4,8 +4,6 @@ from unittest.mock import patch, AsyncMock
 import os
 import sys
 
-import sys
-import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from src.shared.sentiment.sentiment_analyzer import analyze_text
@@ -47,10 +45,10 @@ async def test_remote_fallback():
     
     with patch("src.shared.sentiment.sentiment_analyzer.AI_MODEL_MODE", "REMOTE"), \
          patch("aiohttp.ClientSession.post") as mock_post:
-            mock_context = AsyncMock()
-            mock_context.__aenter__.return_value.status = 200
-            mock_context.__aenter__.return_value.json = AsyncMock(return_value=mock_remote_response)
-            mock_post.return_value = mock_context
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value.status = 200
+        mock_context.__aenter__.return_value.json = AsyncMock(return_value=mock_remote_response)
+        mock_post.return_value = mock_context
         
         result = await analyze_text(test_text)
         
