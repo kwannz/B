@@ -1,7 +1,8 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 from datetime import datetime
 from .base_agent import BaseAgent
 from src.shared.sentiment.sentiment_analyzer import analyze_text
+from src.shared.db.database_manager import DatabaseManager
 
 class SentimentAgent(BaseAgent):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
@@ -30,29 +31,54 @@ class SentimentAgent(BaseAgent):
         return await analyze_text(text, language)
 
     async def get_market_sentiment(self, symbol: str) -> Dict[str, Any]:
-        # Analyze market sentiment from multiple sources
-        news_text = f"Latest news about {symbol}"  # TODO: Get real news text
-        social_text = f"Social media sentiment about {symbol}"  # TODO: Get real social media text
-        market_text = f"Market indicators for {symbol}"  # TODO: Get real market indicators
+        if not hasattr(self, 'db_manager'):
+            self.db_manager = DatabaseManager(
+                mongodb_url=self.config['mongodb_url'],
+                postgres_url=self.config['postgres_url']
+            )
 
-        # Analyze each source using local-first model
-        news_sentiment = await self.analyze_sentiment(news_text)
-        social_sentiment = await self.analyze_sentiment(social_text)
+        # Get latest news and social media data from MongoDB
+        news_cursor = self.db_manager.mongodb.raw_news.find(
+            {"content": {"$regex": symbol, "$options": "i"}}
+        ).sort("published_at", -1).limit(5)
+        
+        social_cursor = self.db_manager.mongodb.social_posts.find(
+            {"content": {"$regex": symbol, "$options": "i"}}
+        ).sort("posted_at", -1).limit(5)
+
+        news_texts = [doc["content"] async for doc in news_cursor]
+        social_texts = [doc["content"] async for doc in social_cursor]
+
+        # Analyze sentiment for each source
+        news_sentiments = [await self.analyze_sentiment(text) for text in news_texts]
+        social_sentiments = [await self.analyze_sentiment(text) for text in social_texts]
+
+        # Calculate average sentiment scores
+        news_score = sum(s["score"] for s in news_sentiments) / len(news_sentiments) if news_sentiments else 0.5
+        social_score = sum(s["score"] for s in social_sentiments) / len(social_sentiments) if social_sentiments else 0.5
+        
+        # Get market indicators sentiment
+        market_data = await self.db_manager.mongodb.market_snapshots.find_one(
+            {"symbol": symbol},
+            sort=[("timestamp", -1)]
+        )
+        market_text = f"Price: {market_data['price']}, Volume: {market_data['volume']}" if market_data else f"Market data for {symbol}"
         market_sentiment = await self.analyze_sentiment(market_text)
 
-        # Aggregate sentiment scores with equal weights
+        # Calculate combined score with weights
+        weights = {"news": 0.3, "social": 0.3, "market": 0.4}
         combined_score = (
-            news_sentiment["score"] + 
-            social_sentiment["score"] + 
-            market_sentiment["score"]
-        ) / 3.0
+            news_score * weights["news"] +
+            social_score * weights["social"] +
+            market_sentiment["score"] * weights["market"]
+        )
 
-        return {
+        sentiment_result = {
             "symbol": symbol,
             "timestamp": datetime.now().isoformat(),
             "sentiment": {
-                "news": news_sentiment,
-                "social": social_sentiment,
+                "news": {"score": news_score, "samples": len(news_sentiments)},
+                "social": {"score": social_score, "samples": len(social_sentiments)},
                 "market": market_sentiment,
                 "combined": {
                     "score": combined_score,
@@ -61,3 +87,19 @@ class SentimentAgent(BaseAgent):
             },
             "status": "active"
         }
+
+        # Store the sentiment analysis result
+        await self.db_manager.store_combined_sentiment({
+            "symbol": symbol,
+            "news_sentiment": news_score,
+            "social_sentiment": social_score,
+            "market_sentiment": market_sentiment["score"],
+            "combined_score": combined_score,
+            "source_signals": {
+                "news_count": len(news_sentiments),
+                "social_count": len(social_sentiments),
+                "market_data": bool(market_data)
+            }
+        })
+
+        return sentiment_result
