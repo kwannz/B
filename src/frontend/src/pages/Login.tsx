@@ -1,48 +1,36 @@
-import { Box, Typography, Button, CircularProgress } from '@mui/material';
-import { useConnectionStatus, useConnect } from "@thirdweb-dev/react";
-import { phantomWallet } from "@thirdweb-dev/react";
+import { Box, Typography, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { ConnectWallet } from "@thirdweb-dev/react";
 
 const Login = () => {
-  const connect = useConnect();
-  const connectionStatus = useConnectionStatus();
-  const isConnecting = connectionStatus === "connecting";
-
-  const handleConnect = async () => {
-    try {
-      await connect(phantomWallet());
-    } catch (error) {
-      console.error("Failed to connect wallet:", error);
-    }
-  };
+  const navigate = useNavigate();
 
   return (
     <Box sx={{ 
-      textAlign: 'center',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 3,
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center',
+      gap: 4,
       p: 4,
-      maxWidth: 400,
-      mx: 'auto'
+      textAlign: 'center'
     }}>
-      <Typography variant="h4" component="h1" gutterBottom>
+      <Typography variant="h4" gutterBottom>
         Welcome to Trading Bot
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Connect your wallet to start trading
+      <Typography variant="body1" sx={{ mb: 4, maxWidth: '600px' }}>
+        Connect your wallet to access our intelligent trading agents
       </Typography>
-      <Button
-        variant="contained"
-        size="large"
-        onClick={handleConnect}
-        disabled={isConnecting}
-        sx={{ py: 1.5 }}
+      <ConnectWallet 
+        theme="dark"
+        btnTitle="Connect Wallet"
+        modalTitle="Select Your Wallet"
+      />
+      <Button 
+        variant="text" 
+        onClick={() => navigate('/')}
+        sx={{ mt: 2 }}
       >
-        {isConnecting ? (
-          <CircularProgress size={24} color="inherit" />
-        ) : (
-          'Connect Wallet'
-        )}
+        Back to Home
       </Button>
     </Box>
   );
