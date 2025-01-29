@@ -1,6 +1,13 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { useAddress, useDisconnect, useConnectionStatus } from "@thirdweb-dev/react";
 
+// Mock wallet for testing
+const mockWallet = {
+  address: "mock-wallet-address",
+  connect: () => Promise.resolve(),
+  disconnect: () => Promise.resolve(),
+};
+
 interface AuthContextType {
   address: string | undefined;
   isAuthenticated: boolean;
@@ -13,9 +20,27 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const address = useAddress();
+  // Use mock wallet in development
+  const [mockAddress, setMockAddress] = useState<string | undefined>(() => {
+    if (process.env.NODE_ENV === 'development') {
+      return localStorage.getItem('mockWalletAddress') || undefined;
+    }
+    return undefined;
+  });
+  const address = process.env.NODE_ENV === 'development' ? mockAddress : useAddress();
   const disconnect = useDisconnect();
-  const connectionStatus = useConnectionStatus();
+  const connectionStatus = process.env.NODE_ENV === 'development' && mockAddress ? "connected" : useConnectionStatus();
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && mockAddress) {
+      localStorage.setItem('mockWalletAddress', mockAddress);
+    }
+  }, [mockAddress]);
+  
+  // Mock connect function for testing
+  const mockConnect = () => {
+    setMockAddress(mockWallet.address);
+  };
   const [isGoogleAuthenticated, setIsGoogleAuthenticated] = useState<boolean>(false);
 
   useEffect(() => {

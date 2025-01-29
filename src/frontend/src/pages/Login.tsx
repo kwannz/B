@@ -1,6 +1,6 @@
 import { Box, Typography, Button, Divider, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { ConnectWallet } from "@thirdweb-dev/react";
+import { ConnectWallet, useAddress, useConnectionStatus } from "@thirdweb-dev/react";
 import { Google as GoogleIcon } from '@mui/icons-material';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useEffect } from 'react';
@@ -34,11 +34,30 @@ const Login = () => {
       <Typography variant="body1" sx={{ mb: 4, maxWidth: '600px' }}>
         Connect your wallet or sign in with Google to access our intelligent trading agents
       </Typography>
-      <ConnectWallet 
-        theme="dark"
-        btnTitle="Connect Wallet"
-        modalTitle="Select Your Wallet"
-      />
+      {process.env.NODE_ENV === 'development' ? (
+        <button
+          onClick={() => {
+            localStorage.setItem('mockWalletAddress', 'mock-wallet-address');
+            window.location.reload();
+          }}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: '#1976d2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Connect Mock Wallet
+        </button>
+      ) : (
+        <ConnectWallet 
+          theme="dark"
+          btnTitle="Connect Wallet"
+          modalTitle="Select Your Wallet"
+        />
+      )}
       <Divider sx={{ width: '100%', my: 2 }}>OR</Divider>
       <Button
         variant="outlined"
