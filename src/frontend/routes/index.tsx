@@ -1,5 +1,6 @@
+import React from 'react';
 import { Navigate, useRoutes } from 'react-router-dom';
-import { useAuthContext } from '../hooks/useAuth';
+import { useAddress } from "@thirdweb-dev/react";
 
 // layouts
 import MainLayout from '../layouts/MainLayout';
@@ -14,43 +15,44 @@ import Dashboard from '../pages/Dashboard';
 import Login from '../pages/Login';
 
 export default function Router() {
-  const { isAuthenticated } = useAuthContext();
+  const address = useAddress();
+  const isAuthenticated = !!address;
 
+  console.log('Routes rendering, auth state:', { isAuthenticated, pathname: window.location.pathname });
+  
   return useRoutes([
     {
       path: '/',
       element: <MainLayout />,
       children: [
-        { path: '/', element: <HomePage /> },
+        { path: 'login', element: !isAuthenticated ? <Login /> : <Navigate to="/agent-selection" /> },
+        { index: true, element: !isAuthenticated ? <Navigate to="/login" /> : <HomePage /> },
         { 
-          path: '/agent-selection', 
+          path: 'agent-selection', 
           element: isAuthenticated ? <AgentSelection /> : <Navigate to="/login" /> 
         },
         { 
-          path: '/strategy-creation', 
+          path: 'strategy-creation', 
           element: isAuthenticated ? <StrategyCreation /> : <Navigate to="/login" /> 
         },
         { 
-          path: '/bot-integration', 
+          path: 'bot-integration', 
           element: isAuthenticated ? <BotIntegration /> : <Navigate to="/login" /> 
         },
         { 
-          path: '/key-management', 
+          path: 'key-management', 
           element: isAuthenticated ? <KeyManagement /> : <Navigate to="/login" /> 
         },
         { 
-          path: '/trading-agent/*', 
+          path: 'trading-agent/*', 
           element: isAuthenticated ? <Dashboard agentType="trading" /> : <Navigate to="/login" /> 
         },
         { 
-          path: '/defi-agent/*', 
+          path: 'defi-agent/*', 
           element: isAuthenticated ? <Dashboard agentType="defi" /> : <Navigate to="/login" /> 
         },
       ],
     },
-    {
-      path: '/login',
-      element: !isAuthenticated ? <Login /> : <Navigate to="/agent-selection" />,
-    },
+    // Removed duplicate login route
   ]);
 }

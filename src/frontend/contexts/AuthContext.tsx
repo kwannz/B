@@ -23,17 +23,8 @@ interface AuthContextValue {
   checkBalance: () => Promise<number>;
 }
 
-interface WalletBalance {
-  displayValue: string;
-  value: bigint;
-  symbol: string;
-  name: string;
-  decimals: number;
-}
-
+const MIN_SOL_BALANCE = 0.5;
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-// Remove WalletAdapterType as it's no longer needed
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const wallet = useWallet();
@@ -54,6 +45,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!wallet) {
         throw new Error('No wallet available');
       }
+      // Check minimum balance requirement first
+      if (balanceData && parseFloat(balanceData.displayValue) < MIN_SOL_BALANCE) {
+        throw new Error(`Insufficient balance. Minimum ${MIN_SOL_BALANCE} SOL required.`);
+      }
+      
       const walletConfig = phantomWallet();
       await connect(walletConfig);
       storage.setItem('lastConnected', Date.now().toString());
@@ -96,19 +92,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [address, balance, handleError, setError]);
 
+  const contextValue = {
+    isAuthenticated,
+    walletAddress: address,
+    balance,
+    isConnecting,
+    error,
+    connectWallet: handleConnectWallet,
+    disconnectWallet: handleDisconnectWallet,
+    checkBalance: handleCheckBalance,
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        walletAddress: address,
-        balance,
-        isConnecting,
-        error,
-        connectWallet: handleConnectWallet,
-        disconnectWallet: handleDisconnectWallet,
-        checkBalance: handleCheckBalance,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
