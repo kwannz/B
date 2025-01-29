@@ -8,18 +8,35 @@ from unittest.mock import AsyncMock, MagicMock
 
 class AIAnalyzer:
     def __init__(self, api_key: Optional[str] = None, mock_api: Optional[Callable[[str], Awaitable[Dict[str, Any]]]] = None):
-        self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY")
-        if not self.api_key:
-            raise ValueError("DEEPSEEK_API_KEY environment variable must be set")
-            
-        self.api_url = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com/v1/chat/completions")
-        self.default_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-        self.r1_model = os.getenv("DEEPSEEK_MODEL_R1", "deepseek-reasoner")
-        self.min_confidence = float(os.getenv("DEEPSEEK_MIN_CONFIDENCE", "0.7"))
-        self.max_retries = int(os.getenv("DEEPSEEK_MAX_RETRIES", "3"))
-        self.retry_delay = float(os.getenv("DEEPSEEK_RETRY_DELAY", "2.0"))
-        self.temperature = float(os.getenv("DEEPSEEK_TEMPERATURE", "0.1"))
-        self.max_tokens = int(os.getenv("DEEPSEEK_MAX_TOKENS", "1000"))
+        from tradingbot.shared.config.ai_model import (
+            AI_MODEL_MODE, LOCAL_MODEL_ENDPOINT, REMOTE_MODEL_ENDPOINT,
+            LOCAL_MODEL_NAME, REMOTE_MODEL_NAME, API_KEY, TEMPERATURE,
+            MIN_CONFIDENCE, MAX_RETRIES, RETRY_DELAY
+        )
+        self.mode = AI_MODEL_MODE
+        self.api_key = api_key or API_KEY
+        self.api_url = LOCAL_MODEL_ENDPOINT if self.mode == "LOCAL" else REMOTE_MODEL_ENDPOINT
+        self.default_model = LOCAL_MODEL_NAME if self.mode == "LOCAL" else REMOTE_MODEL_NAME
+        self.r1_model = "deepseek-sentiment" if self.mode == "LOCAL" else os.getenv("DEEPSEEK_MODEL_R1", "deepseek-r1")
+        self.min_confidence = MIN_CONFIDENCE
+        self.max_retries = MAX_RETRIES
+        self.retry_delay = RETRY_DELAY
+        self.temperature = TEMPERATURE
+        from tradingbot.shared.config.ai_model import (
+            AI_MODEL_MODE, LOCAL_MODEL_ENDPOINT, REMOTE_MODEL_ENDPOINT,
+            LOCAL_MODEL_NAME, REMOTE_MODEL_NAME, API_KEY, TEMPERATURE,
+            MIN_CONFIDENCE, MAX_RETRIES, RETRY_DELAY
+        )
+        self.mode = AI_MODEL_MODE
+        self.api_key = api_key or API_KEY
+        self.api_url = LOCAL_MODEL_ENDPOINT if self.mode == "LOCAL" else REMOTE_MODEL_ENDPOINT
+        self.default_model = LOCAL_MODEL_NAME if self.mode == "LOCAL" else REMOTE_MODEL_NAME
+        self.r1_model = "deepseek-sentiment" if self.mode == "LOCAL" else os.getenv("DEEPSEEK_MODEL_R1", "deepseek-r1")
+        self.min_confidence = MIN_CONFIDENCE
+        self.max_retries = MAX_RETRIES
+        self.retry_delay = RETRY_DELAY
+        self.temperature = TEMPERATURE
+>>>>>>> origin/main
         self.session: Optional[aiohttp.ClientSession] = None
         self.is_running = False
         self._mock_api = mock_api

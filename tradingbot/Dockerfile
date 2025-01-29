@@ -37,11 +37,12 @@ RUN apt-get update && \
 # Switch to non-root user
 USER tradingbot
 
-# Copy requirements file
-COPY --chown=tradingbot:tradingbot requirements.consolidated.txt .
+# Copy requirements files
+COPY --chown=tradingbot:tradingbot requirements*.txt ./
 
 # Install Python dependencies with increased timeout and retries
-RUN pip install --user --no-warn-script-location --timeout 300 --retries 5 -r requirements.consolidated.txt
+RUN pip install --user --no-warn-script-location --timeout 300 --retries 5 -r requirements.txt \
+    && pip install --user --no-warn-script-location --timeout 300 --retries 5 prometheus-fastapi-instrumentator==6.1.0
 
 # Final stage
 FROM python:3.11-slim-bullseye
@@ -78,17 +79,20 @@ COPY --from=builder --chown=tradingbot:tradingbot /home/tradingbot/.local /home/
 # Copy project files
 COPY --chown=tradingbot:tradingbot . .
 
-# Create directories for database migrations and encryption keys
+# Create directories for database migrations, encryption keys, and prometheus
 USER root
 RUN mkdir -p /app/src/api_gateway/alembic/versions && \
     mkdir -p /opt/tradingbot/config && \
+    mkdir -p /tmp/prometheus_multiproc && \
     chown -R tradingbot:tradingbot /app/src/api_gateway/alembic && \
     chown -R tradingbot:tradingbot /opt/tradingbot && \
-    chmod -R 755 /opt/tradingbot
+    chown -R tradingbot:tradingbot /tmp/prometheus_multiproc && \
+    chmod -R 755 /opt/tradingbot && \
+    chmod -R 755 /tmp/prometheus_multiproc
 USER tradingbot
 
 # Set entrypoint script
-COPY --chown=tradingbot:tradingbot scripts/docker-entrypoint.sh /usr/local/bin/
+COPY --chown=tradingbot:tradingbot tradingbot/scripts/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Switch to non-root user

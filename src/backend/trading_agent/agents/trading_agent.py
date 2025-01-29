@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from .base_agent import BaseAgent
 from .wallet_manager import WalletManager
-from src.backend.shared.sentiment.sentiment_analyzer import sentiment_analyzer
+from src.shared.sentiment.sentiment_analyzer import analyze_text
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +20,22 @@ class TradingAgent(BaseAgent):
         self.api_key = os.getenv("DEEPSEEK_API_KEY", "")
         self.model = os.getenv("DEEPSEEK_MODEL", "deepseek-v3")
         self.api_url = "https://api.deepseek.com/v3/completions"
-        self.sentiment_analyzer = sentiment_analyzer
+        self.analyze_text = analyze_text
 
     async def _analyze_market_conditions(self, symbol: str) -> Dict[str, Any]:
         """Analyze market conditions using sentiment analysis."""
         try:
-            sentiment = await self.sentiment_analyzer.get_market_sentiment(symbol)
-            news = await self.sentiment_analyzer.analyze_news(symbol, days=1)
-            social = await self.sentiment_analyzer.analyze_social_media("Twitter", f"#{symbol}", limit=50)
+            # Analyze market sentiment from various sources
+            market_text = f"Market sentiment for {symbol}"  # TODO: Get real market sentiment text
+            sentiment = await self.analyze_text(market_text)
+            
+            # Analyze news sentiment
+            news_text = f"News about {symbol}"  # TODO: Get real news text
+            news = await self.analyze_text(news_text)
+            
+            # Analyze social media sentiment
+            social_text = f"Social media posts about {symbol}"  # TODO: Get real social media text
+            social = await self.analyze_text(social_text)
             
             return {
                 "market_sentiment": sentiment,

@@ -1,105 +1,88 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Typography,
-  Container,
-  Alert,
-  Link,
-} from '@mui/material';
+import { Box, Typography, Button, Divider, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useAuthContext } from '../hooks/useAuth';
+import { ConnectWallet, useAddress, useConnectionStatus } from "@thirdweb-dev/react";
+import { Google as GoogleIcon } from '@mui/icons-material';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useEffect } from 'react';
 
-export {};
-
-const Login: React.FC = () => {
+const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuthContext();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated, isGoogleAuthenticated } = useAuthContext();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    try {
-      const success = await login(email, password);
-      if (success) {
-        // Store login state and redirect
-        localStorage.setItem('isAuthenticated', 'true');
-        navigate('/agent-selection');
-      } else {
-        setError('Invalid email or password');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      setError('An error occurred during login. Please try again.');
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
     }
+  }, [isAuthenticated, navigate]);
+
+  const handleGoogleLogin = () => {
+    window.location.href = '/api/auth/google';
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center',
+      gap: 4,
+      p: 4,
+      textAlign: 'center'
+    }}>
+      <Typography variant="h4" gutterBottom>
+        Welcome to Trading Bot
+      </Typography>
+      <Typography variant="body1" sx={{ mb: 4, maxWidth: '600px' }}>
+        Connect your wallet or sign in with Google to access our intelligent trading agents
+      </Typography>
+      {process.env.NODE_ENV === 'development' ? (
+        <button
+          onClick={() => {
+            localStorage.setItem('mockWalletAddress', 'mock-wallet-address');
+            window.location.reload();
+          }}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: '#1976d2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Connect Mock Wallet
+        </button>
+      ) : (
+        <ConnectWallet 
+          theme="dark"
+          btnTitle="Connect Wallet"
+          modalTitle="Select Your Wallet"
+        />
+      )}
+      <Divider sx={{ width: '100%', my: 2 }}>OR</Divider>
+      <Button
+        variant="outlined"
+        startIcon={<GoogleIcon />}
+        onClick={handleGoogleLogin}
+        disabled={isGoogleAuthenticated}
+        sx={{ 
+          width: '240px',
+          backgroundColor: 'white',
+          color: 'text.primary',
+          '&:hover': {
+            backgroundColor: 'grey.100'
+          }
         }}
       >
-        <Card sx={{ width: '100%' }}>
-          <CardContent>
-            <Typography variant="h5" gutterBottom align="center">
-              Login to Lumix Trading
-            </Typography>
-            
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                margin="normal"
-                required
-              />
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                margin="normal"
-                required
-              />
-              <Button
-                fullWidth
-                variant="contained"
-                type="submit"
-                sx={{ mt: 3 }}
-              >
-                Login
-              </Button>
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Link href="/signup" variant="body2">
-                  Don't have an account? Sign up
-                </Link>
-              </Box>
-            </form>
-          </CardContent>
-        </Card>
-      </Box>
-    </Container>
+        {isGoogleAuthenticated ? 'Signed in with Google' : 'Sign in with Google'}
+      </Button>
+      <Button 
+        variant="text" 
+        onClick={() => navigate('/')}
+        sx={{ mt: 2 }}
+      >
+        Back to Home
+      </Button>
+    </Box>
   );
 };
 

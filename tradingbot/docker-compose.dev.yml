@@ -3,23 +3,47 @@ version: '3.8'
 services:
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: tradingbot/Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ./src:/app/src
-      - ./tests:/app/tests
+      - ../src:/app/src
+      - ../tests:/app/tests
+    command: ["uvicorn", "src.backend.api_gateway.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     environment:
       - ENVIRONMENT=development
       - DEBUG=1
       - MONGODB_URL=mongodb://mongodb:27017/tradingbot
       - REDIS_URL=redis://redis:6379/0
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - AI_MODEL_MODE=LOCAL
+      - LOCAL_MODEL_ENDPOINT=http://ollama:11434
+      - LOCAL_MODEL_NAME=deepseek-sentiment
+      - MONGODB_URL=mongodb://mongodb:27017/tradingbot
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
     depends_on:
       - mongodb
       - redis
-    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11435:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+
 
   frontend:
     build:
@@ -39,7 +63,7 @@ services:
   mongodb:
     image: mongo:latest
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongodb_data:/data/db
       - ./docker/mongodb/init.js:/docker-entrypoint-initdb.d/init.js:ro
@@ -58,18 +82,18 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.45.0
     ports:
       - "9090:9090"
     volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./docker/prometheus/alert.rules:/etc/prometheus/alert.rules:ro
+      - ../docker/prometheus:/etc/prometheus:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
 
   grafana:
     image: grafana/grafana:latest
@@ -88,3 +112,4 @@ volumes:
   redis_data:
   prometheus_data:
   grafana_data:
+  ollama_data:
