@@ -1,29 +1,17 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useWallet, useAddress } from "@thirdweb-dev/react";
-import { useWalletStore } from '../store/useWalletStore';
+import { useWallet, useAddress, useConnectionStatus } from "@thirdweb-dev/react";
 import { useErrorHandler } from './useErrorHandler';
-import { type SmartWallet } from '@thirdweb-dev/react';
-
-interface ErrorOptions {
-  title: string;
-  fallbackMessage: string;
-}
-
-import type { TokenBalance } from '../types/wallet';
+import { useBalance, useDisconnect } from '@thirdweb-dev/react';
 
 export interface AuthContextType {
   isAuthenticated: boolean;
-  walletAddress: string | null;
+  walletAddress: string | undefined;
   isConnecting: boolean;
   error: string | null;
   connectWithWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  checkWalletBalance: () => Promise<TokenBalance>;
-}
-
-interface WalletAdapterType {
-  adapter?: SmartWallet;
+  checkWalletBalance: () => number;
 }
 
 export const useAuthContext = (): AuthContextType => {
@@ -32,40 +20,21 @@ export const useAuthContext = (): AuthContextType => {
   const wallet = useWallet();
   const { handleError } = useErrorHandler();
   
-  const {
-    isAuthenticated,
-    walletAddress,
-    isConnecting,
-    error,
-    connectWallet,
-    disconnectWallet,
-    checkWalletBalance,
-  } = useWalletStore((state) => ({
-    isAuthenticated: state.isAuthenticated,
-    walletAddress: state.walletAddress,
-    isConnecting: state.isConnecting,
-    error: state.error,
-    connectWallet: state.connectWallet,
-    disconnectWallet: state.disconnectWallet,
-    checkWalletBalance: state.checkWalletBalance,
-  }));
+  const { data: balanceData } = useBalance();
+  const disconnect = useDisconnect();
 
   const handleConnectWallet = useCallback(async () => {
     try {
       if (!address || !wallet) {
         throw new Error('Please connect your wallet first');
       }
-
-      const walletAdapter = wallet as unknown as SmartWallet;
       
       // Check minimum balance requirement
-      const balance = await checkWalletBalance(address, walletAdapter);
-      const balanceInSOL = Number(balance.displayValue);
-      if (balanceInSOL < 0.5) { // 0.5 SOL minimum requirement
+      const balanceInSOL = balanceData ? parseFloat(balanceData.displayValue) : 0;
+      if (balanceInSOL < 0.5) {
         throw new Error('Insufficient balance. Minimum 0.5 SOL required.');
       }
 
-      await connectWallet(address, walletAdapter);
       navigate('/dashboard');
     } catch (error) {
       handleError(error, {
@@ -73,14 +42,11 @@ export const useAuthContext = (): AuthContextType => {
         fallbackMessage: 'Failed to connect wallet'
       });
     }
-  }, [address, wallet, connectWallet, checkWalletBalance, navigate, handleError]);
+  }, [address, wallet, balanceData, navigate, handleError]);
 
   const handleDisconnectWallet = useCallback(async () => {
     try {
-      if (wallet) {
-        await wallet.disconnect?.();
-      }
-      disconnectWallet();
+      await disconnect();
       navigate('/login');
     } catch (error) {
       handleError(error, {
@@ -88,21 +54,20 @@ export const useAuthContext = (): AuthContextType => {
         fallbackMessage: 'Failed to disconnect wallet',
       });
     }
-  }, [wallet, disconnectWallet, navigate, handleError]);
+  }, [disconnect, navigate, handleError]);
+
+  const [error, setError] = useState<string | null>(null);
+  const connectionStatus = useConnectionStatus();
+  const isConnecting = connectionStatus === "connecting";
+  const isAuthenticated = !!address;
 
   return {
     isAuthenticated,
-    walletAddress,
+    walletAddress: address,
     isConnecting,
     error,
     connectWithWallet: handleConnectWallet,
     disconnectWallet: handleDisconnectWallet,
-    checkWalletBalance: async () => {
-      if (!address || !wallet) {
-        throw new Error('Wallet not connected');
-      }
-      const walletAdapter = wallet as unknown as SmartWallet;
-      return checkWalletBalance(address, walletAdapter);
-    },
+    checkWalletBalance: () => balanceData ? parseFloat(balanceData.displayValue) : 0,
   };
 };
