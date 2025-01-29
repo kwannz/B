@@ -1,23 +1,23 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { ConnectWallet, useAddress, useWallet, useConnectionStatus } from "@thirdweb-dev/react";
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { useAuthContext } from '../hooks/useAuth';
 
-require('@solana/wallet-adapter-react-ui/styles.css');
-
 const MIN_SOL_BALANCE = 0.5;
 
 export default function Login() {
-  const { connected, publicKey, wallet } = useWallet();
+  const address = useAddress();
+  const wallet = useWallet();
+  const connectionStatus = useConnectionStatus();
   const { connectWithWallet } = useAuthContext();
   const navigate = useNavigate();
+  const [error, setError] = React.useState<string | null>(null);
   
   useEffect(() => {
     const handleWalletConnection = async () => {
-      if (connected && publicKey) {
+      if (address && wallet) {
         try {
           await connectWithWallet();
           navigate('/agent-selection');
@@ -28,7 +28,7 @@ export default function Login() {
     };
 
     handleWalletConnection();
-  }, [connected, publicKey, connectWithWallet, navigate]);
+  }, [address, wallet, connectWithWallet, navigate]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
@@ -45,14 +45,13 @@ export default function Login() {
           </Alert>
           
           <div className="flex justify-center">
-            <WalletMultiButton />
+            <ConnectWallet theme="dark" />
           </div>
 
-          {wallet && (
+          {error && (
             <Alert variant="destructive">
               <AlertDescription>
-                Please ensure your wallet has a minimum balance of {MIN_SOL_BALANCE} SOL
-                to access trading features.
+                {error}
               </AlertDescription>
             </Alert>
           )}

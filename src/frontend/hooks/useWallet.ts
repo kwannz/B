@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import { useWalletStore } from '../store/useWalletStore';
 import { useToast } from '../components/ui/use-toast';
+import type { WalletAdapter } from '../types/wallet';
 
 export const useWallet = () => {
   const {
@@ -15,7 +16,7 @@ export const useWallet = () => {
     checkWalletBalance,
   } = useWalletStore();
 
-  const handleConnect = useCallback(async (publicKey: PublicKey, adapter: any) => {
+  const handleConnect = useCallback(async (publicKey: PublicKey, adapter: WalletAdapter) => {
     try {
       await connectWallet(publicKey.toString(), adapter);
     } catch (error) {
@@ -43,7 +44,7 @@ export const useWallet = () => {
     }
   }, [disconnectWallet]);
 
-  const handleCheckBalance = useCallback(async (publicKey: PublicKey, adapter: any) => {
+  const handleCheckBalance = useCallback(async (publicKey: PublicKey, adapter: WalletAdapter) => {
     try {
       return await checkWalletBalance(publicKey.toString(), adapter);
     } catch (error) {
@@ -62,8 +63,10 @@ export const useWallet = () => {
     balance,
     isConnecting,
     error,
-    connect: handleConnect,
+    connect: (publicKey: string | PublicKey, adapter: WalletAdapter) => 
+      handleConnect(publicKey instanceof PublicKey ? publicKey : new PublicKey(publicKey), adapter),
     disconnect: handleDisconnect,
-    checkBalance: handleCheckBalance,
+    checkBalance: (publicKey: string | PublicKey, adapter: WalletAdapter) =>
+      handleCheckBalance(publicKey instanceof PublicKey ? publicKey : new PublicKey(publicKey), adapter),
   };
 };

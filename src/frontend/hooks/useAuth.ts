@@ -1,8 +1,16 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useAddress } from "@thirdweb-dev/react";
 import { useWalletStore } from '../store/useWalletStore';
 import { useErrorHandler } from './useErrorHandler';
+import { type SmartWallet } from '@thirdweb-dev/react';
+
+interface ErrorOptions {
+  title: string;
+  fallbackMessage: string;
+}
+
+import type { TokenBalance } from '../types/wallet';
 
 export interface AuthContextType {
   isAuthenticated: boolean;
@@ -11,12 +19,17 @@ export interface AuthContextType {
   error: string | null;
   connectWithWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  checkWalletBalance: () => Promise<number>;
+  checkWalletBalance: () => Promise<TokenBalance>;
+}
+
+interface WalletAdapterType {
+  adapter?: SmartWallet;
 }
 
 export const useAuthContext = (): AuthContextType => {
   const navigate = useNavigate();
-  const { publicKey, wallet, disconnect } = useWallet();
+  const address = useAddress();
+  const wallet = useWallet();
   const { handleError } = useErrorHandler();
   
   const {
@@ -27,35 +40,46 @@ export const useAuthContext = (): AuthContextType => {
     connectWallet,
     disconnectWallet,
     checkWalletBalance,
-  } = useWalletStore();
+  } = useWalletStore((state) => ({
+    isAuthenticated: state.isAuthenticated,
+    walletAddress: state.walletAddress,
+    isConnecting: state.isConnecting,
+    error: state.error,
+    connectWallet: state.connectWallet,
+    disconnectWallet: state.disconnectWallet,
+    checkWalletBalance: state.checkWalletBalance,
+  }));
 
   const handleConnectWallet = useCallback(async () => {
     try {
-      if (!publicKey || !wallet?.adapter) {
+      if (!address || !wallet) {
         throw new Error('Please connect your wallet first');
       }
+
+      const walletAdapter = wallet as unknown as SmartWallet;
       
       // Check minimum balance requirement
-      const balance = await checkWalletBalance(publicKey.toString(), wallet.adapter);
-      if (balance < 0.5) { // 0.5 SOL minimum requirement
+      const balance = await checkWalletBalance(address, walletAdapter);
+      const balanceInSOL = Number(balance.displayValue);
+      if (balanceInSOL < 0.5) { // 0.5 SOL minimum requirement
         throw new Error('Insufficient balance. Minimum 0.5 SOL required.');
       }
 
-      await connectWallet(publicKey.toString(), wallet.adapter);
+      await connectWallet(address, walletAdapter);
       navigate('/dashboard');
     } catch (error) {
       handleError(error, {
         title: 'Wallet Connection Error',
-        fallbackMessage: 'Failed to connect wallet',
-        shouldRetry: true,
-        onRetry: () => handleConnectWallet(),
+        fallbackMessage: 'Failed to connect wallet'
       });
     }
-  }, [publicKey, wallet, connectWallet, checkWalletBalance, navigate, handleError]);
+  }, [address, wallet, connectWallet, checkWalletBalance, navigate, handleError]);
 
   const handleDisconnectWallet = useCallback(async () => {
     try {
-      await disconnect();
+      if (wallet) {
+        await wallet.disconnect?.();
+      }
       disconnectWallet();
       navigate('/login');
     } catch (error) {
@@ -64,7 +88,7 @@ export const useAuthContext = (): AuthContextType => {
         fallbackMessage: 'Failed to disconnect wallet',
       });
     }
-  }, [disconnect, disconnectWallet, navigate, handleError]);
+  }, [wallet, disconnectWallet, navigate, handleError]);
 
   return {
     isAuthenticated,
@@ -73,6 +97,12 @@ export const useAuthContext = (): AuthContextType => {
     error,
     connectWithWallet: handleConnectWallet,
     disconnectWallet: handleDisconnectWallet,
-    checkWalletBalance: () => checkWalletBalance(publicKey!, wallet?.adapter!),
+    checkWalletBalance: async () => {
+      if (!address || !wallet) {
+        throw new Error('Wallet not connected');
+      }
+      const walletAdapter = wallet as unknown as SmartWallet;
+      return checkWalletBalance(address, walletAdapter);
+    },
   };
 };
