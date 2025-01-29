@@ -28,6 +28,18 @@ class TradeExecutor(BaseExecutor):
             "wallet": self.wallet_manager.get_public_key()
         }
         
+        if trade_params.get("use_go_executor", True):  # Default to using Go executor
+            from .go_executor_client import execute_trade_in_go
+            try:
+                trade_result = await execute_trade_in_go(trade)
+                self.active_trades[trade_id] = trade_result
+                return trade_result
+            except TradingError as e:
+                trade["status"] = "failed"
+                trade["error"] = str(e)
+                self.active_trades[trade_id] = trade
+                return trade
+            
         self.active_trades[trade_id] = trade
         return trade
 

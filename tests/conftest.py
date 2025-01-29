@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from tradingbot.models.tenant import Tenant
-from tradingbot.models.trading import Wallet, Strategy, StrategyType
+from src.shared.models.tenant import Tenant
+from src.shared.models.trading import Wallet, Strategy, StrategyType
 
 # Configure pytest-asyncio
 import pytest_asyncio
@@ -16,7 +16,6 @@ import pytest
 import asyncio
 import json
 from unittest.mock import AsyncMock, patch
-from tradingbot.models.trading import Wallet, Strategy, StrategyType
 
 def pytest_configure(config):
     """Configure pytest."""
@@ -64,7 +63,7 @@ async def mock_deepseek_api():
 @pytest_asyncio.fixture
 async def ai_analyzer(mock_deepseek_api):
     """Fixture for AI Analyzer instance."""
-    from tradingbot.shared.ai_analyzer import AIAnalyzer
+    from src.shared.ai_analyzer import AIAnalyzer
     analyzer = AIAnalyzer()
     analyzer._call_model = mock_deepseek_api
     await analyzer.start()
