@@ -9,16 +9,24 @@ from unittest.mock import AsyncMock, MagicMock
 class AIAnalyzer:
     def __init__(self, api_key: Optional[str] = None, mock_api: Optional[Callable[[str], Awaitable[Dict[str, Any]]]] = None):
         self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY")
-        self.api_url = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com/v3/completions")
-        self.default_model = os.getenv("DEEPSEEK_MODEL", "deepseek-v3")
-        self.r1_model = os.getenv("DEEPSEEK_MODEL_R1", "deepseek-r1")
+        if not self.api_key:
+            raise ValueError("DEEPSEEK_API_KEY environment variable must be set")
+            
+        self.api_url = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com/v1/chat/completions")
+        self.default_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        self.r1_model = os.getenv("DEEPSEEK_MODEL_R1", "deepseek-reasoner")
         self.min_confidence = float(os.getenv("DEEPSEEK_MIN_CONFIDENCE", "0.7"))
         self.max_retries = int(os.getenv("DEEPSEEK_MAX_RETRIES", "3"))
         self.retry_delay = float(os.getenv("DEEPSEEK_RETRY_DELAY", "2.0"))
-        self.temperature = float(os.getenv("DEEPSEEK_TEMPERATURE", "0.7"))
+        self.temperature = float(os.getenv("DEEPSEEK_TEMPERATURE", "0.1"))
+        self.max_tokens = int(os.getenv("DEEPSEEK_MAX_TOKENS", "1000"))
         self.session: Optional[aiohttp.ClientSession] = None
         self.is_running = False
         self._mock_api = mock_api
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
 
     async def start(self):
         """Initialize the analyzer session."""
@@ -27,10 +35,15 @@ class AIAnalyzer:
         else:
             if not self.api_key:
                 raise ValueError("DEEPSEEK_API_KEY environment variable not set")
-            self.session = aiohttp.ClientSession(
-                headers={"Authorization": f"Bearer {self.api_key}"}
-            )
+            self.session = aiohttp.ClientSession(headers=self.headers)
         self.is_running = True
+        
+        # Test connection with default model
+        try:
+            await self._call_model("Test connection", model=self.default_model, fallback=False)
+        except Exception as e:
+            await self.stop()
+            raise ValueError(f"Failed to initialize DeepSeek API connection: {str(e)}")
 
     async def stop(self):
         if self.session:
@@ -61,29 +74,48 @@ class AIAnalyzer:
                     self.api_url,
                     json={
                         "model": model,
-                        "prompt": prompt,
-                        "max_tokens": 1000,
+                        "messages": [
+                            {"role": "system", "content": "You are an AI trading assistant analyzing market data and sentiment."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "max_tokens": self.max_tokens,
                         "temperature": self.temperature,
                     },
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
+                    headers=self.headers,
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
-                        parsed_result = json.loads(result["choices"][0]["message"]["content"])
+                        content = result["choices"][0]["message"]["content"]
+                        try:
+                            parsed_result = json.loads(content)
+                        except json.JSONDecodeError:
+                            # If the content is not JSON, try to extract sentiment and confidence
+                            words = content.strip().upper().split()
+                            sentiment = "neutral"
+                            confidence = 0.5
+                            
+                            if words and words[0] in ["POSITIVE", "NEGATIVE", "NEUTRAL"]:
+                                sentiment = words[0].lower()
+                                try:
+                                    if len(words) > 1:
+                                        confidence = float(words[-1])
+                                        confidence = max(0.0, min(1.0, confidence))
+                                except (ValueError, IndexError):
+                                    pass
+                            parsed_result = {
+                                "sentiment": sentiment,
+                                "confidence": confidence,
+                                "raw_response": content
+                            }
                         
                         if fallback and parsed_result.get("confidence", 0) < self.min_confidence:
                             if model == self.default_model:
                                 fallback_result = await self._call_model(prompt, model=self.r1_model, fallback=False)
-                                fallback_parsed = json.loads(fallback_result["choices"][0]["message"]["content"])
-                                return fallback_result if fallback_parsed.get("confidence", 0) > parsed_result.get("confidence", 0) else result
+                                return fallback_result
                             elif model == self.r1_model:
                                 fallback_result = await self._call_model(prompt, model=self.default_model, fallback=False)
-                                fallback_parsed = json.loads(fallback_result["choices"][0]["message"]["content"])
-                                return fallback_result if fallback_parsed.get("confidence", 0) > parsed_result.get("confidence", 0) else result
-                        return result
+                                return fallback_result
+                        return {"choices": [{"message": {"content": json.dumps(parsed_result)}}]}
                         
                     raise ValueError(f"API call failed with status {response.status}")
             except Exception as e:
@@ -122,16 +154,33 @@ class AIAnalyzer:
             "confidence": result["confidence"]
         }
 
-    async def validate_trade(self, trade_data: Dict, market_analysis: Dict) -> Dict:
+    async def validate_trade(self, trade_data: Dict, market_analysis: Optional[Dict] = None) -> Dict:
+        """Validate a trade using the DeepSeek R1 model for high-confidence analysis."""
+        if market_analysis is None:
+            market_analysis = await self.analyze_market_data(trade_data.get("market_data", {}))
+            
         prompt = self._build_trade_validation_prompt(trade_data, market_analysis)
-        response = await self._call_model(prompt)
+        # Use R1 model by default for trade validation
+        response = await self._call_model(prompt, model=self.r1_model, fallback=False)
         result = json.loads(response["choices"][0]["message"]["content"])
         
-        if result["confidence"] < self.min_confidence:
-            response = await self._call_model(prompt, model=self.r1_model)
-            result = json.loads(response["choices"][0]["message"]["content"])
-        
-        return result
+        return {
+            "is_valid": result.get("is_valid", False),
+            "confidence": result.get("confidence", 0.0),
+            "risk_assessment": {
+                "risk_level": result.get("risk_assessment", {}).get("risk_level", 0.0),
+                "max_loss": result.get("risk_assessment", {}).get("max_loss", 0.0),
+                "position_size": result.get("risk_assessment", {}).get("position_size", 0.0),
+                "volatility_exposure": result.get("risk_assessment", {}).get("volatility_exposure", 0.0)
+            },
+            "validation_metrics": {
+                "expected_return": result.get("validation_metrics", {}).get("expected_return", 0.0),
+                "risk_reward_ratio": result.get("validation_metrics", {}).get("risk_reward_ratio", 0.0),
+                "market_conditions_alignment": result.get("validation_metrics", {}).get("market_conditions_alignment", 0.0)
+            },
+            "recommendations": result.get("recommendations", []),
+            "reason": result.get("reason", "No validation reason provided")
+        }
 
     async def analyze_market_data(self, market_data: Dict) -> Dict:
         if not market_data:
@@ -760,15 +809,17 @@ Provide analysis in JSON format with:
 - confidence (float between 0-1)"""
 
     def _build_trade_validation_prompt(self, trade_data: Dict, market_analysis: Dict) -> str:
-        return f"""Validate the following trade against market conditions:
+        return f"""Validate the following trade against market conditions using advanced risk metrics:
 Trade: {json.dumps(trade_data)}
 Market Analysis: {json.dumps(market_analysis)}
 
 Provide validation in JSON format with:
-- is_valid (boolean)
-- confidence (0-1 score)
-- risk_assessment (risk level, max loss, position size assessment)
-- recommendations (list of suggestions)"""
+- is_valid (boolean indicating if the trade should proceed)
+- confidence (float between 0-1)
+- risk_assessment (dict with risk_level, max_loss, position_size, volatility_exposure as floats)
+- validation_metrics (dict with expected_return, risk_reward_ratio, market_conditions_alignment as floats)
+- recommendations (list of suggestions for trade improvement)
+- reason (string explaining the validation decision)"""
 
     def _build_market_data_prompt(self, market_data: Dict) -> str:
         return f"""Analyze market data:

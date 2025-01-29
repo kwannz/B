@@ -1,6 +1,6 @@
 import aiohttp
 from typing import Dict, Any
-from ...shared.errors import TradingError
+from src.shared.models.errors import TradingError
 import logging
 
 logger = logging.getLogger(__name__)

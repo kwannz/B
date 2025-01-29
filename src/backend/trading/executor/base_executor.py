@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
-from ...shared.errors import TradingError
+from src.shared.models.errors import TradingError
 
 class BaseExecutor:
     def __init__(self, config: Dict[str, Any]):
