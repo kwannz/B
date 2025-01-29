@@ -3,6 +3,7 @@ import { ThemeProvider, createTheme } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThirdwebProvider, phantomWallet } from "@thirdweb-dev/react";
 import AppRoutes from './routes';
+import { AuthProvider } from './contexts/AuthContext';
 
 const solanaConfig = {
   name: "Solana",
@@ -45,7 +46,7 @@ function App() {
   return (
     <ThirdwebProvider
       activeChain={solanaConfig}
-      clientId={import.meta.env.VITE_THIRDWEB_CLIENT_ID}
+      clientId="a3e2d3f54b3416c87c25630e9431adce"
       supportedWallets={[phantomWallet()]}
       autoConnect={false}
       dAppMeta={{
@@ -59,7 +60,9 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <BrowserRouter>
-          <AppRoutes />
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>
     </ThirdwebProvider>

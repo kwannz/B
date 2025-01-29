@@ -28,7 +28,7 @@ export const useAuthContext = (): AuthContextType => {
 
   const signup = useCallback(async (email: string, username: string, password: string) => {
     try {
-      const response = await apiClient.signup({ email, username, password });
+      const response = await apiClient.post('/api/auth/signup', { email, username, password });
       if (response.success && response.data) {
         // Set user data
         const newUser: User = {
@@ -53,7 +53,7 @@ export const useAuthContext = (): AuthContextType => {
   const login = useCallback(async (email: string, password: string) => {
     try {
       // Send the full email for login
-      const response = await apiClient.login({ username: email, password });
+      const response = await apiClient.post('/api/auth/login', { username: email, password });
       console.log('Login response:', response); // Debug log
       if (response.success && response.data) {
         // Store the JWT token
