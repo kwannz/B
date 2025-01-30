@@ -6,20 +6,22 @@
 """Generated protocol buffer code."""
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
-from google.protobuf import runtime_version as _runtime_version
 from google.protobuf import symbol_database as _symbol_database
 from google.protobuf.internal import builder as _builder
-_runtime_version.ValidateProtobufRuntimeVersion(
-    _runtime_version.Domain.PUBLIC,
-    5,
-    29,
-    0,
-    '',
-    'trading.proto'
-)
+
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
+
+# Define message types at module level for easier access
+TradeRequest = None
+TradeResponse = None
+MarketDataRequest = None
+MarketDataResponse = None
+OrderStatusRequest = None
+OrderStatusResponse = None
+BatchTradeRequest = None
+BatchTradeResponse = None
 
 
 
@@ -60,4 +62,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_BATCHTRADERESPONSE']._serialized_end=1128
   _globals['_TRADINGEXECUTOR']._serialized_start=1131
   _globals['_TRADINGEXECUTOR']._serialized_end=1457
+# Expose message types at module level
+TradeRequest = _sym_db.GetSymbol('trading.TradeRequest')
+TradeResponse = _sym_db.GetSymbol('trading.TradeResponse')
+MarketDataRequest = _sym_db.GetSymbol('trading.MarketDataRequest')
+MarketDataResponse = _sym_db.GetSymbol('trading.MarketDataResponse')
+OrderStatusRequest = _sym_db.GetSymbol('trading.OrderStatusRequest')
+OrderStatusResponse = _sym_db.GetSymbol('trading.OrderStatusResponse')
+BatchTradeRequest = _sym_db.GetSymbol('trading.BatchTradeRequest')
+BatchTradeResponse = _sym_db.GetSymbol('trading.BatchTradeResponse')
+
 # @@protoc_insertion_point(module_scope)
