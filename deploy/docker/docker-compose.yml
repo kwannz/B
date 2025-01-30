@@ -1,30 +1,47 @@
-version: '3.8'
-
 services:
   ollama:
-    image: ollama/ollama:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     networks:
       - tradingbot_network
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "/usr/bin/curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    init: true
+    restart: unless-stopped
 
   api_gateway:
     build:
-      context: ../../
-      dockerfile: deploy/docker/Dockerfile.api
+      context: .
+      dockerfile: Dockerfile.api
     ports:
       - "8000:8000"
-    environment:
-      - LOCAL_MODEL_ENDPOINT=http://ollama:11434
-      - LOCAL_MODEL_NAME=deepseek-1.5b
-      - AI_MODEL_MODE=LOCAL
+    env_file:
+      - .env
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     networks:
       - tradingbot_network
-
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    init: true
 networks:
   tradingbot_network:
     driver: bridge
