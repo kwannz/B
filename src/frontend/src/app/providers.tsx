@@ -9,6 +9,8 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { createTheme } from '@mui/material/styles';
 import { useMemo } from 'react';
+import { DebugConfigProvider } from './providers/DebugConfigProvider';
+import { DebugMetricsProvider } from './providers/DebugMetricsProvider';
 require('@solana/wallet-adapter-react-ui/styles.css');
 
 const theme = createTheme({
@@ -62,7 +64,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <WalletModalProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            {children}
+            <DebugConfigProvider>
+              <DebugMetricsProvider>
+                {children}
+              </DebugMetricsProvider>
+            </DebugConfigProvider>
           </ThemeProvider>
         </WalletModalProvider>
       </WalletProvider>
