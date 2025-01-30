@@ -76,6 +76,8 @@ func (s *TradeServer) processBatch() {
 
 func (s *TradeServer) executeOrder(order *pb.TradeRequest) string {
 	orderId := fmt.Sprintf("order_%d", time.Now().UnixNano())
+	log.Printf("[executeOrder] Processing order: id=%s symbol=%s side=%s amount=%.2f price=%.2f",
+		orderId, order.Symbol, order.Side, order.Amount, order.Price)
 	trade := &pb.TradeReply{
 		OrderId:        orderId,
 		Status:         "executed",
@@ -127,16 +129,23 @@ func (s *TradeServer) GetMarketData(ctx context.Context, req *pb.MarketDataReque
 }
 
 func (s *TradeServer) ExecuteTrade(ctx context.Context, req *pb.TradeRequest) (*pb.TradeReply, error) {
+	log.Printf("[ExecuteTrade] Request: symbol=%s side=%s amount=%.2f price=%.2f", req.Symbol, req.Side, req.Amount, req.Price)
+	
 	if s.circuitOpen {
 		if time.Since(s.lastError) < 30*time.Second {
+			log.Printf("[ExecuteTrade] Circuit breaker open, request rejected")
 			return nil, fmt.Errorf("circuit breaker open")
 		}
+		log.Printf("[ExecuteTrade] Circuit breaker reset")
 		s.circuitOpen = false
 		s.errorCount = 0
 	}
 
 	orderId := s.executeOrder(req)
-	return s.activeOrders[orderId], nil
+	result := s.activeOrders[orderId]
+	log.Printf("[ExecuteTrade] Order executed: id=%s status=%s executed_price=%.2f executed_amount=%.2f", 
+		orderId, result.Status, result.ExecutedPrice, result.ExecutedAmount)
+	return result, nil
 }
 
 func (s *TradeServer) GetOrderStatus(ctx context.Context, req *pb.OrderStatusRequest) (*pb.OrderStatusReply, error) {
@@ -157,6 +166,87 @@ func (s *TradeServer) GetOrderStatus(ctx context.Context, req *pb.OrderStatusReq
 		FilledAmount: trade.ExecutedAmount,
 		AveragePrice: trade.ExecutedPrice,
 	}, nil
+}
+
+func (s *TradeServer) MonitorOrderStatus(req *pb.OrderStatusRequest, stream pb.TradeService_MonitorOrderStatusServer) error {
+	log.Printf("[MonitorOrderStatus] Starting monitoring for order_id=%s", req.OrderId)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.mu.RLock()
+		trade, exists := s.activeOrders[req.OrderId]
+		s.mu.RUnlock()
+
+		status := &pb.OrderStatusResponse{
+			OrderId:          req.OrderId,
+			Status:          "not_found",
+			FilledAmount:    0,
+			RemainingAmount: 0,
+			AveragePrice:    0,
+		}
+
+		if exists {
+			status.Status = trade.Status
+			status.FilledAmount = trade.ExecutedAmount
+			status.AveragePrice = trade.ExecutedPrice
+			status.RemainingAmount = 0
+		}
+
+		if err := stream.Send(status); err != nil {
+			return err
+		}
+
+		if status.Status == "executed" || status.Status == "cancelled" {
+			return nil
+		}
+	}
+	return nil
+}
+
+func (s *TradeServer) BatchExecuteTrades(ctx context.Context, req *pb.BatchTradeRequest) (*pb.BatchTradeResponse, error) {
+	log.Printf("[BatchExecuteTrades] Processing batch of %d trades, atomic=%v", len(req.Trades), req.Atomic)
+	if s.circuitOpen {
+		if time.Since(s.lastError) < 30*time.Second {
+			return nil, fmt.Errorf("circuit breaker open")
+		}
+		s.circuitOpen = false
+		s.errorCount = 0
+	}
+
+	results := make([]*pb.TradeResponse, 0, len(req.Trades))
+	success := true
+	var lastError string
+
+	for _, trade := range req.Trades {
+		orderId := s.executeOrder(trade)
+		if result, exists := s.activeOrders[orderId]; exists {
+			results = append(results, &pb.TradeResponse{
+				OrderId:         orderId,
+				Status:         result.Status,
+				ExecutedPrice:  result.ExecutedPrice,
+				ExecutedAmount: result.ExecutedAmount,
+			})
+		} else {
+			success = false
+			lastError = fmt.Sprintf("failed to execute trade for symbol %s", trade.Symbol)
+			if req.Atomic {
+				return &pb.BatchTradeResponse{
+					Success: false,
+					Error:   lastError,
+				}, nil
+			}
+		}
+	}
+
+	response := &pb.BatchTradeResponse{
+		Results: results,
+		Success: success,
+		Error:   lastError,
+	}
+	log.Printf("[BatchExecuteTrades] Batch completed: success=%v error=%s results=%d", 
+		response.Success, response.Error, len(response.Results))
+	return response, nil
 }
 
 func (s *TradeServer) SubscribePriceUpdates(req *pb.PriceSubscriptionRequest, stream pb.TradeService_SubscribePriceUpdatesServer) error {
