@@ -1,14 +1,14 @@
 import os
 
 # Model deployment mode
-AI_MODEL_MODE = os.getenv("AI_MODEL_MODE", "LOCAL")
+AI_MODEL_MODE = "LOCAL"
 
 # Model endpoints
-LOCAL_MODEL_ENDPOINT = os.getenv("LOCAL_MODEL_ENDPOINT")
+LOCAL_MODEL_ENDPOINT = "http://localhost:11434"
 REMOTE_MODEL_ENDPOINT = os.getenv("DEEPSEEK_API_URL")
 
 # Model configurations
-LOCAL_MODEL_NAME = os.getenv("LOCAL_MODEL_NAME", "deepseek-sentiment")
+LOCAL_MODEL_NAME = "deepseek-1.5b"
 REMOTE_MODEL_NAME = os.getenv("DEEPSEEK_MODEL", "deepseek-v3")
 
 # API configuration
