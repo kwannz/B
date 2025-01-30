@@ -84,31 +84,6 @@ class TradeExecutor(BaseExecutor):
             
         self.active_trades[trade_id] = trade
         return trade
-        try:
-            response = self.grpc_client.execute_trade(
-                symbol=trade_params.get("symbol"),
-                side=trade_params.get("side"),
-                amount=float(trade_params.get("amount", 0)),
-                price=float(trade_params.get("price", 0)),
-                order_type=trade_params.get("order_type", "market"),
-                slippage=float(trade_params.get("slippage", 1.0))
-            )
-            
-            trade = {
-                "id": response["order_id"],
-                "params": trade_params,
-                "status": response["status"],
-                "executed_price": response["executed_price"],
-                "executed_amount": response["executed_amount"],
-                "timestamp": datetime.fromtimestamp(response["timestamp"]).isoformat(),
-                "wallet": self.wallet_manager.get_public_key()
-            }
-            
-            self.active_trades[response["order_id"]] = trade
-            return trade
-        except Exception as e:
-            raise TradingError(f"Failed to execute trade: {str(e)}")
->>>>>>> origin/main
 
     async def cancel_trade(self, trade_id: str) -> bool:
         if trade_id not in self.active_trades:

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.12.4
-// source: src/protos/trading.proto
+// source: trading.proto
 
 package protos
 
@@ -238,5 +238,5 @@ var TradingExecutor_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "src/protos/trading.proto",
+	Metadata: "trading.proto",
 }
