@@ -1,12 +1,14 @@
 'use client';
 
+'use client';
+
 import React from 'react';
 import { Box, Typography, Button, Grid, Card, CardContent, CircularProgress } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useAddress, useBalance } from "@thirdweb-dev/react";
-import type { Position, PerformanceData } from '../lib/mock-data';
-import { mockPerformanceData, mockPositionsData } from '../lib/mock-data';
-import AgentStatus from './components/AgentStatus';
+import type { Position, PerformanceData } from '@/lib/mock-data';
+import { mockPerformanceData, mockPositionsData } from '@/lib/mock-data';
+import AgentStatus from '@/components/AgentStatus';
 
 export default function HomePage() {
   const router = useRouter();
@@ -16,7 +18,7 @@ export default function HomePage() {
   const positions = mockPositionsData;
   const performance = mockPerformanceData;
 
-  const handleConnectWallet = async () => {
+  const handleConnectWallet = () => {
     router.push('/login');
   };
 
@@ -110,13 +112,15 @@ export default function HomePage() {
       <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
         <Button
           variant="outlined"
-          onClick={() => router.push('/agent-selection')}
+          href="/agent-selection"
+          component="a"
         >
           Agent Selection
         </Button>
         <Button
           variant="contained"
-          onClick={() => router.push('/trading-agent')}
+          href="/trading-agent"
+          component="a"
         >
           Trading Dashboard
         </Button>
