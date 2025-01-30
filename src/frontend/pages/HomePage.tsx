@@ -1,12 +1,13 @@
+import React from 'react';
 import { Box, Typography, Button, Grid, Card, CardContent, CircularProgress } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { useAddress, useBalance } from "@thirdweb-dev/react";
 import type { Position } from '../lib/mock-data';
 import { mockPerformanceData, mockPositionsData } from '../lib/mock-data';
 import AgentStatus from '../components/AgentStatus';
 
 const HomePage: React.FC = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const address = useAddress();
   const { data: balance, isLoading: isBalanceLoading } = useBalance();
   const isAuthenticated = !!address;
@@ -39,7 +40,7 @@ const HomePage: React.FC = () => {
           variant="contained" 
           color="primary"
           size="large"
-          onClick={() => navigate('/login')}
+          onClick={() => router.push('/login')}
           sx={{ minWidth: '200px' }}
         >
           Connect Wallet
@@ -113,13 +114,13 @@ const HomePage: React.FC = () => {
           <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
             <Button 
               variant="outlined" 
-              onClick={() => navigate('/agent-selection')}
+              onClick={() => router.push('/agent-selection')}
             >
               Agent Selection
             </Button>
             <Button 
               variant="contained" 
-              onClick={() => navigate('/trading-agent')}
+              onClick={() => router.push('/trading-agent')}
             >
               Trading Dashboard
             </Button>

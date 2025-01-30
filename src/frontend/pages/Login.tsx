@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { ConnectWallet, useAddress, useWallet, useConnectionStatus, useBalance } from "@thirdweb-dev/react";
 import { Card, CardContent, Typography, Alert, AlertTitle, Box, CircularProgress } from '@mui/material';
 
@@ -10,7 +10,7 @@ export default function Login() {
   const wallet = useWallet();
   const connectionStatus = useConnectionStatus();
   const { data: balance } = useBalance();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [isChecking, setIsChecking] = React.useState(false);
   
@@ -24,7 +24,7 @@ export default function Login() {
             setError(`Insufficient balance. Minimum ${MIN_SOL_BALANCE} SOL required.`);
             return;
           }
-          navigate('/agent-selection');
+          router.push('/agent-selection');
         } catch (err) {
           setError('Failed to verify wallet balance. Please try again.');
         } finally {
@@ -34,7 +34,7 @@ export default function Login() {
     };
     
     checkWalletAndBalance();
-  }, [address, wallet, balance, navigate]);
+  }, [address, wallet, balance, router]);
 
   return (
     <Box 
