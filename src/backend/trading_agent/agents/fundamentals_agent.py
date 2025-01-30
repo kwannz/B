@@ -1,8 +1,11 @@
 from typing import Dict, Any, List
+import json
 from datetime import datetime
 from .base_agent import BaseAgent
-from src.shared.sentiment.sentiment_analyzer import analyze_text
+from src.shared.models.deepseek import DeepSeek1_5B
 from src.shared.db.database_manager import DatabaseManager
+from src.shared.utils.batch_processor import BatchProcessor
+from src.shared.utils.fallback_manager import FallbackManager
 
 class FundamentalsAgent(BaseAgent):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
@@ -10,6 +13,31 @@ class FundamentalsAgent(BaseAgent):
         self.metrics = config.get('metrics', ['volume', 'market_cap', 'tvl'])
         self.update_interval = config.get('update_interval', 3600)
         self.symbols = config.get('symbols', ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'])
+        self.model = DeepSeek1_5B(quantized=True)
+        
+        class LegacyFundamentalsSystem:
+            async def process(self, texts: List[str]) -> List[Dict[str, Any]]:
+                return [{"sentiment": "neutral", "score": 0.5} for _ in texts]
+                
+        class FundamentalsBatchProcessor(BatchProcessor[str, Dict[str, Any]]):
+            def __init__(self, agent):
+                super().__init__(max_batch=16, timeout=50)
+                self.agent = agent
+                
+            async def _process_items(self, items: List[str]) -> List[Dict[str, Any]]:
+                results = []
+                for text in items:
+                    prompt = f"Analyze the sentiment of this text and return a JSON with 'sentiment' and 'score': {text}"
+                    result = await self.agent.model.generate(prompt)
+                    try:
+                        sentiment = json.loads(result["text"])
+                        results.append(sentiment)
+                    except:
+                        results.append({"score": 0.5})
+                return results
+                
+        self.batch_processor = FundamentalsBatchProcessor(self)
+        self.fallback_manager = FallbackManager(self.batch_processor, LegacyFundamentalsSystem())
 
     async def start(self):
         self.status = "active"
@@ -27,6 +55,11 @@ class FundamentalsAgent(BaseAgent):
         self.last_update = datetime.now().isoformat()
 
     async def analyze_fundamentals(self, symbol: str) -> Dict[str, Any]:
+        # Check cache first
+        cached_fundamentals = self.cache.get(f"fundamentals:{symbol}")
+        if cached_fundamentals:
+            return cached_fundamentals
+
         if not hasattr(self, 'db_manager'):
             try:
                 self.db_manager = DatabaseManager(
@@ -57,10 +90,18 @@ class FundamentalsAgent(BaseAgent):
         dev_text = dev_data["content"] if dev_data else f"Development activity for {symbol}"
         community_texts = [doc["content"] async for doc in community_cursor]
 
-        # Analyze sentiment using local-first model
-        project_sentiment = await analyze_text(project_text)
-        dev_sentiment = await analyze_text(dev_text)
-        community_sentiments = [await analyze_text(text) for text in community_texts]
+        # Process sentiments in batches using existing batch processor
+        
+        # Process project and dev updates with fallback
+        project_dev_results = await self.fallback_manager.execute_batch([
+            f"Project update: {project_text}",
+            f"Development update: {dev_text}"
+        ])
+        project_sentiment = project_dev_results[0] if project_dev_results else {"score": 0.5}
+        dev_sentiment = project_dev_results[1] if project_dev_results else {"score": 0.5}
+        
+        # Process community texts in batch with fallback
+        community_sentiments = await self.fallback_manager.execute_batch(community_texts) if community_texts else []
         
         community_score = sum(s["score"] for s in community_sentiments) / len(community_sentiments) if community_sentiments else 0.5
 
@@ -104,4 +145,6 @@ class FundamentalsAgent(BaseAgent):
             }
         })
 
+        # Cache the analysis result
+        self.cache.set(f"fundamentals:{symbol}", analysis_result)
         return analysis_result

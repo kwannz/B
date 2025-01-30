@@ -240,7 +240,7 @@ class RiskManager:
                             await delete_cache(cache_key)
                             raise ValueError("Cached data too old")
                     except Exception:
-                        self._metrics = None
+                        self._metrics = {}
                 
                 if not self._metrics:
                     self._metrics = {
@@ -544,10 +544,34 @@ class RiskManager:
             params["volume"] = max(params["liquidity"] * 0.01, params["volume"])
             params["spread"] = max(0.0001, min(0.1, params["spread"]))
             
-            return True, "Parameters valid"
+            return RiskAssessment(
+                is_valid=True,
+                confidence=0.95,
+                risk_level=0.1,
+                max_loss=0.0,
+                position_size=float(params.get("amount", 0.0)),
+                volatility_exposure=float(params.get("volatility", 1.0)),
+                expected_return=0.0,
+                risk_reward_ratio=0.0,
+                market_conditions_alignment=1.0,
+                recommendations=["Parameters valid"],
+                reason="Valid parameters"
+            )
         except Exception as e:
             logger.error(f"Parameter validation error: {e}")
-            return False, f"Invalid trade parameters: {str(e)}"
+            return RiskAssessment(
+                is_valid=False,
+                confidence=0.95,
+                risk_level=1.0,
+                max_loss=0.0,
+                position_size=0.0,
+                volatility_exposure=1.0,
+                expected_return=0.0,
+                risk_reward_ratio=0.0,
+                market_conditions_alignment=0.0,
+                recommendations=["Invalid parameters"],
+                reason=f"Invalid trade parameters: {str(e)}"
+            )
     
     async def _calculate_position_size(self, params: Dict[str, Any]) -> float:
         try:
@@ -1517,7 +1541,8 @@ class RiskManager:
             market_conditions = metrics.get("market_conditions_alignment", 0.5)
             volatility = metrics.get("volatility_exposure", 1.0)
             volume = metrics.get("volume", 0.0)
-            position_value = position_size * price
+            current_price = float(trade_params.get("price", 0.0))
+            position_value = position_size * current_price
             
             # More lenient volume requirements
             min_volume = position_value * 0.3  # Only require 30% of position value in volume
@@ -1695,7 +1720,7 @@ class RiskManager:
                         market_conditions_alignment=0.3,
                         recommendations=[
                             f"Low liquidity detected: {liquidity_score:.0f}",
-                            f"Position reduced to {liq_scale:.0%}",
+                            f"Position reduced to {(liquidity_score/100):.0%}",
                             "Use limit orders to minimize impact",
                             "Consider splitting order into smaller parts"
                         ],
@@ -1713,7 +1738,7 @@ class RiskManager:
                 else:
                     metrics["position_size"] = scaled_position
                     metrics["dynamic_position_size"] = scaled_position
-                    self._add_recommendation(f"Position reduced to {liq_scale:.0%} due to liquidity")
+                    self._add_recommendation(f"Position reduced to {(liquidity_score/100):.0%} due to liquidity")
             
             # Ultra-strict risk/reward validation with aggressive scaling
             risk_reward_ratio = metrics.get("risk_reward_ratio", 0.0)
