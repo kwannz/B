@@ -1,35 +1,58 @@
 import json
 import pickle
+import logging
 from typing import Any, Optional, Type, TypeVar, Dict, Union
 import redis
 from datetime import datetime
-from shared.models.cache import (
+from src.shared.monitor.metrics import track_cache_hit, track_cache_miss
+from src.shared.models.cache import (
     CacheConfig, MarketDataCache, OrderBookCache,
-    TradeHistoryCache, SentimentCache, RateLimitCache
+    TradeHistoryCache, SentimentCache, RateLimitCache,
+    ModelOutputCache
 )
 
-CacheableType = Union[Dict[str, Any], MarketDataCache, OrderBookCache, TradeHistoryCache, SentimentCache, RateLimitCache]
+CacheableType = Union[Dict[str, Any], MarketDataCache, OrderBookCache, TradeHistoryCache, SentimentCache, RateLimitCache, ModelOutputCache]
 T = TypeVar('T')
 
 class HybridCache:
     def __init__(self):
-        self._redis = redis.Redis(host='localhost', port=6379, db=0)
         self._memory = {}
+        try:
+            self._redis = redis.Redis(host='localhost', port=6379, db=0)
+            self._redis.ping()
+        except (redis.ConnectionError, redis.ResponseError):
+            self._redis = None
+            logging.warning("Redis connection failed, falling back to memory-only cache")
         
-    def get(self, key: str, model_type: Type[T] = None) -> Optional[T]:
+    def get(self, key: str, model_type: Optional[Type[T]] = None) -> Optional[Union[T, Any]]:
+        from src.shared.monitor.metrics import track_cache_hit, track_cache_miss
+        
+        # Check memory cache first
         if key in self._memory:
+            track_cache_hit()
             return self._memory[key]
             
-        val = self._redis.get(key)
-        if val:
+        # Try Redis if available
+        if self._redis is not None:
             try:
-                data = pickle.loads(val)
-                if model_type:
-                    data = model_type.parse_raw(json.dumps(data))
-                self._memory[key] = data
-                return data
-            except Exception:
-                return None
+                val = self._redis.get(key)
+                if val:
+                    try:
+                        data = pickle.loads(val)
+                        if model_type and isinstance(data, dict):
+                            try:
+                                data = model_type(**data)
+                            except Exception:
+                                pass
+                        self._memory[key] = data
+                        track_cache_hit()
+                        return data
+                    except Exception:
+                        pass
+            except Exception as e:
+                logging.warning(f"Redis get failed: {str(e)}")
+                
+        track_cache_miss()
         return None
         
     def set(self, key: str, value: Any, ttl: int = CacheConfig.DEFAULT_TTL):
@@ -45,11 +68,19 @@ class HybridCache:
     def delete(self, key: str):
         if key in self._memory:
             del self._memory[key]
-        self._redis.delete(key)
+        if self._redis is not None:
+            try:
+                self._redis.delete(key)
+            except Exception as e:
+                logging.warning(f"Redis delete failed: {str(e)}")
         
     def clear(self):
         self._memory.clear()
-        self._redis.flushdb()
+        if self._redis is not None:
+            try:
+                self._redis.flushdb()
+            except Exception as e:
+                logging.warning(f"Redis flush failed: {str(e)}")
 
     def get_market_data(self, symbol: str) -> Optional[MarketDataCache]:
         return self.get(f"market_data:{symbol}", MarketDataCache)

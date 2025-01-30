@@ -1,8 +1,12 @@
 from typing import Dict, Any, List
 from datetime import datetime
 import numpy as np
+import json
+import logging
 from .base_agent import BaseAgent
 from src.shared.db.database_manager import DatabaseManager
+from src.shared.models.deepseek import DeepSeek1_5B
+from src.shared.utils.fallback_manager import FallbackManager
 
 class RiskManagerAgent(BaseAgent):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
@@ -10,6 +14,13 @@ class RiskManagerAgent(BaseAgent):
         self.risk_metrics = config.get('risk_metrics', ['volatility', 'drawdown', 'var'])
         self.position_limits = config.get('position_limits', {})
         self.risk_levels = config.get('risk_levels', {'low': 0.1, 'medium': 0.2, 'high': 0.3})
+        self.model = DeepSeek1_5B(quantized=True)
+        
+        class LegacyRiskSystem:
+            async def process(self, request: str) -> Dict[str, Any]:
+                return {"text": '{"risk_score": 0.5, "reasoning": "Using legacy risk assessment"}', "confidence": 0.5}
+                
+        self.fallback_manager = FallbackManager(self.model, LegacyRiskSystem())
 
     async def start(self):
         self.status = "active"
@@ -70,13 +81,30 @@ class RiskManagerAgent(BaseAgent):
             risk_metrics['var_95'] = float(np.percentile(returns, 5))
             risk_metrics['var_99'] = float(np.percentile(returns, 1))
 
-        # Calculate position size based on risk metrics and signal strength
+        # Get AI-driven risk assessment
+        metrics_text = f"Symbol: {symbol}\nVolatility: {risk_metrics.get('volatility', 0.5)}\nVaR(95): {risk_metrics.get('var_95', 0.1)}\nMax Drawdown: {risk_metrics.get('max_drawdown', 0.5)}"
+        prompt = f"Analyze these risk metrics and recommend a risk score (0-1):\n{metrics_text}\nOutput JSON with risk_score and reasoning:"
+        
+        cached_assessment = self.cache.get(f"risk_assessment:{hash(metrics_text)}")
+        try:
+            if not cached_assessment:
+                assessment = await self.fallback_manager.execute(prompt)
+                if assessment:
+                    self.cache.set(f"risk_assessment:{hash(metrics_text)}", assessment)
+                    risk_score = float(json.loads(assessment["text"])["risk_score"])
+                else:
+                    raise ValueError("No assessment result")
+            else:
+                risk_score = float(json.loads(cached_assessment["text"])["risk_score"])
+        except Exception as e:
+            logging.warning(f"Risk assessment failed, using fallback calculation: {str(e)}")
+            risk_score = min(
+                risk_metrics.get('volatility', 0.5),
+                abs(risk_metrics.get('var_95', 0.1)) * 10,
+                risk_metrics.get('max_drawdown', 0.5) * 2
+            )
+                
         base_position = self.position_limits.get(symbol, 1.0)
-        risk_score = min(
-            risk_metrics.get('volatility', 0.5),
-            abs(risk_metrics.get('var_95', 0.1)) * 10,
-            risk_metrics.get('max_drawdown', 0.5) * 2
-        )
         
         # Adjust position size based on risk score and signal strength
         risk_adjusted_size = base_position * (1 - risk_score) * signal_strength

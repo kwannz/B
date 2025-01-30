@@ -1,19 +1,21 @@
 import os
+from dataclasses import dataclass
 
-# Model deployment mode
-AI_MODEL_MODE = os.getenv("AI_MODEL_MODE", "LOCAL")
+@dataclass
+class DeepSeekModelConfig:
+    MODEL_NAME: str = "deepseek-1.5b"
+    QUANTIZATION: str = "4bit"
+    BATCH_SIZE: int = 16
+    MAX_SEQ_LEN: int = 2048
+    DEVICE: str = "cuda:0"
+    API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
+    TEMPERATURE: float = 0.7
+    MIN_CONFIDENCE: float = 0.7
+    MAX_RETRIES: int = 3
+    RETRY_DELAY: float = 2.0
 
-# Model endpoints
-LOCAL_MODEL_ENDPOINT = "http://localhost:11434"
-REMOTE_MODEL_ENDPOINT = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com/v3/completions")
+    @property
+    def is_quantized(self) -> bool:
+        return self.QUANTIZATION == "4bit"
 
-# Model configurations
-LOCAL_MODEL_NAME = os.getenv("LOCAL_MODEL_NAME", "deepseek-sentiment")
-REMOTE_MODEL_NAME = os.getenv("DEEPSEEK_MODEL", "deepseek-v3")
-
-# API configuration
-API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
-TEMPERATURE = float(os.getenv("DEEPSEEK_TEMPERATURE", "0.7"))
-MIN_CONFIDENCE = float(os.getenv("DEEPSEEK_MIN_CONFIDENCE", "0.7"))
-MAX_RETRIES = int(os.getenv("DEEPSEEK_MAX_RETRIES", "3"))
-RETRY_DELAY = float(os.getenv("DEEPSEEK_RETRY_DELAY", "2.0"))
+MODEL_CONFIG = DeepSeekModelConfig()

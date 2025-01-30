@@ -62,3 +62,11 @@ class RateLimitCache(BaseModel):
     window_start: float
     limit: int
     window_size: int
+
+class ModelOutputCache(BaseModel):
+    """Cache for model generation outputs."""
+    prompt_hash: str
+    output: Dict[str, Any]
+    timestamp: datetime
+    model_name: str = "deepseek-1.5b"
+    ttl: int = 3600  # 1 hour cache for model outputs

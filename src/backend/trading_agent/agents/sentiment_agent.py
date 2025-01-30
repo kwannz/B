@@ -1,8 +1,11 @@
 from typing import Dict, Any, List
 from datetime import datetime
+import json
 from .base_agent import BaseAgent
-from src.shared.sentiment.sentiment_analyzer import analyze_text
+from src.shared.models.deepseek import DeepSeek1_5B
 from src.shared.db.database_manager import DatabaseManager
+from src.shared.utils.batch_processor import BatchProcessor
+from src.shared.utils.fallback_manager import FallbackManager
 
 class SentimentAgent(BaseAgent):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
@@ -10,6 +13,14 @@ class SentimentAgent(BaseAgent):
         self.symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
         self.update_interval = config.get('update_interval', 300)
         self.languages = config.get('languages', ['en', 'zh'])
+        self.model = DeepSeek1_5B(quantized=True)
+        
+        class LegacySentimentSystem:
+            async def process(self, texts: List[str]) -> List[Dict[str, Any]]:
+                return [{"sentiment": "neutral", "score": 0.5} for _ in texts]
+                
+        self.batch_processor = BatchProcessor(max_batch=16, timeout=50)
+        self.fallback_manager = FallbackManager(self.model, LegacySentimentSystem())
 
     async def start(self):
         self.status = "active"
@@ -27,7 +38,10 @@ class SentimentAgent(BaseAgent):
         self.last_update = datetime.now().isoformat()
 
     async def analyze_sentiment(self, text: str, language: str = "en") -> Dict[str, Any]:
-        return await analyze_text(text, language)
+        prompt = f"Analyze the sentiment of this {language} text and return a JSON with 'sentiment' (positive/negative/neutral) and 'score' (0-1): {text}"
+        result = await self.model.generate(prompt)
+        return {"sentiment": "positive" if "positive" in result["text"].lower() else "negative" if "negative" in result["text"].lower() else "neutral",
+                "score": float(result["confidence"])}
 
     async def get_market_sentiment(self, symbol: str) -> Dict[str, Any]:
         # Check cache first
@@ -57,10 +71,48 @@ class SentimentAgent(BaseAgent):
         news_texts = [doc["content"] async for doc in news_cursor]
         social_texts = [doc["content"] async for doc in social_cursor]
 
-        # Analyze sentiment for each source
-        news_sentiments = [await self.analyze_sentiment(text) for text in news_texts]
-        social_sentiments = [await self.analyze_sentiment(text) for text in social_texts]
-
+        # Process sentiments in batches with fallback
+        try:
+            news_prompts = [
+                f"Analyze the sentiment of this text and return a JSON with 'sentiment' and 'score': {text}"
+                for text in news_texts
+            ]
+            social_prompts = [
+                f"Analyze the sentiment of this text and return a JSON with 'sentiment' and 'score': {text}"
+                for text in social_texts
+            ]
+            
+            news_results = await self.model.generate_batch(news_prompts) if news_texts else []
+            social_results = await self.model.generate_batch(social_prompts) if social_texts else []
+            
+            news_sentiments = []
+            social_sentiments = []
+            
+            for result in news_results:
+                try:
+                    sentiment_data = json.loads(result["text"])
+                    news_sentiments.append({
+                        "sentiment": sentiment_data.get("sentiment", "neutral"),
+                        "score": float(sentiment_data.get("score", 0.5))
+                    })
+                except:
+                    news_sentiments.append({"sentiment": "neutral", "score": 0.5})
+                    
+            for result in social_results:
+                try:
+                    sentiment_data = json.loads(result["text"])
+                    social_sentiments.append({
+                        "sentiment": sentiment_data.get("sentiment", "neutral"),
+                        "score": float(sentiment_data.get("score", 0.5))
+                    })
+                except:
+                    social_sentiments.append({"sentiment": "neutral", "score": 0.5})
+                    
+        except Exception as e:
+            # Fallback to legacy system
+            news_sentiments = await self.fallback_manager.execute_batch(news_texts) if news_texts else []
+            social_sentiments = await self.fallback_manager.execute_batch(social_texts) if social_texts else []
+        
         # Calculate average sentiment scores
         news_score = sum(s["score"] for s in news_sentiments) / len(news_sentiments) if news_sentiments else 0.5
         social_score = sum(s["score"] for s in social_sentiments) / len(social_sentiments) if social_sentiments else 0.5

@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from .base_agent import BaseAgent
 from src.shared.db.database_manager import DatabaseManager
+from src.shared.models.deepseek import DeepSeek1_5B
+from src.shared.utils.fallback_manager import FallbackManager
 
 class TechnicalAnalystAgent(BaseAgent):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
@@ -11,6 +13,13 @@ class TechnicalAnalystAgent(BaseAgent):
         self.indicators = config.get('indicators', ['rsi', 'macd', 'bollinger'])
         self.timeframes = config.get('timeframes', ['1h', '4h', '1d'])
         self.symbols = config.get('symbols', ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'])
+        self.model = DeepSeek1_5B(quantized=True)
+        
+        class LegacyTechnicalSystem:
+            async def process(self, request: str) -> Dict[str, Any]:
+                return {"text": '{"signal": "neutral", "confidence": 0.5}', "confidence": 0.5}
+                
+        self.fallback_manager = FallbackManager(self.model, LegacyTechnicalSystem())
 
     async def start(self):
         self.status = "active"
