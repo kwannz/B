@@ -1,15 +1,25 @@
-import React from 'react';
-import { Box, AppBar, Toolbar, Typography, Container } from '@mui/material';
-import { ReactNode } from 'react';
-import { Outlet } from 'react-router-dom';
+'use client';
 
-interface MainLayoutProps extends React.HTMLAttributes<HTMLDivElement> {
-  children?: ReactNode;
+import { Box, AppBar, Toolbar, Typography } from '@mui/material';
+import type { ReactNode } from 'react';
+import { useAddress } from "@thirdweb-dev/react";
+import { useRouter } from 'next/navigation';
+
+interface MainLayoutProps {
+  children: ReactNode;
 }
 
-const MainLayout: React.FC<MainLayoutProps> = ({ children, className, style }) => {
+export default function MainLayout({ children }: MainLayoutProps) {
+  const router = useRouter();
+  const address = useAddress();
+
+  if (!address) {
+    router.push('/login');
+    return null;
+  }
+
   return (
-    <Box className={className} style={style} sx={{ 
+    <Box sx={{ 
       display: 'flex', 
       flexDirection: 'column', 
       minHeight: '100vh',
@@ -24,10 +34,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, className, style }) =
         </Toolbar>
       </AppBar>
       <Box component="main" sx={{ mt: 8, width: '100%', flex: 1 }}>
-        {children || <Outlet />}
+        {children}
       </Box>
     </Box>
   );
-};
-
-export default MainLayout;
+}
