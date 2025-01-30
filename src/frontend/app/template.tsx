@@ -2,12 +2,16 @@
 
 import React from 'react';
 import type { ReactNode } from 'react';
-import MainLayout from './components/MainLayout';
+import { Box } from '@mui/material';
 
 interface TemplateProps {
   children: ReactNode;
 }
 
 export default function Template({ children }: TemplateProps) {
-  return <MainLayout>{children}</MainLayout>;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {children}
+    </Box>
+  );
 }
