@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 import aiohttp
 import json
 import os
@@ -21,33 +21,103 @@ except ImportError:
                 return await func(*args, **kwargs)
             return wrapper
 
-async def call_local_model(session: aiohttp.ClientSession, text: str, language: str) -> Dict[str, Any]:
-    if not text:
-        raise ValueError("Text cannot be empty")
+async def call_local_model(session: Optional[aiohttp.ClientSession], text: str, language: str) -> Dict[str, Any]:
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("Text must be a non-empty string")
     
-    if language not in ["en", "zh"]:
+    if not isinstance(language, str) or language not in ["en", "zh"]:
         raise ValueError(f"Unsupported language: {language}")
 
-    if not LOCAL_MODEL_ENDPOINT:
-        raise ValueError("LOCAL_MODEL_ENDPOINT environment variable not set")
+    if not LOCAL_MODEL_ENDPOINT or not LOCAL_MODEL_NAME:
+        raise ValueError("LOCAL_MODEL_ENDPOINT and LOCAL_MODEL_NAME must be set")
 
-    if not LOCAL_MODEL_NAME:
-        raise ValueError("LOCAL_MODEL_NAME environment variable not set")
+    # Determine endpoint based on environment
+    endpoint = os.getenv('OLLAMA_API_BASE_URL') or (
+        'http://ollama:11434' if os.getenv('DOCKER_ENV') == 'true' 
+        else LOCAL_MODEL_ENDPOINT
+    )
+    print(f"Using endpoint: {endpoint}")
+    print(f"Model: {LOCAL_MODEL_NAME}")
 
-    prompt = f"Analyze the sentiment of this text and respond with a JSON object containing a 'score' between 0 and 1 (where 1 is most positive) and a 'label' of either 'positive' or 'negative': {text}"
+    # Configure client session with Docker-aware DNS resolution
+    connector = aiohttp.TCPConnector(
+        force_close=True,
+        enable_cleanup_closed=True,
+        use_dns_cache=True,
+        ttl_dns_cache=300,
+        verify_ssl=False,
+        ssl=False,
+        family=0
+    )
+    
+    timeout = aiohttp.ClientTimeout(
+        total=float(os.getenv('AIOHTTP_TOTAL_TIMEOUT', '120')),
+        connect=float(os.getenv('AIOHTTP_CLIENT_TIMEOUT', '60'))
+    )
+    
+    async with aiohttp.ClientSession(
+        connector=connector,
+        timeout=timeout,
+        trust_env=True
+    ) as local_session:
+        try:
+            health_check_url = f"{endpoint}/api/tags"
+            print(f"Checking Ollama health at: {health_check_url}")
+            async with local_session.get(health_check_url) as health_check:
+                if health_check.status != 200:
+                    print(f"Health check failed with status {health_check.status}")
+                    raise ConnectionError(f"Ollama service health check failed with status {health_check.status}")
+                health_data = await health_check.json()
+                print(f"Health check response: {health_data}")
+                print("Ollama service health check passed")
+        except aiohttp.ClientError as e:
+            print(f"Network error during health check: {str(e)}")
+            raise ConnectionError(f"Failed to connect to Ollama service at {endpoint}: {str(e)}")
+        except Exception as e:
+            print(f"Unexpected error during health check: {str(e)}")
+            raise ConnectionError(f"Failed to connect to Ollama service at {endpoint}: {str(e)}")
+        
+        prompt = f"""Analyze the sentiment of this {language} text and respond with only a JSON object containing 'score' (0-1) and 'label' (positive/negative).
+Text: "{text}"
+Response format: {{"score": 0.8, "label": "positive"}}"""
+
     data = {
-        "model": LOCAL_MODEL_NAME,
-        "prompt": prompt,
+        "model": str(LOCAL_MODEL_NAME),
+        "prompt": str(prompt),
         "stream": False,
-        "temperature": TEMPERATURE
+        "temperature": float(TEMPERATURE),
+        "format": "json"
     }
-    async with session.post(f"{LOCAL_MODEL_ENDPOINT}/api/generate", json=data) as resp:
-        if resp.status == 200:
+    generate_url = f"{endpoint}/api/generate"
+    print(f"Sending request to Ollama at {generate_url}: {data}")
+    try:
+        print(f"Sending request to {generate_url} with data: {data}")
+        async with local_session.post(generate_url, json=data) as resp:
+            if resp.status != 200:
+                error_text = await resp.text()
+                print(f"Ollama API error: Status {resp.status}, Response: {error_text}")
+                raise Exception(f"Ollama API returned status {resp.status}: {error_text}")
+            
             result = await resp.json()
             response_text = result.get("response", "")
-            sentiment_data = json.loads(response_text)
+            print(f"Ollama response: {response_text}")
+            
+            try:
+                sentiment_data = json.loads(response_text)
+            except json.JSONDecodeError:
+                # Fallback to regex if response isn't pure JSON
+                import re
+                json_match = re.search(r'\{.*?\}', response_text)
+                if not json_match:
+                    raise ValueError(f"No JSON found in response: {response_text}")
+                sentiment_data = json.loads(json_match.group(0))
+            
+            if not isinstance(sentiment_data, dict):
+                raise ValueError(f"Invalid response format, expected dict but got: {type(sentiment_data)}")
+            
             score = float(sentiment_data.get("score", 0.5))
             label = sentiment_data.get("label", "positive" if score > 0.5 else "negative")
+            
             return {
                 "language": language,
                 "score": score,
@@ -56,7 +126,15 @@ async def call_local_model(session: aiohttp.ClientSession, text: str, language: 
                 "timestamp": datetime.utcnow().isoformat(),
                 "model": "local"
             }
-    raise Exception("Local model failed to return valid response")
+    except aiohttp.ClientError as e:
+        print(f"Network error calling Ollama: {str(e)}")
+        raise ConnectionError(f"Failed to connect to Ollama service: {str(e)}")
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Error processing Ollama response: {str(e)}")
+        raise ValueError(f"Failed to parse Ollama response: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error processing Ollama response: {str(e)}")
+        raise
 
 async def call_remote_model(session: aiohttp.ClientSession, text: str, language: str) -> Dict[str, Any]:
     if not text:
@@ -110,35 +188,50 @@ async def call_remote_model(session: aiohttp.ClientSession, text: str, language:
     raise Exception("Remote model failed to return valid response")
 
 @ModelMetrics.track_request
-async def analyze_text(text: str, language: str = "en") -> Dict[str, Any]:
-    if not text:
+async def analyze_text(text: Union[str, bytes], language: str = "en") -> Dict[str, Any]:
+    if isinstance(text, bytes):
+        text = text.decode('utf-8')
+    elif not isinstance(text, str):
+        text = str(text)
+    
+    if not text.strip():
         raise ValueError("Text cannot be empty")
     
     if language not in ["en", "zh"]:
         raise ValueError(f"Unsupported language: {language}")
 
     print(f"Starting sentiment analysis with mode: {AI_MODEL_MODE}")
-    async with aiohttp.ClientSession() as session:
-        try:
-            if AI_MODEL_MODE != "REMOTE":
-                try:
-                    print("Attempting local model analysis...")
-                    result = await call_local_model(session, text, language)
-                    print(f"Local model succeeded: {result}")
-                    return result
-                except Exception as e:
-                    print(f"Local model failed: {str(e)}")
-                    if AI_MODEL_MODE == "LOCAL" and not os.getenv("ALLOW_REMOTE_FALLBACK", "true").lower() == "true":
-                        raise e
+    print(f"Environment configuration:")
+    print(f"LOCAL_MODEL_ENDPOINT: {LOCAL_MODEL_ENDPOINT}")
+    print(f"LOCAL_MODEL_NAME: {LOCAL_MODEL_NAME}")
+    print(f"REMOTE_MODEL_ENDPOINT: {REMOTE_MODEL_ENDPOINT}")
+    print(f"DOCKER_ENV: {os.getenv('DOCKER_ENV', 'false')}")
+    
+    try:
+        if AI_MODEL_MODE != "REMOTE":
+            try:
+                print("Attempting local model analysis...")
+                result = await call_local_model(None, text, language)
+                print(f"Local model succeeded: {result}")
+                return result
+            except Exception as e:
+                print(f"Local model failed: {str(e)}")
+                if AI_MODEL_MODE == "LOCAL" and not os.getenv("ALLOW_REMOTE_FALLBACK", "true").lower() == "true":
+                    raise e
 
-            print("Attempting remote model analysis...")
+        print("Attempting remote model analysis...")
+        conn_timeout = aiohttp.ClientTimeout(
+            total=float(os.getenv('AIOHTTP_TOTAL_TIMEOUT', '120')),
+            connect=float(os.getenv('AIOHTTP_CLIENT_TIMEOUT', '60'))
+        )
+        async with aiohttp.ClientSession(timeout=conn_timeout) as session:
             result = await call_remote_model(session, text, language)
             print(f"Remote model succeeded: {result}")
             return result
-        except Exception as e:
-            print(f"Model calls failed: {str(e)}")
-            if AI_MODEL_MODE in ["LOCAL", "REMOTE"]:
-                raise e
+    except Exception as e:
+        print(f"Model calls failed: {str(e)}")
+        if AI_MODEL_MODE in ["LOCAL", "REMOTE"]:
+            raise e
 
         print("Both models failed, using fallback")
         return {
