@@ -33,10 +33,11 @@ class RawSocialMediaPost(BaseModel):
 
 class MarketDataSnapshot(BaseModel):
     symbol: str
+    price: float = Field(ge=0.0)
+    volume: float = Field(ge=0.0)
     timestamp: datetime
-    price: float
-    volume: float
     exchange: str
+    timeframe: Optional[str] = None
     raw_data: Dict[str, Any] = Field(default_factory=dict)
     meta_info: Dict[str, Any] = Field(default_factory=dict)
     
@@ -49,8 +50,8 @@ class UnstructuredAnalysis(BaseModel):
     source_type: str
     source_id: str
     analysis_type: str
-    timestamp: datetime
     raw_text: str
+    timestamp: datetime
     model_output: Dict[str, Any] = Field(default_factory=dict)
     meta_info: Dict[str, Any] = Field(default_factory=dict)
     
@@ -61,11 +62,11 @@ class UnstructuredAnalysis(BaseModel):
 
 class AgentAnalysisResult(BaseModel):
     agent_id: str
-    agent_type: str
+    symbol: str
+    analysis_type: str
+    confidence: float = Field(ge=0.0, le=1.0)
+    signals: Dict[str, float] = Field(default_factory=dict)
     timestamp: datetime
-    input_data: Dict[str, Any] = Field(default_factory=dict)
-    analysis_result: Dict[str, Any] = Field(default_factory=dict)
-    confidence_score: float = Field(ge=0.0, le=1.0)
     meta_info: Dict[str, Any] = Field(default_factory=dict)
     
     model_config = {
