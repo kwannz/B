@@ -1,0 +1,59 @@
+services:
+  api_gateway:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/backend/Dockerfile
+    environment:
+      - POSTGRES_USER=testuser
+      - POSTGRES_PASSWORD=testpass
+      - POSTGRES_DB=tradingdb_test
+      - REDIS_PASSWORD=testpass
+      - PYTHONPATH=/app
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/frontend/Dockerfile
+    environment:
+      - NODE_ENV=test
+      - VITE_API_URL=http://api_gateway:8000
+    depends_on:
+      - api_gateway
+
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=testuser
+      - POSTGRES_PASSWORD=testpass
+      - POSTGRES_DB=tradingdb_test
+
+  redis:
+    image: redis:6
+    command: redis-server --requirepass testpass
+
+  coverage-report:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/backend/Dockerfile
+    volumes:
+      - ../../src/backend:/app/src/backend
+    command: >
+      sh -c "cd /app/src/backend &&
+             pytest --cov=. --cov-report=xml -v &&
+             mv coverage.xml /app/src/backend/coverage.xml"
+    environment:
+      - PYTHONPATH=/app
+      - POSTGRES_USER=testuser
+      - POSTGRES_PASSWORD=testpass
+      - POSTGRES_DB=tradingdb_test
+      - REDIS_PASSWORD=testpass
+    depends_on:
+      - postgres
+      - redis
+
+networks:
+  default:
+    driver: bridge
