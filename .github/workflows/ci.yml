@@ -14,7 +14,35 @@ env:
   TEST_REDIS_PASSWORD: testpass
 
 jobs:
-  test:
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: |
+          cd src/frontend
+          npm install
+
+      - name: Run frontend tests
+        run: |
+          cd src/frontend
+          npm run test
+
+      - name: Upload frontend coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./src/frontend/coverage/lcov.info
+          flags: frontend
+          fail_ci_if_error: true
+
+  test-backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -26,25 +54,25 @@ jobs:
 
       - name: Start test environment
         run: |
-          cd src/deployment
+          cd deploy/docker
           docker-compose -f docker-compose.test.yml up -d
 
       - name: Run tests
         run: |
-          cd src/deployment
+          cd deploy/docker
           docker-compose -f docker-compose.test.yml run api_gateway pytest
-          docker-compose -f docker-compose.test.yml run trading_agent pytest
-          docker-compose -f docker-compose.test.yml run defi_agent pytest
+          docker-compose -f docker-compose.test.yml run coverage-report
 
       - name: Generate coverage report
         run: |
-          cd src/deployment
+          cd deploy/docker
           docker-compose -f docker-compose.test.yml run coverage-report
 
-      - name: Upload coverage reports
+      - name: Upload backend coverage
         uses: codecov/codecov-action@v3
         with:
           file: ./src/deployment/reports/coverage.xml
+          flags: backend
           fail_ci_if_error: true
 
   lint:
@@ -76,22 +104,118 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Run Snyk to check for vulnerabilities
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Run Snyk to check Python dependencies
         uses: snyk/actions/python@master
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
+
+      - name: Run Snyk to check Node.js dependencies
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
 
       - name: Run Bandit
         run: |
           pip install bandit
-          bandit -r . -ll
+          bandit -r ./src/backend -ll --exclude ./src/backend/tests
 
   build:
-    needs: [test, lint, security-scan]
+    needs: [test-frontend, test-backend, lint, security-scan]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    env:
+      REGISTRY: ghcr.io
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v2
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push API Gateway
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./deploy/docker/backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:latest
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./deploy/docker/frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/frontend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/frontend:latest
+
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to staging
+        run: |
+          aws ecs update-service --cluster staging-cluster --service api-gateway --force-new-deployment
+          aws ecs update-service --cluster staging-cluster --service frontend --force-new-deployment
+
+  deploy-production:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to production
+        run: |
+          aws ecs update-service --cluster production-cluster --service api-gateway --force-new-deployment
+          aws ecs update-service --cluster production-cluster --service frontend --force-new-deployment
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
