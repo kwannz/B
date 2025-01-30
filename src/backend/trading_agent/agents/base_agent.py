@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
+from shared.cache.hybrid_cache import HybridCache
 
 class BaseAgent(ABC):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
@@ -8,6 +9,7 @@ class BaseAgent(ABC):
         self.config = config
         self.status = "inactive"
         self.last_update = None
+        self.cache = HybridCache()
 
     @abstractmethod
     async def start(self):

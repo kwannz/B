@@ -27,6 +27,11 @@ class FundamentalsAgent(BaseAgent):
         self.last_update = datetime.now().isoformat()
 
     async def analyze_fundamentals(self, symbol: str) -> Dict[str, Any]:
+        # Check cache first
+        cached_fundamentals = self.cache.get(f"fundamentals:{symbol}")
+        if cached_fundamentals:
+            return cached_fundamentals
+
         if not hasattr(self, 'db_manager'):
             try:
                 self.db_manager = DatabaseManager(
@@ -104,4 +109,6 @@ class FundamentalsAgent(BaseAgent):
             }
         })
 
+        # Cache the analysis result
+        self.cache.set(f"fundamentals:{symbol}", analysis_result)
         return analysis_result

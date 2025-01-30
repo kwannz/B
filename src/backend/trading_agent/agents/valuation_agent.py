@@ -32,6 +32,11 @@ class ValuationAgent(BaseAgent):
         self.last_update = datetime.now().isoformat()
 
     async def calculate_valuation(self, symbol: str) -> Dict[str, Any]:
+        # Check cache first
+        cached_valuation = self.cache.get(f"valuation:{symbol}")
+        if cached_valuation:
+            return cached_valuation
+
         if not hasattr(self, 'db_manager'):
             self.db_manager = DatabaseManager(
                 mongodb_url=self.config['mongodb_url'],
@@ -124,4 +129,6 @@ class ValuationAgent(BaseAgent):
             }
         })
 
+        # Cache the valuation result
+        self.cache.set(f"valuation:{symbol}", valuation_result)
         return valuation_result

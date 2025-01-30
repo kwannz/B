@@ -40,6 +40,13 @@ class MarketDataAgent(BaseAgent):
         async with aiohttp.ClientSession() as session:
             all_data = {}
             
+            # Try to get cached data first
+            for symbol in self.symbols:
+                cached_data = self.cache.get_market_data(symbol)
+                if cached_data:
+                    all_data[symbol] = cached_data.dict()
+                    continue
+            
             for symbol in self.symbols:
                 data = {
                     "symbol": symbol,
@@ -72,8 +79,9 @@ class MarketDataAgent(BaseAgent):
                     except Exception as e:
                         data["raw_data"]["coingecko_error"] = str(e)
 
-                # Store market data in MongoDB
+                # Store market data in MongoDB and cache
                 await self.db_manager.mongodb.market_snapshots.insert_one(data)
+                self.cache.set(f"market_data:{symbol}", data)
                 all_data[symbol] = data
 
             return {

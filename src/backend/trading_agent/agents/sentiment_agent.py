@@ -10,7 +10,6 @@ class SentimentAgent(BaseAgent):
         self.symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
         self.update_interval = config.get('update_interval', 300)
         self.languages = config.get('languages', ['en', 'zh'])
-        self.sentiment_cache = {}
 
     async def start(self):
         self.status = "active"
@@ -31,6 +30,11 @@ class SentimentAgent(BaseAgent):
         return await analyze_text(text, language)
 
     async def get_market_sentiment(self, symbol: str) -> Dict[str, Any]:
+        # Check cache first
+        cached_sentiment = self.cache.get_sentiment(symbol)
+        if cached_sentiment:
+            return cached_sentiment.dict()
+
         if not hasattr(self, 'db_manager'):
             try:
                 self.db_manager = DatabaseManager(
@@ -106,4 +110,6 @@ class SentimentAgent(BaseAgent):
             }
         })
 
+        # Cache the sentiment result
+        self.cache.set(f"sentiment:{symbol}", sentiment_result)
         return sentiment_result

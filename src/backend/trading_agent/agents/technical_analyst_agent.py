@@ -28,6 +28,11 @@ class TechnicalAnalystAgent(BaseAgent):
         self.last_update = datetime.now().isoformat()
 
     async def analyze_technicals(self, symbol: str) -> Dict[str, Any]:
+        # Check cache first
+        cached_analysis = self.cache.get(f"technical_analysis:{symbol}")
+        if cached_analysis:
+            return cached_analysis
+
         if not hasattr(self, 'db_manager'):
             self.db_manager = DatabaseManager(
                 mongodb_url=self.config['mongodb_url'],
@@ -58,11 +63,11 @@ class TechnicalAnalystAgent(BaseAgent):
         
         # RSI
         if 'rsi' in self.indicators:
-            delta = df['price'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            delta = df['price'].astype(float).diff()
+            gain = (delta.where(delta > 0, 0.0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0.0)).rolling(window=14).mean()
             rs = gain / loss
-            indicators['rsi'] = 100 - (100 / (1 + rs.iloc[-1]))
+            indicators['rsi'] = float(100 - (100 / (1 + rs.iloc[-1])))
 
         # MACD
         if 'macd' in self.indicators:
@@ -102,4 +107,6 @@ class TechnicalAnalystAgent(BaseAgent):
             }
         })
 
+        # Cache the analysis result
+        self.cache.set(f"technical_analysis:{symbol}", analysis_result)
         return analysis_result
