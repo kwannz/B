@@ -1,12 +1,14 @@
 'use client';
 
-import { Box, TextField, Button, CircularProgress } from '@mui/material';
+import React from 'react';
+import { Box, TextField, Button, CircularProgress, Theme } from '@mui/material';
+import { SxProps } from '@mui/system';
 
 interface StrategyFormProps {
   agentType: string;
   strategy: string;
   onStrategyChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   onBack: () => void;
   isSubmitting: boolean;
 }
@@ -27,7 +29,7 @@ export default function StrategyForm({
         rows={4}
         label="Strategy Description"
         value={strategy}
-        onChange={(e) => onStrategyChange(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onStrategyChange(e.target.value)}
         placeholder={`Describe your ${agentType} strategy...`}
         disabled={isSubmitting}
       />

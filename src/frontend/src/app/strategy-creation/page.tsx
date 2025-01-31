@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Box, Typography, TextField, Button, Card, CardContent, Alert, CircularProgress, Stepper, Step, StepLabel } from '@mui/material';
+import { Box, Typography, TextField, Button, Card, CardContent, Alert, CircularProgress, Stepper, Step, StepLabel, Theme } from '@mui/material';
+import { SxProps } from '@mui/system';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useWallet } from '@solana/wallet-adapter-react';
 import WalletConnect from '@/app/components/WalletConnect';
 
@@ -86,46 +89,69 @@ export default function StrategyCreation() {
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              label="Strategy Description"
-              value={strategy}
-              onChange={(e) => setStrategy(e.target.value)}
-              placeholder={`Describe your ${agentType} strategy...`}
-              disabled={isSubmitting}
-            />
+          <Box className="space-y-8">
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                  Strategy Guidelines
+                </Typography>
+                <Typography variant="body2">
+                  • Describe your trading logic and conditions<br />
+                  • Specify entry and exit points<br />
+                  • Define risk management rules<br />
+                  • Set profit targets and stop losses
+                </Typography>
+              </CardContent>
+            </Card>
 
-            <Box className="flex gap-4">
-              <Button
-                variant="outlined"
-                onClick={handleBack}
-                size="large"
-                className="flex-1"
-              >
-                Back
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                size="large"
-                disabled={!strategy || isSubmitting}
-                className="flex-1 relative"
-              >
-                {isSubmitting ? (
-                  <>
-                    <CircularProgress size={24} className="absolute" />
-                    <span className="opacity-0">Continue</span>
-                  </>
-                ) : (
-                  'Continue'
-                )}
-              </Button>
-            </Box>
-          </form>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <TextField
+                fullWidth
+                multiline
+                rows={6}
+                label="Strategy Description"
+                value={strategy}
+                onChange={(e) => setStrategy(e.target.value)}
+                placeholder={`Example: Buy when price drops 5% below 24h average, sell when 3% profit reached or 2% loss...`}
+                disabled={isSubmitting}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: 'background.paper'
+                  }
+                } as SxProps<Theme>}
+              />
+
+              <Box className="flex gap-4">
+                <Button
+                  variant="outlined"
+                  onClick={handleBack}
+                  size="large"
+                  className="flex-1"
+                  startIcon={<ArrowBackIcon />}
+                >
+                  Back
+                </Button>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  disabled={!strategy || isSubmitting}
+                  className="flex-1 relative"
+                  endIcon={!isSubmitting && <ArrowForwardIcon />}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <CircularProgress size={24} className="absolute" />
+                      <span className="opacity-0">Continue</span>
+                    </>
+                  ) : (
+                    'Continue'
+                  )}
+                </Button>
+              </Box>
+            </form>
+          </Box>
         </CardContent>
       </Card>
     </Box>
