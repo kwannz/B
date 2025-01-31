@@ -3,6 +3,7 @@ import aiohttp
 import json
 import os
 from datetime import datetime
+from decimal import Decimal
 from functools import wraps
 
 from src.shared.config.ai_model import (
@@ -188,7 +189,26 @@ async def call_remote_model(session: aiohttp.ClientSession, text: str, language:
     raise Exception("Remote model failed to return valid response")
 
 @ModelMetrics.track_request
-async def analyze_text(text: Union[str, bytes], language: str = "en") -> Dict[str, Any]:
+def adjust_meme_sentiment(result: Dict[str, Any], is_meme: bool = False) -> Dict[str, Any]:
+    if not is_meme:
+        return result
+        
+    meme_multiplier = Decimal("1.1")
+    confidence_threshold = Decimal("0.7")
+    
+    score = Decimal(str(result.get("score", 0.5)))
+    raw_score = result.get("raw_score", {})
+    confidence = Decimal(str(raw_score.get("score", 0.5)))
+    
+    if confidence >= confidence_threshold:
+        adjusted_score = min(max(score * meme_multiplier, Decimal("0")), Decimal("1"))
+        result["score"] = float(adjusted_score)
+        result["raw_score"]["score"] = float(adjusted_score)
+        result["is_meme_adjusted"] = True
+        
+    return result
+
+async def analyze_text(text: Union[str, bytes], language: str = "en", is_meme: bool = False) -> Dict[str, Any]:
     if isinstance(text, bytes):
         text = text.decode('utf-8')
     elif not isinstance(text, str):
@@ -227,7 +247,7 @@ async def analyze_text(text: Union[str, bytes], language: str = "en") -> Dict[st
         async with aiohttp.ClientSession(timeout=conn_timeout) as session:
             result = await call_remote_model(session, text, language)
             print(f"Remote model succeeded: {result}")
-            return result
+            return adjust_meme_sentiment(result, is_meme)
     except Exception as e:
         print(f"Model calls failed: {str(e)}")
         if AI_MODEL_MODE in ["LOCAL", "REMOTE"]:
@@ -240,5 +260,6 @@ async def analyze_text(text: Union[str, bytes], language: str = "en") -> Dict[st
             "sentiment": "neutral",
             "raw_score": {"label": "neutral", "score": 0.5},
             "timestamp": datetime.utcnow().isoformat(),
-            "model": "fallback"
+            "model": "fallback",
+            "is_meme_adjusted": False
         }
