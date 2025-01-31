@@ -16,6 +16,7 @@ class DEXClient:
             'liquidswap': 'https://api.liquidswap.com',
             'hyperliquid': 'https://api.hyperliquid.xyz'
         }
+        self.jupiter_client = None
     
     async def start(self):
         """Initialize HTTP session."""
@@ -26,9 +27,19 @@ class DEXClient:
         if self.session:
             await self.session.close()
             self.session = None
+        if self.jupiter_client:
+            await self.jupiter_client.stop()
+            self.jupiter_client = None
     
     async def get_quote(self, dex: str, token_in: str, token_out: str, amount: float) -> Dict[str, Any]:
         """Get quote from specified DEX."""
+        if dex == 'jupiter':
+            if not self.jupiter_client:
+                from .jupiter_client import JupiterClient
+                self.jupiter_client = JupiterClient({"slippage_bps": 100})
+                await self.jupiter_client.start()
+            return await self.jupiter_client.get_quote(token_in, token_out, int(amount * 1e9))
+            
         if not self.session:
             await self.start()
             if not self.session:
