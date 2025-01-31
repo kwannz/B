@@ -3,6 +3,8 @@ from datetime import datetime
 import numpy as np
 from .base_agent import BaseAgent
 from src.shared.db.database_manager import DatabaseManager
+from src.shared.models.deepseek import DeepSeek1_5B
+from src.shared.utils.fallback_manager import FallbackManager
 
 class PortfolioManagerAgent(BaseAgent):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
@@ -11,6 +13,13 @@ class PortfolioManagerAgent(BaseAgent):
         self.min_order_size = config.get('min_order_size', 0.01)
         self.max_position_size = config.get('max_position_size', 1.0)
         self.rebalance_threshold = config.get('rebalance_threshold', 0.1)
+        self.model = DeepSeek1_5B(quantized=True)
+        
+        class LegacyPortfolioSystem:
+            async def process(self, request: str) -> Dict[str, Any]:
+                return {"text": '{"recommended_position_size": 0.1}', "confidence": 0.5}
+                
+        self.fallback_manager = FallbackManager(self.model, LegacyPortfolioSystem())
 
     async def start(self):
         self.status = "active"
@@ -33,6 +42,16 @@ class PortfolioManagerAgent(BaseAgent):
                 mongodb_url=self.config['mongodb_url'],
                 postgres_url=self.config['postgres_url']
             )
+            
+        # Get AI-driven portfolio recommendations
+        signals_text = "\n".join([f"{s['symbol']}: strength={s.get('signal_strength', 0)}, risk={s.get('risk_level', 'medium')}" for s in signals])
+        prompt = f"Analyze these trading signals and recommend position adjustments:\n{signals_text}\nOutput JSON with symbol and recommended_position_size (0-1):"
+        
+        cached_recommendation = self.cache.get(f"portfolio_recommendation:{hash(signals_text)}")
+        if not cached_recommendation:
+            recommendation = await self.fallback_manager.execute(prompt)
+            if recommendation:
+                self.cache.set(f"portfolio_recommendation:{hash(signals_text)}", recommendation)
 
         orders = []
         for signal in signals:

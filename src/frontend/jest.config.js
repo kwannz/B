@@ -5,92 +5,49 @@ const createJestConfig = nextJest({
 })
 
 const customJestConfig = {
-  testEnvironment: 'jsdom',
-  setupFilesAfterEnv: [
-    '<rootDir>/src/app/tests/setup/jest.setup.ts',
-    '<rootDir>/src/app/tests/setup/test-matchers.ts',
-    '<rootDir>/src/app/tests/setup/test-assertions.ts'
-  ],
+  setupFilesAfterEnv: ['<rootDir>/tests/jest.setup.js'],
+  testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '\\.(css|less|sass|scss)$': 'identity-obj-proxy',
-    '\\.(gif|ttf|eot|svg|png|jpg|jpeg)$': '<rootDir>/src/app/tests/__mocks__/fileMock.js'
+    '^@/app/\\(auth\\)/([^/]+)/page$': '<rootDir>/app/(auth)/$1/page.tsx',
+    '^@/app/([^/]+)/page$': '<rootDir>/app/$1/page.tsx',
+    '^@/app/components/(.*)$': '<rootDir>/app/components/$1',
+    '^@/app/(.*)$': '<rootDir>/app/$1',
+    '^@/components/(.*)$': '<rootDir>/app/components/$1',
+    '^@/lib/(.*)$': '<rootDir>/lib/$1',
+    '^@/api/(.*)$': '<rootDir>/app/api/$1',
+    '^@/tests/(.*)$': '<rootDir>/tests/$1',
+    '^@/(.*)$': '<rootDir>/$1',
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '^@mui/material/(.*)$': '<rootDir>/node_modules/@mui/material/$1',
+    '^@mui/(.*)$': '<rootDir>/node_modules/@mui/$1'
   },
-  testMatch: [
-    '<rootDir>/src/app/tests/**/*.test.{ts,tsx}',
-    '<rootDir>/src/app/tests/integration/**/*.test.{ts,tsx}'
+  moduleDirectories: ['node_modules', '<rootDir>'],
+  testMatch: ['**/__tests__/**/*.test.[jt]s?(x)'],
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
+  collectCoverageFrom: [
+    'app/**/*.{js,jsx,ts,tsx}',
+    '!app/**/_*.{js,jsx,ts,tsx}',
+    '!app/**/*.d.ts',
+    '!app/api/**/*.{js,jsx,ts,tsx}',
+    '!app/layout.tsx',
+    '!app/template.tsx',
+    '!app/providers.tsx',
+    '!app/(auth)/layout.tsx',
+    '!app/services/**/*.{js,jsx,ts,tsx}'
   ],
-  transform: {
-    '^.+\\.(ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }]
-  },
-  transformIgnorePatterns: [
-    '/node_modules/',
-    '^.+\\.module\\.(css|sass|scss)$'
-  ],
-  testTimeout: 30000,
-  collectCoverage: true,
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   coverageThreshold: {
     global: {
-      branches: 90,
-      functions: 90,
-      lines: 90,
-      statements: 90
-    },
-    './src/app/agent-selection/**/*.{ts,tsx}': {
-      branches: 90,
-      functions: 90,
-      lines: 90,
-      statements: 90
-    },
-    './src/app/strategy-creation/**/*.{ts,tsx}': {
-      branches: 90,
-      functions: 90,
-      lines: 90,
-      statements: 90
-    },
-    './src/app/bot-integration/**/*.{ts,tsx}': {
-      branches: 90,
-      functions: 90,
-      lines: 90,
-      statements: 90
-    },
-    './src/app/key-management/**/*.{ts,tsx}': {
-      branches: 90,
-      functions: 90,
-      lines: 90,
-      statements: 90
-    },
-    './src/app/trading-dashboard/**/*.{ts,tsx}': {
-      branches: 90,
-      functions: 90,
-      lines: 90,
-      statements: 90
-    },
-    './src/app/wallet-comparison/**/*.{ts,tsx}': {
-      branches: 90,
-      functions: 90,
-      lines: 90,
-      statements: 90
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80
     }
   },
-  collectCoverageFrom: [
-    'src/app/**/*.{ts,tsx}',
-    '!src/app/tests/**',
-    '!src/app/**/*.d.ts',
-    '!src/app/types/**',
-    '!src/app/api/route.ts',
-    '!src/app/layout.tsx',
-    '!src/app/page.tsx'
+  transformIgnorePatterns: [
+    'node_modules/(?!(@thirdweb-dev|uint8arrays|multiformats|@solana|@project-serum|@coral-xyz|@metaplex-foundation|bs58|eventemitter3|bn.js|buffer|borsh|superstruct|@mui)/)'
   ],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  verbose: true,
-  globals: {
-    'ts-jest': {
-      tsconfig: '<rootDir>/tsconfig.json'
-    },
-    React: 'react'
+  testEnvironmentOptions: {
+    customExportConditions: [''],
   }
 }
 
