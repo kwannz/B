@@ -18,6 +18,17 @@ class RiskManagerAgent(BaseAgent):
         self.max_position_size = config.get('max_position_size', 100000)
         self.max_leverage = config.get('max_leverage', 5)
         self.min_margin_ratio = config.get('min_margin_ratio', 0.1)
+        self.position_sizing_config = config.get('position_sizing', {
+            'base_size': 1000,
+            'size_multiplier': 1.0,
+            'max_position_percent': 0.2,
+            'risk_based_sizing': True,
+            'volatility_adjustment': True,
+            'staged_entry': False,
+            'entry_stages': [0.5, 0.3, 0.2],
+            'profit_targets': [2.0, 3.0, 5.0],
+            'size_per_stage': [0.2, 0.25, 0.2]
+        })
         self.model = DeepSeek1_5B(quantized=True)
         self.cache = {}
         
@@ -40,6 +51,7 @@ class RiskManagerAgent(BaseAgent):
         self.risk_metrics = new_config.get('risk_metrics', self.risk_metrics)
         self.position_limits = new_config.get('position_limits', self.position_limits)
         self.risk_levels = new_config.get('risk_levels', self.risk_levels)
+        self.position_sizing_config.update(new_config.get('position_sizing', {}))
         self.last_update = datetime.now().isoformat()
 
     async def evaluate_risk(self, order) -> Dict[str, Any]:
@@ -97,8 +109,8 @@ class RiskManagerAgent(BaseAgent):
             logging.error(f"Batch risk evaluation failed: {str(e)}")
             return [{"risk_score": 75, "recommendation": "adjust"} for _ in orders]
         
-    async def calculate_position_size(self, symbol: str, price: float, risk_factor: float, leverage: float = 1.0) -> float:
-        """Calculate position size based on risk parameters."""
+    async def calculate_position_size(self, symbol: str, price: float, risk_factor: float, leverage: float = 1.0) -> Dict[str, Any]:
+        """Calculate position size based on user configuration and risk parameters."""
         if not symbol:
             raise ValueError("Symbol must not be empty")
             
@@ -111,16 +123,49 @@ class RiskManagerAgent(BaseAgent):
         if leverage < 1 or leverage > self.max_leverage:
             raise ValueError(f"Leverage must be between 1 and {self.max_leverage}")
             
-        # Calculate base position size using risk factor and max position size
-        position_size = self.max_position_size * risk_factor
+        config = self.position_sizing_config
+        base_size = config['base_size'] * config['size_multiplier']
         
-        # Apply leverage risk adjustment (higher leverage = lower position size)
+        # Apply user's max position percentage
+        max_size = self.max_position_size * config['max_position_percent']
+        position_size = min(base_size, max_size)
+        
+        # Apply risk-based sizing if enabled
+        if config['risk_based_sizing']:
+            position_size *= risk_factor
+        
+        # Apply leverage adjustment
         position_size /= leverage
         
-        # Apply volatility adjustment (simplified for testing)
-        volatility_adjustment = 0.8  # Reduce position size by 20% for safety
-        
-        return position_size * volatility_adjustment
+        # Apply volatility adjustment if enabled
+        if config['volatility_adjustment']:
+            volatility_adjustment = 0.8  # Reduce size by 20% for high volatility
+            position_size *= volatility_adjustment
+            
+        # Calculate staged entries if enabled
+        stages = []
+        if config['staged_entry']:
+            for i, (stage_pct, target_mult, size_pct) in enumerate(zip(
+                config['entry_stages'],
+                config['profit_targets'],
+                config['size_per_stage']
+            )):
+                stages.append({
+                    'size': position_size * stage_pct,
+                    'price': price,
+                    'target_price': price * target_mult,
+                    'size_percentage': size_pct
+                })
+                
+        return {
+            'total_size': position_size,
+            'stages': stages if config['staged_entry'] else None,
+            'risk_factor': risk_factor,
+            'leverage': leverage,
+            'max_size': max_size,
+            'volatility_adjusted': config['volatility_adjustment'],
+            'risk_based': config['risk_based_sizing']
+        }
         
         market_data = await cursor.to_list(length=30)
         if not market_data:
