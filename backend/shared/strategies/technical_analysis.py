@@ -191,20 +191,21 @@ class TechnicalAnalysisStrategy:
             
             # 计算价格与RSI的背离
             price_window = prices[-self.rsi_period*2:]
-            rsi_window = [self._calculate_rsi(prices[:i+self.rsi_period+1]) 
+            rsi_values = [self._calculate_rsi(prices[:i+self.rsi_period+1]) 
                         for i in range(len(price_window)-self.rsi_period)]
-            divergence = self._check_divergence(price_window, rsi_window)
+            rsi_window = [v for v in rsi_values if v is not None]
+            divergence = self._check_divergence(price_window, rsi_window) if rsi_window else None
             
-            # 信号生成条件增强
+            # Signal generation conditions
             buy_conditions = [
-                rsi <= self.rsi_oversold,
-                ma_short > ma_long,
+                rsi is not None and rsi <= self.rsi_oversold,
+                ma_short is not None and ma_long is not None and ma_short > ma_long,
                 divergence == "bullish"
             ]
             
             sell_conditions = [
-                rsi >= self.rsi_overbought,
-                ma_short < ma_long, 
+                rsi is not None and rsi >= self.rsi_overbought,
+                ma_short is not None and ma_long is not None and ma_short < ma_long,
                 divergence == "bearish"
             ]
             

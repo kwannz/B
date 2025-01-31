@@ -81,7 +81,7 @@ class MarketMakingStrategy:
             return 0.0
             
         returns = np.diff(np.log(prices))
-        return np.std(returns)
+        return float(np.std(returns))
 
     def _calculate_optimal_spread(self, volatility: float) -> float:
         """Calculate optimal spread based on volatility."""

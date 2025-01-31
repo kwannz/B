@@ -31,6 +31,8 @@ class DEXClient:
         """Get quote from specified DEX."""
         if not self.session:
             await self.start()
+            if not self.session:
+                return {'error': 'Failed to initialize session'}
         
         endpoints = {
             'uniswap': '/quote',
@@ -67,6 +69,8 @@ class DEXClient:
         """Get liquidity information for a token."""
         if not self.session:
             await self.start()
+            if not self.session:
+                return {'error': 'Failed to initialize session'}
         
         endpoints = {
             'uniswap': '/pools',
@@ -97,6 +101,8 @@ class DEXClient:
         """Get market data from DEX."""
         if not self.session:
             await self.start()
+            if not self.session:
+                return {'error': 'Failed to initialize session'}
         
         endpoints = {
             'uniswap': '/pairs',

@@ -1,7 +1,22 @@
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from ...models.trading import TradeStatus, TradeType
-from ...errors import TradingError
+from enum import Enum
+
+class TradeType(str, Enum):
+    BUY = "buy"
+    SELL = "sell"
+
+class TradeStatus(str, Enum):
+    PENDING = "pending"
+    OPEN = "open"
+    CLOSED = "closed"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    COMPLETED = "completed"
+
+class TradingError(Exception):
+    """Custom exception for trading-related errors."""
+    pass
 
 class SharedExecutor:
     def __init__(self):
