@@ -1,60 +1,50 @@
-version: '3.8'
-
 services:
-  frontend:
+  ollama:
     build:
-      context: ../../
-      dockerfile: deploy/docker/frontend/Dockerfile
+      context: .
+      dockerfile: Dockerfile.ollama
     ports:
-      - "3001:80"
-    depends_on:
-      - api_gateway
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - tradingbot_network
     environment:
-      - VITE_API_URL=http://api_gateway:8000
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "/usr/bin/curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    init: true
+    restart: unless-stopped
 
   api_gateway:
     build:
-      context: ../../
-      dockerfile: deploy/docker/backend/Dockerfile
+      context: .
+      dockerfile: Dockerfile.api
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     depends_on:
-      - postgres
-      - redis
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/tradingbot
-      - REDIS_URL=redis://redis:6379/0
-
-  postgres:
-    image: postgres:14
-    ports:
-      - "5433:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=tradingbot
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:6
-    ports:
-      - "6379:6379"
-
-  grafana:
-    image: grafana/grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-
-  prometheus:
-    image: prom/prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      ollama:
+        condition: service_healthy
+    networks:
+      - tradingbot_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    init: true
+networks:
+  tradingbot_network:
+    driver: bridge
 
 volumes:
-  postgres_data:
-  grafana_data:
+  ollama_data:

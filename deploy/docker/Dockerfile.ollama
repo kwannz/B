@@ -1,0 +1,17 @@
+FROM ollama/ollama:latest
+
+# Install curl for health checks
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+ENV OLLAMA_HOST=0.0.0.0
+ENV OLLAMA_ORIGINS=*
+
+# Copy initialization script
+COPY init-ollama.sh /init-ollama.sh
+RUN chmod +x /init-ollama.sh
+
+# Use init script as entrypoint
+ENTRYPOINT ["/init-ollama.sh"]

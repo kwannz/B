@@ -40,6 +40,43 @@ tests/              # Test suites
    ./deploy/scripts/deploy.sh
    ```
 
+## Local Model Setup with Ollama
+
+1. Install Ollama:
+```bash
+curl https://ollama.ai/install.sh | sh
+```
+
+2. Pull the DeepSeek 1.5b model:
+```bash
+ollama pull deepseek:1.5b
+```
+
+3. Configure environment:
+```bash
+# In deploy/config/.env
+AI_MODEL_MODE=LOCAL
+LOCAL_MODEL_ENDPOINT=http://localhost:11434
+LOCAL_MODEL_NAME=deepseek-1.5b
+```
+
+4. Start services with Docker Compose:
+```bash
+cd deploy/docker
+docker compose up -d
+```
+
+5. Verify deployment:
+```bash
+# Check if Ollama service is running
+curl http://localhost:11434/api/tags
+
+# Test sentiment analysis endpoint
+curl -X POST http://localhost:8000/api/v1/sentiment \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Great market conditions today!", "language": "en"}'
+```
+
 ## Core Components
 - DeepSeek Integration: R1 and V3 models for market analysis
 - News Collection: Multi-source aggregation with sentiment analysis
