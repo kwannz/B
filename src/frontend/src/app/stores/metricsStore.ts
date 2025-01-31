@@ -15,6 +15,18 @@ interface MetricsState {
       activePositions: number;
       totalTrades: number;
       successRate: number;
+      dexSwap: {
+        volume: number;
+        averageSlippage: number;
+        totalSwaps: number;
+        lastPrice: number;
+      };
+      memeCoin: {
+        volume: number;
+        averageSentiment: number;
+        totalTrades: number;
+        momentum: number;
+      };
     };
     wallet: {
       balances: Record<string, number>;
@@ -44,7 +56,19 @@ export const useMetricsStore = create<MetricsState>()(
           botStatuses: {},
           activePositions: 0,
           totalTrades: 0,
-          successRate: 0
+          successRate: 0,
+          dexSwap: {
+            volume: 0,
+            averageSlippage: 0,
+            totalSwaps: 0,
+            lastPrice: 0
+          },
+          memeCoin: {
+            volume: 0,
+            averageSentiment: 0,
+            totalTrades: 0,
+            momentum: 0
+          }
         },
         wallet: {
           balances: {},
@@ -93,7 +117,19 @@ export const useMetricsStore = create<MetricsState>()(
               botStatuses: {},
               activePositions: 0,
               totalTrades: 0,
-              successRate: 0
+              successRate: 0,
+              dexSwap: {
+                volume: 0,
+                averageSlippage: 0,
+                totalSwaps: 0,
+                lastPrice: 0
+              },
+              memeCoin: {
+                volume: 0,
+                averageSentiment: 0,
+                totalTrades: 0,
+                momentum: 0
+              }
             },
             wallet: {
               balances: {},
