@@ -1,5 +1,7 @@
 'use client';
 
+import type { Theme } from '@mui/material';
+import type { SxProps } from '@mui/system';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, Typography, CircularProgress, Button, Card, CardContent, Alert, Stepper, Step, StepLabel } from '@mui/material';

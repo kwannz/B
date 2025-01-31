@@ -1,5 +1,8 @@
 'use client';
 
+import type { Theme } from '@mui/material';
+import type { SxProps } from '@mui/system';
+import type { MouseEvent } from 'react';
 import { Box, Typography, Grid, Card, CardContent, Button, Alert, Stepper, Step, StepLabel } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -61,7 +64,7 @@ export default function AgentSelection() {
                     <Button
                       variant="text"
                       size="small"
-                      onClick={(e) => {
+                      onClick={(e: MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();
                         window.open('/docs/trading-agent', '_blank');
                       }}
@@ -92,7 +95,7 @@ export default function AgentSelection() {
                     <Button
                       variant="text"
                       size="small"
-                      onClick={(e) => {
+                      onClick={(e: MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();
                         window.open('/docs/defi-agent', '_blank');
                       }}

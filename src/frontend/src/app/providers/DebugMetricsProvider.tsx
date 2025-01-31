@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useEffect, ReactNode } from 'react';
-import { Box, Typography, IconButton, Theme } from '@mui/material';
-import { SxProps } from '@mui/system';
+import type { Theme } from '@mui/material/styles';
+import type { SxProps } from '@mui/system';
+import type { ReactNode, MouseEvent } from 'react';
+import { createContext, useContext, useEffect } from 'react';
+import { Box, Typography, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useDebug } from '../contexts/DebugContext';
 import { useMetricsStore } from '../hooks/useMetricsStore';
@@ -60,7 +62,10 @@ export const DebugMetricsProvider = ({ children }: { children: ReactNode }) => {
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="h6">Debug Metrics</Typography>
-              <IconButton size="small" onClick={() => window.__DEBUG_METRICS__.debug.clearMetrics()}>
+              <IconButton size="small" onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                e.preventDefault();
+                window.__DEBUG_METRICS__.debug.clearMetrics();
+              }}>
                 <CloseIcon />
               </IconButton>
             </Box>
