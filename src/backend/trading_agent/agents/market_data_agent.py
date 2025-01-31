@@ -11,6 +11,7 @@ from src.shared.utils.batch_processor import BatchProcessor
 from src.shared.utils.fallback_manager import FallbackManager
 from src.shared.models.deepseek import DeepSeek1_5B
 from src.shared.models.market_data import MarketData
+from src.shared.scanner.meme_token_scanner import MemeTokenScanner
 
 class MarketDataBatchProcessor(BatchProcessor[str, Dict[str, Any]]):
     def __init__(self, agent):
@@ -54,6 +55,10 @@ class MarketDataAgent(BaseAgent):
             'binance': True,
             'okx': True
         })
+        self.meme_scanner = MemeTokenScanner(config.get('meme_scanner', {
+            'max_market_cap': 30000,
+            'min_volume': 1000
+        }))
         self.update_interval = config.get('update_interval', 60)
         self.symbols = config.get('symbols', ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'])
         self.batch_processor = MarketDataBatchProcessor(self)
@@ -144,7 +149,10 @@ class MarketDataAgent(BaseAgent):
             return result
         except Exception as e:
             logging.error(f"Market analysis failed: {str(e)}")
-            return None
+            return {
+                "error": f"Market analysis failed: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
             
     async def analyze_markets(self, market_data_list) -> List[Dict[str, Any]]:
         """Analyze multiple market data points in batch."""
@@ -162,7 +170,8 @@ class MarketDataAgent(BaseAgent):
             return await self.model.generate_batch(prompts)
         except Exception as e:
             logging.error(f"Batch market analysis failed: {str(e)}")
-            return [None] * len(market_data_list)
+            return [{"error": f"Analysis failed: {str(e)}", "timestamp": datetime.now().isoformat()} 
+                   for _ in range(len(market_data_list))]
             
     async def fetch_market_data(self, symbol: str, timeframe: str) -> MarketData:
         """Fetch market data for a specific symbol and timeframe."""
@@ -253,14 +262,27 @@ class MarketDataAgent(BaseAgent):
             raise ValueError(f"Invalid bid/ask spread: bid {market_data.bid} > ask {market_data.ask}")
             
     async def collect_market_data(self) -> Dict[str, Any]:
-        """Collect market data for all configured symbols."""
+        """Collect market data for all configured symbols and scan for meme tokens."""
         all_data = {}
+        
+        # Collect data for configured symbols
         for symbol in self.symbols:
             data = await self.fetch_market_data(symbol, "1h")
             all_data[symbol] = data.dict()
+            
+        # Scan for new meme tokens
+        meme_tokens = await self.meme_scanner.scan_for_meme_tokens()
+        for token in meme_tokens:
+            symbol = f"{token['symbol']}/USDT"
+            if symbol not in all_data:
+                market_data = await self.meme_scanner.get_token_market_data(token['id'])
+                if market_data:
+                    all_data[symbol] = market_data.dict()
+        
         return {
             "timestamp": datetime.now().isoformat(),
             "data": all_data,
+            "meme_tokens": meme_tokens,
             "status": "active"
         }
         

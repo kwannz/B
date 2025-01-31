@@ -75,6 +75,64 @@ class TechnicalAnalystAgent(BaseAgent):
         self.cache.set(f"technical_analysis:{symbol}", analysis_result)
         return analysis_result
             
+    async def _calculate_indicator(self, market_data: MarketData, indicator: str) -> Dict[str, Any]:
+        if not market_data or not market_data.metadata:
+            raise ValueError("Invalid market data")
+            
+        prices = market_data.prices
+        if not prices:
+            return {"value": None, "error": "No price data"}
+            
+        try:
+            if indicator.lower() == "rsi":
+                delta = np.diff([float(p) for p in prices])
+                gains = np.where(delta > 0, delta, 0)
+                losses = np.where(delta < 0, -delta, 0)
+                avg_gain = np.mean(gains[-14:]) if len(gains) >= 14 else None
+                avg_loss = np.mean(losses[-14:]) if len(losses) >= 14 else None
+                if avg_gain is not None and avg_loss is not None and avg_loss != 0:
+                    rs = avg_gain / avg_loss
+                    rsi = 100 - (100 / (1 + rs))
+                    return {"value": float(rsi)}
+                return {"value": 50.0}  # Default RSI
+                
+            elif indicator.lower() == "macd":
+                prices_float = [float(p) for p in prices]
+                exp1 = pd.Series(prices_float).ewm(span=12, adjust=False).mean()
+                exp2 = pd.Series(prices_float).ewm(span=26, adjust=False).mean()
+                macd = exp1 - exp2
+                signal = macd.ewm(span=9, adjust=False).mean()
+                return {
+                    "macd": float(macd.iloc[-1]),
+                    "signal": float(signal.iloc[-1]),
+                    "histogram": float(macd.iloc[-1] - signal.iloc[-1])
+                }
+                
+            elif indicator.lower() == "bollinger":
+                prices_float = [float(p) for p in prices]
+                series = pd.Series(prices_float)
+                sma = series.rolling(window=20).mean()
+                std = series.rolling(window=20).std()
+                if not sma.empty and not sma.isna().all():
+                    middle = float(sma.iloc[-1])
+                    std_val = float(std.iloc[-1])
+                    return {
+                        "middle": middle,
+                        "upper": middle + (2 * std_val),
+                        "lower": middle - (2 * std_val)
+                    }
+                return {
+                    "middle": float(prices[-1]),
+                    "upper": float(prices[-1]) * 1.02,
+                    "lower": float(prices[-1]) * 0.98
+                }
+                
+            else:
+                return {"error": f"Unsupported indicator: {indicator}"}
+                
+        except Exception as e:
+            return {"error": f"Error calculating {indicator}: {str(e)}"}
+            
     async def calculate_indicator(self, market_data: MarketData, indicator: str) -> Dict[str, Any]:
         if not market_data or not market_data.metadata:
             raise ValueError("Invalid market data")

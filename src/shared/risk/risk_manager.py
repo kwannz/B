@@ -1541,7 +1541,7 @@ class RiskManager:
             market_conditions = metrics.get("market_conditions_alignment", 0.5)
             volatility = metrics.get("volatility_exposure", 1.0)
             volume = metrics.get("volume", 0.0)
-            current_price = float(trade_params.get("price", 0.0))
+            current_price = float(metrics.get("price", 0.0))
             position_value = position_size * current_price
             
             # More lenient volume requirements
