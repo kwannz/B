@@ -31,6 +31,13 @@ class RiskConfig:
     POSITION_REDUCTION_RATE: float = 0.7
     TRAILING_STOP_ACTIVATION: float = 1.5
     DYNAMIC_TAKE_PROFIT_LEVELS: List[float] = field(default_factory=lambda: [0.33, 0.5, 1.0])
+    MEME_MAX_ALLOCATION: float = 0.05
+    MEME_VOLATILITY_CUSHION: float = 0.02
+    MEME_MAX_POSITION_SIZE: float = 5000
+    MEME_MIN_LIQUIDITY: float = 50000
+    MEME_MAX_SLIPPAGE: float = 0.05
+    MEME_STOP_LOSS_MULTIPLIER: float = 1.5
+    MEME_TAKE_PROFIT_MULTIPLIER: float = 4.0
 
     def validate(self):
         if not 0 < self.MIN_CONFIDENCE <= 1:
@@ -66,6 +73,22 @@ class RiskConfig:
         if not all(self.DYNAMIC_TAKE_PROFIT_LEVELS[i] < self.DYNAMIC_TAKE_PROFIT_LEVELS[i+1] 
                   for i in range(len(self.DYNAMIC_TAKE_PROFIT_LEVELS)-1)):
             raise ValueError("DYNAMIC_TAKE_PROFIT_LEVELS must be in ascending order")
+            
+        # Validate meme coin parameters
+        if not 0 < self.MEME_MAX_ALLOCATION <= 0.1:
+            raise ValueError("MEME_MAX_ALLOCATION must be between 0 and 0.1 (10%)")
+        if not 0 < self.MEME_VOLATILITY_CUSHION <= 0.05:
+            raise ValueError("MEME_VOLATILITY_CUSHION must be between 0 and 0.05 (5%)")
+        if not 0 < self.MEME_MAX_POSITION_SIZE <= self.MAX_POSITION_SIZE:
+            raise ValueError("MEME_MAX_POSITION_SIZE must be between 0 and MAX_POSITION_SIZE")
+        if not 0 < self.MEME_MIN_LIQUIDITY <= self.MIN_LIQUIDITY:
+            raise ValueError("MEME_MIN_LIQUIDITY must be between 0 and MIN_LIQUIDITY")
+        if not 0 < self.MEME_MAX_SLIPPAGE <= 0.1:
+            raise ValueError("MEME_MAX_SLIPPAGE must be between 0 and 0.1 (10%)")
+        if not 0 < self.MEME_STOP_LOSS_MULTIPLIER <= 3:
+            raise ValueError("MEME_STOP_LOSS_MULTIPLIER must be between 0 and 3")
+        if not 0 < self.MEME_TAKE_PROFIT_MULTIPLIER <= 5:
+            raise ValueError("MEME_TAKE_PROFIT_MULTIPLIER must be between 0 and 5")
 
 class RiskAssessment(BaseModel):
     is_valid: bool
@@ -106,6 +129,34 @@ class RiskAssessment(BaseModel):
 
 class RiskManager:
     """Risk management system."""
+    
+    async def adjust_for_meme_coins(self, risk_params: Dict[str, Any], token_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Adjust risk parameters for meme coins."""
+        if token_info.get("is_meme", False):
+            risk_params.update({
+                "max_allocation": self.config.MEME_MAX_ALLOCATION,
+                "max_position_size": self.config.MEME_MAX_POSITION_SIZE,
+                "min_liquidity": self.config.MEME_MIN_LIQUIDITY,
+                "max_slippage": self.config.MEME_MAX_SLIPPAGE,
+                "stop_loss_multiplier": self.config.MEME_STOP_LOSS_MULTIPLIER,
+                "take_profit_multiplier": self.config.MEME_TAKE_PROFIT_MULTIPLIER,
+                "volatility_cushion": self.config.MEME_VOLATILITY_CUSHION
+            })
+            
+            # Apply volatility cushion to position sizing
+            if "position_size" in risk_params:
+                risk_params["position_size"] *= (1.0 - self.config.MEME_VOLATILITY_CUSHION)
+                
+            # Adjust take profit levels for higher volatility
+            if "take_profit_levels" in risk_params:
+                risk_params["take_profit_levels"] = [level * self.config.MEME_TAKE_PROFIT_MULTIPLIER 
+                                                   for level in risk_params["take_profit_levels"]]
+                
+            # Tighten stop loss for meme coins
+            if "stop_loss" in risk_params:
+                risk_params["stop_loss"] *= self.config.MEME_STOP_LOSS_MULTIPLIER
+        
+        return risk_params
     
     def __init__(self):
         self.config = RiskConfig()
@@ -889,6 +940,8 @@ class RiskManager:
     async def _calculate_risk_metrics(self, params: Dict[str, Any], position_size: float) -> Dict[str, Any]:
         """Calculate risk metrics including position adjustments and portfolio limits."""
         try:
+            # Apply meme coin adjustments if needed
+            params = await self.adjust_for_meme_coins(params, {"is_meme": params.get("is_meme_coin", False)})
             symbol = str(params.get("symbol", "BTC/USD"))
             is_buy = params.get("side", "buy").lower() == "buy"
             is_meme = bool(params.get("is_meme_coin", False))
