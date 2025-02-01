@@ -4,7 +4,7 @@ import {
   TableBody,
   TableCell,
   TableHeader,
-  TableHeader,
+  TableHead,
   TableRow,
 } from '../ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';

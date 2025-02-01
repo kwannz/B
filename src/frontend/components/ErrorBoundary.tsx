@@ -1,5 +1,6 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { useToast } from './ui/use-toast';
+import * as React from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
+import { Box, Typography, Button } from '@mui/material';
 
 interface Props {
   children: ReactNode;
@@ -7,42 +8,41 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  error: Error | null;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+export class ErrorBoundary extends React.Component<Props, State> {
   public state: State = {
     hasError: false,
+    error: null
   };
 
-  public static getDerivedStateFromError(_: Error): State {
-    return { hasError: true };
+  public static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
-    
-    const { toast } = useToast(); toast({
-      variant: 'destructive',
-      title: 'Application Error',
-      description: 'An unexpected error occurred. Please try refreshing the page.',
-    });
   }
 
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-4 space-y-4 text-center">
-          <h1 className="text-2xl font-bold">Something went wrong</h1>
-          <p className="text-muted-foreground">
-            An unexpected error occurred. Please try refreshing the page.
-          </p>
-          <button
-            className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90"
+        <Box className="flex flex-col items-center justify-center min-h-screen p-4 space-y-4">
+          <Typography variant="h4" component="h1" gutterBottom>
+            Something went wrong
+          </Typography>
+          <Typography variant="body1" color="text.secondary" gutterBottom>
+            {this.state.error?.message || 'An unexpected error occurred. Please try refreshing the page.'}
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
             onClick={() => window.location.reload()}
           >
             Refresh Page
-          </button>
-        </div>
+          </Button>
+        </Box>
       );
     }
 
