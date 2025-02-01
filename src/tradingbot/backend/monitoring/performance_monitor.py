@@ -1,14 +1,15 @@
-import os
-import psutil
 import asyncio
-import aiohttp
 import logging
-from typing import Dict, List, Optional
-from datetime import datetime, timedelta
-from prometheus_client import Counter, Gauge, Histogram, Summary
+import os
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
+import aiohttp
 import aioping
 import asyncpg
+import psutil
+from prometheus_client import Counter, Gauge, Histogram, Summary
 
 
 @dataclass
@@ -48,12 +49,8 @@ class PerformanceMonitor:
         self.monitor_config = {
             "cpu_threshold": config.get("cpu_threshold", 80),  # CPU使用率阈值
             "memory_threshold": config.get("memory_threshold", 80),  # 内存使用率阈值
-            "network_threshold": config.get(
-                "network_threshold", 0.1
-            ),  # 网络延迟阈值(秒)
-            "db_query_threshold": config.get(
-                "db_query_threshold", 1.0
-            ),  # 数据库查询阈值(秒)
+            "network_threshold": config.get("network_threshold", 0.1),  # 网络延迟阈值(秒)
+            "db_query_threshold": config.get("db_query_threshold", 1.0),  # 数据库查询阈值(秒)
             "api_timeout": config.get("api_timeout", 5.0),  # API超时时间(秒)
             "monitor_interval": config.get("monitor_interval", 60),  # 监控间隔(秒)
             "alert_cooldown": config.get("alert_cooldown", 300),  # 告警冷却时间(秒)

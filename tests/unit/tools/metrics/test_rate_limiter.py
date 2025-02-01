@@ -2,9 +2,11 @@
 Test rate limiter implementation
 """
 
-import pytest
 import asyncio
 from datetime import datetime
+
+import pytest
+
 from tradingbot.shared.rate_limiter import RateLimiter, SourceRateLimiter
 
 

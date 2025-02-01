@@ -1,8 +1,10 @@
+import os
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import aiohttp
 import pytest
 import pytest_asyncio
-import aiohttp
-import os
-from unittest.mock import patch, AsyncMock, MagicMock
+
 from tradingbot.core.services.sentiment.sentiment_analyzer import SentimentAnalyzer
 
 
@@ -45,7 +47,6 @@ async def test_local_model_priority(mock_session, monkeypatch):
             SentimentAnalyzer, "_call_remote_model", new_callable=AsyncMock
         ) as mock_remote_fn,
     ):
-
         mock_local_fn.return_value = {"score": 0.8}
 
         result = await analyzer.analyze_text("Bitcoin price surges to new highs")
@@ -69,7 +70,6 @@ async def test_local_model_fallback(mock_session, monkeypatch):
             SentimentAnalyzer, "_call_remote_model", new_callable=AsyncMock
         ) as mock_remote_fn,
     ):
-
         mock_local_fn.side_effect = Exception("Local model unavailable")
         mock_remote_fn.return_value = {"score": 0.7}
 
@@ -95,7 +95,6 @@ async def test_complete_fallback_behavior(mock_session, monkeypatch):
             SentimentAnalyzer, "_call_remote_model", new_callable=AsyncMock
         ) as mock_remote_fn,
     ):
-
         mock_local_fn.side_effect = Exception("Local model unavailable")
         mock_remote_fn.side_effect = Exception("Remote model unavailable")
 

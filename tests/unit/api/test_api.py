@@ -4,6 +4,7 @@ Tests for API configuration module.
 
 import pytest
 from pydantic import SecretStr
+
 from tradingbot.core.config.api import APIConfig
 
 

@@ -3,12 +3,13 @@ Dependencies for FastAPI application
 """
 
 from typing import Generator, Optional
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
+from prometheus_client import CollectorRegistry
 from pymongo import MongoClient
 from redis import Redis
-from prometheus_client import CollectorRegistry
 
 from .core.config import settings
 from .core.exceptions import AuthenticationError, DatabaseError

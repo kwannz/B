@@ -2,32 +2,33 @@
 Exchange WebSocket集成测试
 """
 
-import os
-import json
-import pytest
 import asyncio
-from datetime import datetime
-from unittest.mock import Mock, patch, AsyncMock
-import aiohttp
-from aiohttp import WSMsgType, WSMessage
+import json
+import os
 
 # Add project root to Python path
 import sys
+from datetime import datetime
 from pathlib import Path
+from unittest.mock import AsyncMock, Mock, patch
+
+import aiohttp
+import pytest
+from aiohttp import WSMessage, WSMsgType
 
 project_root = str(Path(__file__).parent.parent.parent)
 if project_root not in sys.path:
     sys.path.append(project_root)
 
 from tradingbot.trading_agent.python.exchanges.binance_ws import BinanceWebSocket
-from tradingbot.trading_agent.python.exchanges.uniswap_ws import UniswapWebSocket
 from tradingbot.trading_agent.python.exchanges.jupiter_ws import JupiterWebSocket
-from tradingbot.trading_agent.python.exchanges.raydium_ws import RaydiumWebSocket
+from tradingbot.trading_agent.python.exchanges.okx_ws import OKXWebSocket
+from tradingbot.trading_agent.python.exchanges.oneinch_ws import OneInchWebSocket
 from tradingbot.trading_agent.python.exchanges.pancakeswap_ws import (
     PancakeSwapWebSocket,
 )
-from tradingbot.trading_agent.python.exchanges.okx_ws import OKXWebSocket
-from tradingbot.trading_agent.python.exchanges.oneinch_ws import OneInchWebSocket
+from tradingbot.trading_agent.python.exchanges.raydium_ws import RaydiumWebSocket
+from tradingbot.trading_agent.python.exchanges.uniswap_ws import UniswapWebSocket
 
 
 @pytest.fixture

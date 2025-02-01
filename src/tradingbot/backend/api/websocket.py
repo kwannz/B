@@ -1,13 +1,15 @@
-from fastapi import WebSocket, WebSocketDisconnect
-from typing import Dict, Set, Optional
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime
-import psutil
 import time
-from src.utils.security import validate_ws_token
+from datetime import datetime
+from typing import Dict, Optional, Set
+
+import psutil
+from fastapi import WebSocket, WebSocketDisconnect
+
 from src.models.metrics import WebSocketMetrics
+from src.utils.security import validate_ws_token
 
 logger = logging.getLogger(__name__)
 

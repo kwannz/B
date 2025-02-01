@@ -4,14 +4,14 @@ Trading background tasks
 
 import asyncio
 import logging
-from typing import List, Dict
 from datetime import datetime
 from decimal import Decimal
+from typing import Dict, List
 
-from ..services.trading import TradingEngine
-from ..services.market import MarketDataService
-from ..models.trading import Order, Position, OrderStatus, PositionStatus
 from ..core.exceptions import TradingError
+from ..models.trading import Order, OrderStatus, Position, PositionStatus
+from ..services.market import MarketDataService
+from ..services.trading import TradingEngine
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,7 @@
 import asyncio
+
 import pytest
+
 from .grpc_client import TradeServiceClient
 
 

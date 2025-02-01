@@ -2,19 +2,19 @@
 WebSocket管理器测试
 """
 
-import os
-import pytest
 import asyncio
+import os
 from datetime import datetime
-from unittest.mock import Mock, patch, AsyncMock
-import aiohttp
-from aiohttp import WSMsgType, WSMessage
+from unittest.mock import AsyncMock, Mock, patch
 
-from aiohttp import WSMsgType, WSMessage
+import aiohttp
+import pytest
+from aiohttp import WSMessage, WSMsgType
+
 from tradingbot.trading_agent.python.streams.websocket_manager import (
-    WebSocketManager,
-    ConnectionState,
     ConnectionMetrics,
+    ConnectionState,
+    WebSocketManager,
 )
 
 

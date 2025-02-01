@@ -1,11 +1,13 @@
-from typing import Dict, Any, Optional
-from decimal import Decimal
 import logging
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Any, Dict, Optional
+
 import pandas as pd
 import pandas_ta as ta
-from datetime import datetime, timedelta
-from ....shared.models.trading import TradeType
+
 from ....shared.exchange.dex_client import DEXClient
+from ....shared.models.trading import TradeType
 from ..base_agent import BaseTradingAgent
 
 logger = logging.getLogger(__name__)

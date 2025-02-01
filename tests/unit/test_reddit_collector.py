@@ -3,13 +3,14 @@ Test Reddit collector
 """
 
 import os
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
-import praw
 
-from tradingbot.shared.social_media_analyzer.reddit_collector import RedditCollector
+import praw
+import pytest
+
 from tradingbot.shared.models.mongodb import RawSocialMediaPost
+from tradingbot.shared.social_media_analyzer.reddit_collector import RedditCollector
 
 
 @pytest.fixture

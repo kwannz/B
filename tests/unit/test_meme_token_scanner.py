@@ -1,8 +1,10 @@
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
-from src.shared.scanner.meme_token_scanner import MemeTokenScanner
+
+import pytest
+
 from src.shared.models.market_data import MarketData
+from src.shared.scanner.meme_token_scanner import MemeTokenScanner
 
 
 @pytest.fixture

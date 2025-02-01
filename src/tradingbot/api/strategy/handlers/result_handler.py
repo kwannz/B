@@ -2,16 +2,17 @@
 Strategy result handler for processing strategy execution results
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
 from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis import Redis
 
-from ...models.trading import Order, Trade, Position
-from ...models.risk import RiskMetrics
-from ..context.strategy_context import StrategyContext
 from ...core.exceptions import ValidationError
+from ...models.risk import RiskMetrics
+from ...models.trading import Order, Position, Trade
+from ..context.strategy_context import StrategyContext
 
 
 class StrategyResultHandler:

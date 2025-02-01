@@ -1,50 +1,47 @@
-from typing import Optional
-from solana.rpc.async_api import AsyncClient
-from solders.keypair import Keypair
-from base58 import b58encode, b58decode
-
+"""Mock wallet manager module for testing"""
+import base58
 
 class WalletManager:
     def __init__(self):
-        self.client = AsyncClient("https://api.testnet.solana.com")
-        self._keypair: Optional[Keypair] = None
-        self._public_key: Optional[str] = None
-        self._private_key: Optional[str] = None
+        self._balance = 10.0  # Mock balance for testing
+        self._public_key = base58.b58encode(b"mock_public_key").decode()
+        self._private_key = base58.b58encode(b"mock_private_key").decode()
 
-    def initialize_wallet(self, private_key: str = None):
-        """Initialize wallet with existing private key or generate new one"""
-        if private_key:
-            # Convert private key from base58 to bytes
-            private_key_bytes = b58decode(private_key)
-            self._keypair = Keypair.from_secret_key(private_key_bytes)
-        else:
-            self._keypair = Keypair()
+    async def get_balance(self) -> float:
+        """Get wallet balance"""
+        return self._balance
 
-        self._public_key = str(self._keypair.public_key)
-        self._private_key = b58encode(self._keypair.secret_key).decode("utf-8")
-
-    def get_public_key(self) -> Optional[str]:
+    def get_public_key(self) -> str:
         """Get wallet public key"""
         return self._public_key
 
-    def get_private_key(self) -> Optional[str]:
+    def get_private_key(self) -> str:
         """Get wallet private key"""
         return self._private_key
 
-    async def get_balance(self) -> float:
-        """Get wallet balance in SOL"""
-        if not self._keypair:
-            return 0.0
+    async def send_transaction(self, to_address: str, amount: float) -> str:
+        """Send transaction
+        
+        Args:
+            to_address: Destination address
+            amount: Amount to send
+            
+        Returns:
+            Transaction hash
+        """
+        if amount > self._balance:
+            raise ValueError("Insufficient funds")
+        
+        self._balance -= amount
+        return base58.b58encode(b"mock_tx_hash").decode()
 
-        try:
-            response = await self.client.get_balance(self._keypair.public_key)
-            if response.value is None:
-                return 0.0
-            return float(response.value) / 1e9  # Convert lamports to SOL
-        except Exception as e:
-            print(f"Error getting balance: {str(e)}")
-            return 0.0
-
-    def is_initialized(self) -> bool:
-        """Check if wallet is initialized"""
-        return self._keypair is not None
+    async def sign_message(self, message: bytes) -> bytes:
+        """Sign message with private key
+        
+        Args:
+            message: Message to sign
+            
+        Returns:
+            Signature
+        """
+        return base58.b58encode(b"mock_signature")

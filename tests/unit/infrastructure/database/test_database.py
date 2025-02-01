@@ -3,19 +3,19 @@ Tests for database operations
 """
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import Boolean, Column, Float, Integer, String, create_engine
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy import Column, Integer, String, Boolean, Float
+
 from tradingbot.src.trading_agent.api.database import (
     Base,
-    get_db,
     CRUDBase,
-    UserCRUD,
-    StrategyCRUD,
-    PositionCRUD,
-    TradeCRUD,
     MetricCRUD,
+    PositionCRUD,
     SettingCRUD,
+    StrategyCRUD,
+    TradeCRUD,
+    UserCRUD,
+    get_db,
 )
 
 

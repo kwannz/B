@@ -1,9 +1,11 @@
+from datetime import datetime
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import List
-from ..deps import get_database, get_current_user
-from ..models.base import BaseOrder, Position, OrderStatus
-from datetime import datetime
+
+from ..deps import get_current_user, get_database
+from ..models.base import BaseOrder, OrderStatus, Position
 
 router = APIRouter(prefix="/trading", tags=["trading"])
 

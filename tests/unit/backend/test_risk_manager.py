@@ -1,9 +1,11 @@
-import pytest
 import time
 from datetime import datetime, timedelta
-from src.shared.risk.risk_manager import RiskManager, RiskAssessment, RiskConfig
-from src.shared.models.cache import MarketDataCache, RateLimitCache, CacheConfig
-from src.shared.models.database import set_cache, get_cache, delete_cache
+
+import pytest
+
+from src.shared.models.cache import CacheConfig, MarketDataCache, RateLimitCache
+from src.shared.models.database import delete_cache, get_cache, set_cache
+from src.shared.risk.risk_manager import RiskAssessment, RiskConfig, RiskManager
 from src.shared.risk.trade_factory import create_trade_dict
 
 
@@ -451,7 +453,7 @@ async def test_meme_coin_risk(risk_manager):
 @pytest.mark.asyncio
 async def test_market_data_caching(risk_manager):
     from src.shared.models.cache import MarketDataCache
-    from src.shared.models.database import set_cache, get_cache, delete_cache
+    from src.shared.models.database import delete_cache, get_cache, set_cache
 
     # Test market data caching
     trade = create_trade_dict()
@@ -480,10 +482,11 @@ async def test_market_data_caching(risk_manager):
 
 @pytest.mark.asyncio
 async def test_rate_limits_and_staleness(risk_manager):
-    from src.shared.models.cache import MarketDataCache, RateLimitCache
-    from src.shared.models.database import set_cache, get_cache, delete_cache
     import time
     from datetime import datetime, timedelta
+
+    from src.shared.models.cache import MarketDataCache, RateLimitCache
+    from src.shared.models.database import delete_cache, get_cache, set_cache
 
     trade = create_trade_dict()
 
@@ -1253,7 +1256,8 @@ async def test_portfolio_risk_and_margin(risk_manager):
 
     # Test rate limiting and market data caching
     from datetime import datetime, timedelta
-    from src.shared.models.cache import RateLimitCache, MarketDataCache
+
+    from src.shared.models.cache import MarketDataCache, RateLimitCache
 
     # Set up rate limit cache
     rate_limit = {

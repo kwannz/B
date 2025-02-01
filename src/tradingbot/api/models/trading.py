@@ -2,12 +2,13 @@
 Trading related models for order and position management
 """
 
-from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
-from enum import Enum
 from decimal import Decimal
-from pydantic import BaseModel, Field, validator, root_validator
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+
 from bson import ObjectId
+from pydantic import BaseModel, Field, root_validator, validator
 
 from .base import PyObjectId
 

@@ -2,16 +2,17 @@
 Tests for strategy result handler
 """
 
-import pytest
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
-from ....strategy.handlers.result_handler import StrategyResultHandler
-from ....strategy.context.strategy_context import StrategyContext
-from ....models.trading import Order, Trade, Position
-from ....models.risk import RiskMetrics
+import pytest
+
 from ....core.exceptions import ValidationError
+from ....models.risk import RiskMetrics
+from ....models.trading import Order, Position, Trade
+from ....strategy.context.strategy_context import StrategyContext
+from ....strategy.handlers.result_handler import StrategyResultHandler
 
 
 @pytest.fixture

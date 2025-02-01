@@ -1,7 +1,9 @@
-import pytest
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
+
 import pandas as pd
+import pytest
+
 from src.backend.trading_agent.agents.dex_swap_agent import DexSwapAgent
 from src.shared.models.trading import TradeType
 

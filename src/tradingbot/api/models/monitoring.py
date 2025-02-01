@@ -2,15 +2,16 @@
 Monitoring related models for system metrics and alerts
 """
 
-from typing import List, Optional, Dict, Any
 from datetime import datetime
-from enum import Enum
 from decimal import Decimal
-from pydantic import BaseModel, Field, validator
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
 from bson import ObjectId
+from pydantic import BaseModel, Field, validator
 
 from .base import PyObjectId
-from .trading import Position, Order
+from .trading import Order, Position
 
 
 class AlertType(str, Enum):

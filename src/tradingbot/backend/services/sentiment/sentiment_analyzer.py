@@ -1,6 +1,7 @@
-from typing import Dict, Any
-import aiohttp
 from datetime import datetime
+from typing import Any, Dict
+
+import aiohttp
 
 
 async def analyze_text(text: str, language: str = "en") -> Dict[str, Any]:

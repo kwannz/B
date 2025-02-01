@@ -1,7 +1,9 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
-from tradingbot.trading_agent.agents.monitoring_agent import MonitoringAgent
+
 from tradingbot.trading_agent.agents.base_agent import AgentResponse
+from tradingbot.trading_agent.agents.monitoring_agent import MonitoringAgent
 
 
 @pytest.fixture

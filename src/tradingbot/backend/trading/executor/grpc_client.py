@@ -1,12 +1,15 @@
-from typing import Dict, Any, AsyncGenerator, List, Optional
-import grpc.aio
 import asyncio
 import logging
 import time
+from typing import Any, AsyncGenerator, Dict, List, Optional
+
+import grpc.aio
 from google.protobuf.json_format import MessageToDict
+
+from src.shared.logging_config import setup_logging
+
 from .pb import trading_pb2 as pb
 from .pb import trading_pb2_grpc as pb_grpc
-from src.shared.logging_config import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)

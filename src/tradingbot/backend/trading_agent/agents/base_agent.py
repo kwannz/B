@@ -1,22 +1,25 @@
-from abc import ABC, abstractmethod
 import logging
-from typing import Dict, Any
-from shared.cache.hybrid_cache import HybridCache
-from src.shared.monitor.prometheus import start_prometheus_server
-from src.shared.monitor.metrics import (
-    track_inference_time,
-    track_cache_hit,
-    track_cache_miss,
+from abc import ABC, abstractmethod
+from typing import Any, Dict
+
+from tradingbot.shared.cache.hybrid_cache import HybridCache
+
+from tradingbot.shared.monitor.metrics import (
     get_cache_hit_rate,
     get_error_rate,
     get_inference_latency,
+    track_cache_hit,
+    track_cache_miss,
+    track_inference_time,
 )
+from tradingbot.shared.monitor.prometheus import start_prometheus_server
 
 
 class BaseAgent(ABC):
-    def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
-        self.agent_id = agent_id
+    def __init__(self, name: str, agent_type: str, config: Dict[str, Any]):
+        self.agent_id = name
         self.name = name
+        self.type = agent_type
         self.config = config
         self.status = "inactive"
         self.last_update = None

@@ -2,18 +2,19 @@
 Dependency injection module for the Trading Bot API
 """
 
+from datetime import datetime
 from typing import AsyncGenerator, Optional
+
+import aioredis
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-import aioredis
 from prometheus_client import Counter, Histogram
 
-from .config import Settings
-from .exceptions import AuthenticationError, DatabaseError, CacheError
 from ..models.user import User
+from .config import Settings
+from .exceptions import AuthenticationError, CacheError, DatabaseError
 
 # Load settings
 settings = Settings()

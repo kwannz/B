@@ -4,6 +4,7 @@ Test keyword extraction functionality
 
 import pytest
 import spacy
+
 from tradingbot.shared.keyword_extractor import KeywordExtractor
 
 

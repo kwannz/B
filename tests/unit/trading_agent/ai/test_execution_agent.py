@@ -1,4 +1,5 @@
 import pytest
+
 from tradingbot.trading_agent.ai.execution_agent import ExecutionAgent
 
 

@@ -1,23 +1,23 @@
 """Tests for analyzer-guided trade execution."""
 
-import pytest
-from decimal import Decimal
 from datetime import datetime
-from unittest.mock import AsyncMock, patch, MagicMock
+from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from trading_agent.trading_bot.python.executor import (
-    TradingExecutor,
-    TradeOrder,
-    OrderResult,
-)
+import pytest
 from shared.models.trading_factors import (
-    TradingFactors,
-    TradingAction,
+    MarketAnalysis,
     MarketRegime,
+    RiskAssessment,
     RiskLevel,
     TechnicalAnalysis,
-    MarketAnalysis,
-    RiskAssessment,
+    TradingAction,
+    TradingFactors,
+)
+from trading_agent.trading_bot.python.executor import (
+    OrderResult,
+    TradeOrder,
+    TradingExecutor,
 )
 
 

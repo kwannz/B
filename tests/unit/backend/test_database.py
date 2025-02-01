@@ -1,21 +1,23 @@
-import pytest
 import json
 from datetime import datetime, timedelta
+
+import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select
+
+from src.shared.models.base import Strategy, Trade, User
+from src.shared.models.cache import MarketDataCache, SentimentCache
 from src.shared.models.database import (
-    init_db,
-    close_db,
-    set_cache,
-    get_cache,
-    delete_cache,
     MARKET_PREFIX,
     SENTIMENT_PREFIX,
+    close_db,
+    delete_cache,
+    get_cache,
+    init_db,
+    set_cache,
 )
-from src.shared.models.base import User, Strategy, Trade
 from src.shared.models.market_data import MarketData, MarketMetrics, TradingSignal
-from src.shared.models.cache import MarketDataCache, SentimentCache
 
 
 @pytest.mark.asyncio

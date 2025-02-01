@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException
-from typing import Dict, List
 from datetime import datetime
-from ..models.agent_models import AgentCreate, AgentUpdate, AgentResponse
+from typing import Dict, List
+
 from app.services.agent_manager import AgentManager
+from fastapi import APIRouter, HTTPException
+
+from ..models.agent_models import AgentCreate, AgentResponse, AgentUpdate
 
 router = APIRouter()
 agent_manager = AgentManager()

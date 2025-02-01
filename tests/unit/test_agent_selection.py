@@ -1,6 +1,7 @@
 import asyncio
-import httpx
 import logging
+
+import httpx
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

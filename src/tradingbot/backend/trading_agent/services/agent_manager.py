@@ -1,13 +1,14 @@
 from typing import Dict, List, Optional, Union
-from ..agents.trading_agent import TradingAgent
-from ..agents.market_data_agent import MarketDataAgent
-from ..agents.valuation_agent import ValuationAgent
-from ..agents.sentiment_agent import SentimentAgent
-from ..agents.fundamentals_agent import FundamentalsAgent
-from ..agents.technical_analyst_agent import TechnicalAnalystAgent
-from ..agents.risk_manager_agent import RiskManagerAgent
-from ..agents.portfolio_manager_agent import PortfolioManagerAgent
+
 from ..agents.base_agent import BaseAgent
+from ..agents.fundamentals_agent import FundamentalsAgent
+from ..agents.market_data_agent import MarketDataAgent
+from ..agents.portfolio_manager_agent import PortfolioManagerAgent
+from ..agents.risk_manager_agent import RiskManagerAgent
+from ..agents.sentiment_agent import SentimentAgent
+from ..agents.technical_analyst_agent import TechnicalAnalystAgent
+from ..agents.trading_agent import TradingAgent
+from ..agents.valuation_agent import ValuationAgent
 
 AgentType = Union[
     TradingAgent,

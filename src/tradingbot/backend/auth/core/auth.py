@@ -1,13 +1,14 @@
+import os
 from datetime import datetime, timedelta
-from typing import Optional, Dict
-from fastapi import HTTPException, Request, Depends, status
+from typing import Dict, Optional
+
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from .config import settings
-import os
 
 if os.getenv("TEST_MODE") == "true":
     from tests.unit.mocks import User

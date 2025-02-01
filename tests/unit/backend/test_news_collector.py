@@ -1,6 +1,8 @@
-import pytest
 import asyncio
 from datetime import datetime, timedelta
+
+import pytest
+
 from src.shared.news_collector.collector import NewsCollector
 
 

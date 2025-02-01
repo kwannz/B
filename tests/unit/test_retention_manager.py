@@ -2,8 +2,10 @@
 Test data retention management
 """
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
+
 from tradingbot.shared.retention_manager import RetentionManager
 
 

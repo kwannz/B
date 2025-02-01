@@ -1,15 +1,17 @@
 """Unit tests for technical analysis strategy."""
 
-import pytest
 from unittest import mock
+
+import pytest
 
 pytestmark = pytest.mark.asyncio
 from datetime import datetime, timedelta
+
 import numpy as np
 
-from tradingbot.shared.strategies.technical_analysis import TechnicalAnalysisStrategy
-from tradingbot.shared.config.tenant_config import StrategyConfig
 from tradingbot.models.trading import TradeStatus
+from tradingbot.shared.config.tenant_config import StrategyConfig
+from tradingbot.shared.strategies.technical_analysis import TechnicalAnalysisStrategy
 
 
 @pytest.fixture
@@ -803,7 +805,11 @@ async def test_signal_combination_scenarios(strategy_config):
                 "price": (
                     None
                     if i == 15
-                    else float("inf") if i == 25 else float("nan") if i == 27 else 100.0
+                    else float("inf")
+                    if i == 25
+                    else float("nan")
+                    if i == 27
+                    else 100.0
                 ),
                 "volume": 2000,
                 "pair": "TEST/USDT",
@@ -867,7 +873,11 @@ async def test_signal_combination_scenarios(strategy_config):
                     else (
                         float("-inf")
                         if i == 16
-                        else float("nan") if i == 17 else None if i == 18 else 100.0
+                        else float("nan")
+                        if i == 17
+                        else None
+                        if i == 18
+                        else 100.0
                     )
                 ),
                 "volume": 2000,
@@ -902,7 +912,9 @@ async def test_signal_combination_scenarios(strategy_config):
                 "price": (
                     float("inf")
                     if i < 15
-                    else float("-inf") if i < 25 else float("nan")
+                    else float("-inf")
+                    if i < 25
+                    else float("nan")
                 ),  # All invalid data
                 "volume": 2000,
                 "pair": "TEST/USDT",
@@ -942,7 +954,11 @@ async def test_signal_combination_scenarios(strategy_config):
                         else (
                             float("nan")
                             if i == 17
-                            else 0.0 if i == 18 else None if i == 19 else 100.0
+                            else 0.0
+                            if i == 18
+                            else None
+                            if i == 19
+                            else 100.0
                         )
                     )
                 ),

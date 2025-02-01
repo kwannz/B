@@ -2,17 +2,19 @@
 Unit tests for network optimizations.
 """
 
-import pytest
 import asyncio
 import json
 import ssl
-from typing import Dict, Any
+from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from tradingbot.core.network import (
-    NetworkConfig,
     HttpClient,
-    WebSocketManager,
+    NetworkConfig,
     NetworkMetrics,
+    WebSocketManager,
     init_network,
 )
 

@@ -1,13 +1,14 @@
-import os
-import yaml
+import asyncio
 import json
-from typing import Dict, Any, Optional
+import os
 from dataclasses import dataclass
 from enum import Enum
-import asyncio
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from typing import Any, Dict, Optional
+
+import yaml
 from prometheus_client import Counter, Gauge
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 
 class ConfigSource(Enum):

@@ -2,15 +2,16 @@
 Tests for strategy context
 """
 
-import pytest
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
-from ....strategy.context.strategy_context import StrategyContext
-from ....models.trading import Position, Order, MarketType
-from ....models.risk import RiskMetrics, RiskLimit
+import pytest
+
 from ....core.exceptions import ValidationError
+from ....models.risk import RiskLimit, RiskMetrics
+from ....models.trading import MarketType, Order, Position
+from ....strategy.context.strategy_context import StrategyContext
 
 
 @pytest.fixture

@@ -2,21 +2,22 @@
 Risk monitoring service for real-time risk tracking
 """
 
-from typing import List, Dict, Any, Optional, Set
-from decimal import Decimal
 import asyncio
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Set
+
+import numpy as np
+import pandas as pd
 from pymongo.database import Database
 
-from ..models.trading import Position, OrderSide
-from ..models.market import Ticker
 from ..core.exceptions import RiskError
+from ..models.market import Ticker
+from ..models.trading import OrderSide, Position
+from .backtest import BacktestEngine
 from .market import MarketDataService
 from .risk import RiskManager
-from .backtest import BacktestEngine
 
 logger = logging.getLogger(__name__)
 

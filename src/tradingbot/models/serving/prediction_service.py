@@ -1,13 +1,14 @@
-from typing import Dict, List, Any, Optional
+import json
+import logging
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-from datetime import datetime
-import logging
-from pathlib import Path
-import time
-import json
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 
 class PredictionService:
@@ -149,9 +150,7 @@ class PredictionService:
 
         # 检查延迟是否超过阈值
         if latency > self.max_latency_ms:
-            self.logger.warning(
-                f"预测延迟({latency:.2f}ms)超过阈值({self.max_latency_ms}ms)"
-            )
+            self.logger.warning(f"预测延迟({latency:.2f}ms)超过阈值({self.max_latency_ms}ms)")
 
     def _update_prediction_stats(self, latency: float):
         """更新预测统计信息"""

@@ -2,8 +2,8 @@
 Test module imports
 """
 
-import sys
 import os
+import sys
 
 
 def test_imports():

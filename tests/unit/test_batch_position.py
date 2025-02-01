@@ -1,11 +1,13 @@
 """Test batch position strategy."""
 
-import pytest
-from decimal import Decimal
 from datetime import datetime
-from tradingbot.shared.strategies.batch_position import BatchPositionStrategy
-from tradingbot.shared.config.tenant_config import StrategyConfig
+from decimal import Decimal
+
+import pytest
+
 from tradingbot.models.trading import TradeStatus
+from tradingbot.shared.config.tenant_config import StrategyConfig
+from tradingbot.shared.strategies.batch_position import BatchPositionStrategy
 
 
 @pytest.fixture

@@ -1,5 +1,7 @@
-import pytest
 from decimal import Decimal
+
+import pytest
+
 from src.shared.config.price_thresholds import PriceThresholds
 
 

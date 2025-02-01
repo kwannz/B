@@ -3,9 +3,10 @@
 """
 
 import os
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from tradingbot.shared.exception_handler import ExceptionHandler
 
@@ -43,9 +44,7 @@ async def test_handle_connection_error(exception_handler):
     retry_func = AsyncMock()
     context = {"retry_func": retry_func}
 
-    result = await exception_handler.handle_exception(
-        ConnectionError("连接失败"), context
-    )
+    result = await exception_handler.handle_exception(ConnectionError("连接失败"), context)
 
     assert result["type"] == "ConnectionError"
     assert result["recovery_strategy"] == "retry"
@@ -78,9 +77,7 @@ async def test_failover_trigger(exception_handler):
     for _ in range(exception_handler.error_threshold):
         await exception_handler.handle_exception(Exception("测试错误"), context)
 
-    result = await exception_handler.handle_exception(
-        Exception("触发故障转移"), context
-    )
+    result = await exception_handler.handle_exception(Exception("触发故障转移"), context)
 
     assert result["recovery_strategy"] == "failover"
     assert context["fallback_func"].called
@@ -125,9 +122,7 @@ async def test_error_notification(exception_handler):
     exception_handler.notification_enabled = True
 
     with patch.object(exception_handler, "_send_error_notification") as mock_notify:
-        await exception_handler.handle_exception(
-            Exception("需要通知的错误"), MOCK_CONTEXT
-        )
+        await exception_handler.handle_exception(Exception("需要通知的错误"), MOCK_CONTEXT)
 
         assert mock_notify.called
 
@@ -138,9 +133,7 @@ async def test_recovery_failure(exception_handler):
     # 模拟恢复失败
     context = {"retry_func": AsyncMock(side_effect=Exception("恢复失败"))}
 
-    result = await exception_handler.handle_exception(
-        ConnectionError("初始错误"), context
-    )
+    result = await exception_handler.handle_exception(ConnectionError("初始错误"), context)
 
     assert not result["recovered"]
     assert "recovery_error" in result

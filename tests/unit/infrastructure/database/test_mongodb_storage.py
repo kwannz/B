@@ -3,12 +3,13 @@ Test MongoDB storage functionality
 """
 
 import os
-import pytest
 from datetime import datetime
+from typing import Any, Dict, List
 from unittest.mock import AsyncMock, Mock, patch
-from typing import Dict, Any, List
 
-from tradingbot.shared.models.mongodb import MongoDBStorage, MongoDBManager
+import pytest
+
+from tradingbot.shared.models.mongodb import MongoDBManager, MongoDBStorage
 
 
 @pytest.fixture

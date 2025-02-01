@@ -2,11 +2,12 @@
 Configuration settings for the Trading Bot API
 """
 
-from typing import List
-from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, validator
 import os
+from typing import List
+
 from dotenv import load_dotenv
+from pydantic import AnyHttpUrl, validator
+from pydantic_settings import BaseSettings
 
 # Load environment variables from .env file
 load_dotenv()

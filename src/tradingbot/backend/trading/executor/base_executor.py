@@ -1,5 +1,6 @@
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
+
 from src.shared.models.errors import TradingError
 
 

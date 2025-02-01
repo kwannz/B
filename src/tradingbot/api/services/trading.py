@@ -2,30 +2,31 @@
 Trading service for order and position management
 """
 
-from typing import List, Optional, Dict, Any
 from datetime import datetime
 from decimal import Decimal
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from bson import ObjectId
+from typing import Any, Dict, List, Optional
 
+from bson import ObjectId
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from ..core.exceptions import (
+    NotFoundError,
+    OrderError,
+    PositionError,
+    TradingError,
+    ValidationError,
+)
 from ..models.trading import (
+    MarketType,
     Order,
     OrderCreate,
-    Position,
-    Trade,
+    OrderSide,
     OrderStatus,
     OrderType,
-    OrderSide,
-    PositionStatus,
+    Position,
     PositionSide,
-    MarketType,
-)
-from ..core.exceptions import (
-    OrderError,
-    ValidationError,
-    NotFoundError,
-    TradingError,
-    PositionError,
+    PositionStatus,
+    Trade,
 )
 
 

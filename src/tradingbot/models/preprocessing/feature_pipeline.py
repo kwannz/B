@@ -1,10 +1,11 @@
-from typing import List, Dict, Any, Optional
+import logging
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.impute import SimpleImputer
-import logging
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 class FeaturePipeline(BaseEstimator, TransformerMixin):

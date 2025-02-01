@@ -4,31 +4,32 @@ Tests concurrent processing, caching, database, and network optimizations.
 """
 
 import asyncio
-import time
-import pytest
-from typing import List, Dict, Any
-import random
 import json
+import random
+import time
+from typing import Any, Dict, List
 
+import pytest
+
+from tradingbot.core.cache import CacheManager, MultiLevelCache, init_cache
 from tradingbot.core.concurrency import (
-    TaskQueue,
     BatchProcessor,
     CircuitBreaker,
     RateLimiter,
+    TaskQueue,
 )
-from tradingbot.core.cache import MultiLevelCache, CacheManager, init_cache
 from tradingbot.core.database import (
-    DatabaseManager,
-    QueryOptimizer,
     BulkOperations,
-    DataLoader,
     DatabaseConfig,
+    DatabaseManager,
+    DataLoader,
+    QueryOptimizer,
     init_database,
 )
 from tradingbot.core.network import (
     HttpClient,
-    WebSocketManager,
     NetworkConfig,
+    WebSocketManager,
     init_network,
 )
 

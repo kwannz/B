@@ -3,12 +3,14 @@ Unit tests for concurrency utilities.
 """
 
 import asyncio
+
 import pytest
+
 from tradingbot.core.concurrency import (
-    TaskQueue,
     BatchProcessor,
     CircuitBreaker,
     RateLimiter,
+    TaskQueue,
 )
 
 

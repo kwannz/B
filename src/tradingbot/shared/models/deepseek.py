@@ -1,9 +1,11 @@
-from typing import Optional, Dict, Any, List, ContextManager
-from datetime import datetime
-import torch
 import logging
 from contextlib import nullcontext
+from datetime import datetime
+from typing import Any, ContextManager, Dict, List, Optional
+
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
 from src.shared.config.ai_model import MODEL_CONFIG
 from src.shared.models.cache_types import ModelOutputCache
 
@@ -14,8 +16,9 @@ def get_cache():
     return HybridCache()
 
 
-from src.shared.monitor.metrics import track_inference_time, track_memory_usage
 from functools import wraps
+
+from src.shared.monitor.metrics import track_inference_time, track_memory_usage
 
 
 class DeepSeek1_5B:

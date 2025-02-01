@@ -2,9 +2,10 @@
 社交媒体分析器测试
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from tradingbot.shared.social_media_analyzer import SocialMediaAnalyzer
 

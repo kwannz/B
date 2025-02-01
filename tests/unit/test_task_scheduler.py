@@ -2,11 +2,12 @@
 任务调度器测试
 """
 
-import os
-import pytest
 import asyncio
+import os
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
+
+import pytest
 
 from tradingbot.shared.task_scheduler import TaskScheduler
 

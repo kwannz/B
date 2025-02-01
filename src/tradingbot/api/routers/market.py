@@ -2,13 +2,14 @@
 Market data router
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
 from datetime import datetime, timedelta
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, Query
 
 from ..core.exceptions import MarketDataError
-from ..deps import get_db, get_redis, check_rate_limit
-from ..models.market import Ticker, OrderBook, Trade, Kline, MarketOverview, MarketDepth
+from ..deps import check_rate_limit, get_db, get_redis
+from ..models.market import Kline, MarketDepth, MarketOverview, OrderBook, Ticker, Trade
 
 router = APIRouter()
 

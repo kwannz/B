@@ -1,10 +1,12 @@
+from datetime import datetime
+from typing import Any, Dict
+
 import pytest
 import pytest_asyncio
-from datetime import datetime
-from typing import Dict, Any
-from src.backend.trading.executor.trade_executor import TradeExecutor
-from src.backend.trading.executor.base_executor import BaseExecutor
+
 from src.backend.trading.executor import go_executor_client
+from src.backend.trading.executor.base_executor import BaseExecutor
+from src.backend.trading.executor.trade_executor import TradeExecutor
 
 
 @pytest_asyncio.fixture

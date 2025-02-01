@@ -2,21 +2,22 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
+
 from prometheus_client import REGISTRY
 
 sys.path.append(str(Path(__file__).resolve().parents[4]))
 
-from src.shared.monitor.prometheus import start_prometheus_server
 from src.shared.cache.hybrid_cache import HybridCache
 from src.shared.monitor.metrics import (
+    agent_errors,
+    cache_hits,
+    cache_misses,
+    inference_latency,
     track_cache_hit,
     track_cache_miss,
     track_inference_time,
-    inference_latency,
-    cache_hits,
-    cache_misses,
-    agent_errors,
 )
+from src.shared.monitor.prometheus import start_prometheus_server
 
 
 async def verify_implementation():

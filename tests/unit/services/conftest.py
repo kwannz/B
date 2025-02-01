@@ -1,8 +1,9 @@
 """Fixtures for service tests"""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 # Service mocks

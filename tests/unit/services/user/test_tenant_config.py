@@ -1,6 +1,7 @@
 """Test tenant configuration models."""
 
 import pytest
+
 from tradingbot.shared.config.tenant_config import StrategyConfig, TenantConfig
 
 

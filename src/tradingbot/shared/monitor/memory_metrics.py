@@ -1,7 +1,8 @@
-import psutil
 import logging
 from typing import Dict
-from prometheus_client import Gauge, CollectorRegistry
+
+import psutil
+from prometheus_client import CollectorRegistry, Gauge
 
 __all__ = ["MemoryMetrics", "track_memory_usage", "track_gpu_memory"]
 

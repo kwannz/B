@@ -1,9 +1,10 @@
 """Test script for workflow endpoints."""
 
-import requests
 import json
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
+
+import requests
 
 BASE_URL = "http://localhost:8000/api/v1"
 

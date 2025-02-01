@@ -1,11 +1,13 @@
+import asyncio
+import logging
+
+import uvicorn
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from .routers import trading, strategy, risk
+
+from .routers import risk, strategy, trading
 from .websocket import handle_websocket, periodic_metrics_update
-import uvicorn
-import logging
-import asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

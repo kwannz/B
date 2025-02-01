@@ -2,22 +2,24 @@
 Tests for database models
 """
 
-import pytest
 from datetime import datetime
-from sqlalchemy import create_engine, String
+
+import pytest
+from sqlalchemy import String, create_engine
 from sqlalchemy.orm import sessionmaker
+
 from tradingbot.src.trading_agent.api.models import (
-    Base,
-    User,
     APIKey,
-    Strategy,
-    Position,
-    Trade,
+    Base,
     Metric,
-    Setting,
     NewsArticle,
+    Position,
     SentimentRecord,
+    Setting,
     SocialMediaPost,
+    Strategy,
+    Trade,
+    User,
 )
 
 

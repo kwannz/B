@@ -1,7 +1,9 @@
-import aiohttp
-from typing import Dict, Any
-from src.shared.models.errors import TradingError
 import logging
+from typing import Any, Dict
+
+import aiohttp
+
+from src.shared.models.errors import TradingError
 
 logger = logging.getLogger(__name__)
 

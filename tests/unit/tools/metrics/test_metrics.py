@@ -1,6 +1,8 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from tradingbot.trading_agent.utils.metrics import MetricsCollector, POSITION_RISK
+
+from tradingbot.trading_agent.utils.metrics import POSITION_RISK, MetricsCollector
 
 
 @pytest.fixture

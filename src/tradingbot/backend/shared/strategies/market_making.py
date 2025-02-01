@@ -1,11 +1,12 @@
 """Market making strategy implementation."""
 
-from typing import Dict, Optional, Any, List
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 
-from tradingbot.shared.config.tenant_config import StrategyConfig
 from tradingbot.models.trading import TradeStatus
+from tradingbot.shared.config.tenant_config import StrategyConfig
 
 
 class MarketMakingStrategy:

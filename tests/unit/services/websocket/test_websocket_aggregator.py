@@ -3,18 +3,19 @@ WebSocket数据聚合器测试
 """
 
 import os
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from tradingbot.shared.websocket_aggregator import WebSocketAggregator
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from tradingbot.shared.models.database import (
-    WebSocketMessage,
     AggregatedData,
     ExchangeMetrics,
+    WebSocketMessage,
 )
+from tradingbot.shared.websocket_aggregator import WebSocketAggregator
 
 
 @pytest.fixture

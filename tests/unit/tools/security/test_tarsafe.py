@@ -1,8 +1,10 @@
 import os
 import pathlib
-import pytest
 import tarfile
 import tempfile
+
+import pytest
+
 from src.tarsafe import TarSafe, TarSafeException
 
 

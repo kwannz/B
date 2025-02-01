@@ -1,8 +1,10 @@
-import pytest
 from decimal import Decimal
+
+import pytest
+
 from src.shared.trading.executor.profit_taker import (
-    StagedProfitTaker,
     ProfitTakingState,
+    StagedProfitTaker,
 )
 
 

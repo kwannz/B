@@ -3,15 +3,16 @@ Test social media collector
 """
 
 import os
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
-from playwright.async_api import Page, Browser
 
+import pytest
+from playwright.async_api import Browser, Page
+
+from tradingbot.shared.models.mongodb import RawSocialMediaPost
 from tradingbot.shared.social_media_analyzer.social_collector import (
     SocialMediaCollector,
 )
-from tradingbot.shared.models.mongodb import RawSocialMediaPost
 
 
 @pytest.fixture

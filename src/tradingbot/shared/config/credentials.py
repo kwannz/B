@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any, Dict
 
 API_CREDENTIALS: Dict[str, Dict[str, Any]] = {
     "trading_client": {

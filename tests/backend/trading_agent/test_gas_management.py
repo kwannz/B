@@ -1,10 +1,12 @@
-import pytest
-import numpy as np
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
+
+import numpy as np
+import pytest
+
+from src.backend.trading_agent.gas_analyzer import GasAnalyzer
 from src.backend.trading_agent.gas_manager import GasManager
 from src.backend.trading_agent.gas_predictor import GasPredictor
-from src.backend.trading_agent.gas_analyzer import GasAnalyzer
 from src.shared.models.alerts import AlertLevel
 
 

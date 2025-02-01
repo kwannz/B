@@ -1,9 +1,11 @@
-import pytest
 import asyncio
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
 import numpy as np
-from unittest.mock import Mock, AsyncMock, patch
-from src.backend.data_infrastructure.dex_monitor import DexMonitor, DexMetrics
+import pytest
+
+from src.backend.data_infrastructure.dex_monitor import DexMetrics, DexMonitor
 
 
 @pytest.fixture
@@ -24,7 +26,6 @@ async def dex_monitor(config):
 
 
 class TestDexMonitor:
-
     @pytest.mark.asyncio
     async def test_metrics_initialization(self, dex_monitor):
         """测试指标初始化"""

@@ -1,8 +1,8 @@
 from .handler import (
     ConnectionManager,
-    handle_websocket,
-    broadcast_trade_update,
     broadcast_position_update,
+    broadcast_trade_update,
+    handle_websocket,
 )
 
 __all__ = [

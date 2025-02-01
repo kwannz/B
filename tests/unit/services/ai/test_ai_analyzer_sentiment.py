@@ -1,4 +1,5 @@
 import pytest
+
 from tradingbot.src.shared.ai_analyzer import AIAnalyzer
 
 

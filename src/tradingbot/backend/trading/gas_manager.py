@@ -1,10 +1,11 @@
 import asyncio
-from typing import Dict, List, Optional
+import time
 from dataclasses import dataclass
 from enum import Enum
+from typing import Dict, List, Optional
+
 import numpy as np
-from prometheus_client import Counter, Histogram, Gauge
-import time
+from prometheus_client import Counter, Gauge, Histogram
 
 
 class GasPriority(Enum):
@@ -134,8 +135,7 @@ class GasManager:
                 return self.gas_limits["max_priority_fee"]
 
             recent_fees = [
-                entry["priority_fee"]
-                for entry in self.gas_history[-50:]  # 使用最近50个区块
+                entry["priority_fee"] for entry in self.gas_history[-50:]  # 使用最近50个区块
             ]
 
             # 计算不同百分位的费用
@@ -163,8 +163,7 @@ class GasManager:
                 return 0.5
 
             recent_base_fees = [
-                entry["base_fee"]
-                for entry in self.gas_history[-20:]  # 使用最近20个区块
+                entry["base_fee"] for entry in self.gas_history[-20:]  # 使用最近20个区块
             ]
 
             # 计算基础费用变化率

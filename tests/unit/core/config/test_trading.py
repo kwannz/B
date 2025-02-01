@@ -3,7 +3,8 @@ Tests for trading configuration module.
 """
 
 import pytest
-from tradingbot.core.config.trading import TradingConfig, TradingMode, RiskLevel
+
+from tradingbot.core.config.trading import RiskLevel, TradingConfig, TradingMode
 
 
 def test_trading_config_defaults():

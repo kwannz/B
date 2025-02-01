@@ -1,14 +1,15 @@
 import asyncio
-from typing import Dict, List, Optional
+import time
 from dataclasses import dataclass
 from enum import Enum
+from typing import Dict, List, Optional
+
 import numpy as np
-from prometheus_client import Counter, Histogram, Gauge
-import time
-from textblob import TextBlob
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
+from prometheus_client import Counter, Gauge, Histogram
 from sklearn.cluster import DBSCAN
+from sklearn.feature_extraction.text import TfidfVectorizer
+from textblob import TextBlob
 
 
 class SentimentLevel(Enum):

@@ -1,14 +1,15 @@
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 """Trade executor module for handling trade execution and management."""
 import logging
 from datetime import datetime
 
-from src.shared.models.errors import TradingError
 from src.shared.logging_config import setup_logging
+from src.shared.models.errors import TradingError
+
 from ...trading_agent.agents.wallet_manager import WalletManager
 from .base_executor import BaseExecutor
-from .grpc_client import TradingExecutorClient, ExecutorPool
+from .grpc_client import ExecutorPool, TradingExecutorClient
 
 setup_logging()
 

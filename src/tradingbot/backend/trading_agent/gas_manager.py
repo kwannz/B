@@ -1,10 +1,12 @@
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
+
 import numpy as np
 from web3 import Web3
-from src.shared.models.alerts import Alert, AlertLevel
+
 from src.shared.cache.hybrid_cache import HybridCache
 from src.shared.config.tenant_config import TenantConfig
+from src.shared.models.alerts import Alert, AlertLevel
 
 
 class GasManager:

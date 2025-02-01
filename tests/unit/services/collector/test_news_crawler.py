@@ -2,9 +2,10 @@
 新闻爬虫测试
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
+
+import pytest
 from bs4 import BeautifulSoup
 
 from tradingbot.shared.news_crawler import NewsCrawler

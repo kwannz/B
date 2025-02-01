@@ -1,4 +1,5 @@
 import pytest
+
 from tradingbot.trading_agent.ai.market_analysis_agent import MarketAnalysisAgent
 
 

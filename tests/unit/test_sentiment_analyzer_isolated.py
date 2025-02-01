@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import patch, AsyncMock
 import json
 from datetime import datetime
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 
 @pytest.mark.asyncio
@@ -15,7 +16,6 @@ async def test_local_sentiment_analysis():
         ),
         patch("aiohttp.ClientSession.post") as mock_post,
     ):
-
         from tradingbot.shared.sentiment.sentiment_analyzer import analyze_text
 
         mock_response = {"response": json.dumps({"score": 0.9, "label": "positive"})}
@@ -45,7 +45,6 @@ async def test_remote_sentiment_analysis():
         ),
         patch("aiohttp.ClientSession.post") as mock_post,
     ):
-
         from tradingbot.shared.sentiment.sentiment_analyzer import analyze_text
 
         mock_response = {"choices": [{"score": 0.2}]}
@@ -75,7 +74,6 @@ async def test_error_handling():
         ),
         patch("aiohttp.ClientSession.post") as mock_post,
     ):
-
         from tradingbot.shared.sentiment.sentiment_analyzer import analyze_text
 
         mock_response = {"invalid": "response"}

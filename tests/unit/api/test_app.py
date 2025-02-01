@@ -2,19 +2,21 @@
 Tests for the Trading Agent API app
 """
 
-import pytest
-from unittest.mock import patch
-from fastapi.testclient import TestClient
 from datetime import datetime, timedelta
+from unittest.mock import patch
+
 import jwt
+import pytest
+from fastapi.testclient import TestClient
 from jwt.exceptions import InvalidTokenError
+
 from tradingbot.src.trading_agent.api.app import (
-    app,
-    SECRET_KEY,
     ALGORITHM,
-    User,
-    Strategy,
+    SECRET_KEY,
     Position,
+    Strategy,
+    User,
+    app,
     create_access_token,
 )
 

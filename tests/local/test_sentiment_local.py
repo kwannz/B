@@ -1,17 +1,18 @@
-import pytest
 import json
-from unittest.mock import patch, AsyncMock
 import os
 import sys
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from src.shared.sentiment.sentiment_analyzer import analyze_text
 from src.shared.config.ai_model import (
     AI_MODEL_MODE,
     LOCAL_MODEL_NAME,
     REMOTE_MODEL_NAME,
 )
+from src.shared.sentiment.sentiment_analyzer import analyze_text
 
 
 @pytest.mark.asyncio

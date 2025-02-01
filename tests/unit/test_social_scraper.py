@@ -1,8 +1,10 @@
+from datetime import datetime
+
 import pytest
 import pytest_asyncio
-from datetime import datetime
-from src.shared.social.social_scraper import SocialMediaScraper
+
 from src.shared.models.mongodb import RawSocialMediaPost
+from src.shared.social.social_scraper import SocialMediaScraper
 
 
 @pytest_asyncio.fixture

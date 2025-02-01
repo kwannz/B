@@ -1,11 +1,11 @@
 """Batch position management strategy implementation."""
 
 from datetime import datetime
-from typing import Dict, Optional, Any, List
 from decimal import Decimal
+from typing import Any, Dict, List, Optional
 
-from tradingbot.shared.config.tenant_config import StrategyConfig
 from tradingbot.models.trading import TradeStatus
+from tradingbot.shared.config.tenant_config import StrategyConfig
 
 
 class BatchPositionStrategy:

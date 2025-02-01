@@ -1,12 +1,13 @@
-from typing import Dict, List, Any, Optional
-import pandas as pd
+import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import numpy as np
+import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import plotly.express as px
-from datetime import datetime, timedelta
-import logging
-from pathlib import Path
 
 
 class TradingVisualizer:
@@ -348,7 +349,11 @@ class TradingVisualizer:
         mu = returns.mean()
         sigma = returns.std()
         x = np.linspace(returns.min(), returns.max(), 100)
-        y = 1 / (sigma * np.sqrt(2 * np.pi)) * np.exp(-((x - mu) ** 2) / (2 * sigma**2))
+        y = (
+            1
+            / (sigma * np.sqrt(2 * np.pi))
+            * np.exp(-((x - mu) ** 2) / (2 * sigma**2))
+        )
         y = y * len(returns) * (returns.max() - returns.min()) / 30  # 缩放以匹配直方图
 
         fig.add_trace(

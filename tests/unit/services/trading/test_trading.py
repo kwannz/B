@@ -3,7 +3,8 @@
 import time
 from datetime import datetime, timedelta
 from decimal import Decimal
-from tradingbot.models.trading import TradeStatus, StrategyType, Wallet, Strategy, Trade
+
+from tradingbot.models.trading import Strategy, StrategyType, Trade, TradeStatus, Wallet
 
 
 def test_trade_status_enum():

@@ -3,12 +3,13 @@ Test news collector initialization and configuration
 """
 
 import os
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
-from tradingbot.shared.news_collector import NewsCollector
+import pytest
+
 from tradingbot.shared.models.database import NewsArticle
+from tradingbot.shared.news_collector import NewsCollector
 
 
 @pytest.fixture
@@ -43,7 +44,6 @@ async def news_collector(mock_db_session):
         patch("src.shared.models.mongodb.MongoDBManager", return_value=mock_manager),
         patch("src.shared.models.mongodb.MongoDBStorage", return_value=mock_storage),
     ):
-
         collector = NewsCollector(mock_db_session)
         collector.mongodb = mock_manager
         collector.raw_storage = mock_storage

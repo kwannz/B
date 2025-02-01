@@ -1,17 +1,18 @@
 """Unit tests for momentum trading strategy."""
 
-import pytest
 import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Generator
+
+import pytest
 from sqlalchemy.orm import Session
 
-from tradingbot.shared.strategies.momentum import MomentumStrategy
-from tradingbot.shared.config.tenant_config import StrategyConfig
-from tradingbot.models.trading import Trade, TradeStatus, Strategy, StrategyType, Wallet
-from tradingbot.models.tenant import Tenant, TenantStatus
 from tradingbot.app.db.session import get_tenant_session, tenant_session
+from tradingbot.models.tenant import Tenant, TenantStatus
+from tradingbot.models.trading import Strategy, StrategyType, Trade, TradeStatus, Wallet
+from tradingbot.shared.config.tenant_config import StrategyConfig
+from tradingbot.shared.strategies.momentum import MomentumStrategy
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

@@ -1,12 +1,14 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Form
-from fastapi.security import OAuth2PasswordRequestForm
-from ..core.auth import User, get_current_active_user
-from ..models.base import BaseAPIModel
-from typing import Optional
 from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Form, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+
+from ..core.auth import User, get_current_active_user
 from ..core.config import settings
+from ..models.base import BaseAPIModel
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

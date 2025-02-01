@@ -3,9 +3,10 @@ Prometheus指标测试
 """
 
 import os
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from prometheus_client import CollectorRegistry, Gauge, Counter, Histogram
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 
 from tradingbot.shared.real_time_monitor import RealTimeMonitor
 
@@ -20,7 +21,6 @@ def mock_prometheus():
         patch("prometheus_client.Histogram") as mock_histogram,
         patch("prometheus_client.push_to_gateway") as mock_push,
     ):
-
         # Setup mock registry
         registry = MagicMock()
         mock_registry.return_value = registry

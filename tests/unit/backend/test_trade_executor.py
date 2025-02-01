@@ -1,6 +1,8 @@
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from src.backend.trading.executor.trade_executor import TradeExecutor
 from src.shared.models.errors import TradingError, ValidationError
 

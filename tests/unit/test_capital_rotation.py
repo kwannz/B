@@ -1,12 +1,14 @@
 """Test capital rotation strategy."""
 
-import pytest
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
+
 import numpy as np
-from tradingbot.shared.strategies.capital_rotation import CapitalRotationStrategy
-from tradingbot.shared.config.tenant_config import StrategyConfig
+import pytest
+
 from tradingbot.models.trading import TradeStatus
+from tradingbot.shared.config.tenant_config import StrategyConfig
+from tradingbot.shared.strategies.capital_rotation import CapitalRotationStrategy
 
 
 @pytest.fixture

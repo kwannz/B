@@ -1,7 +1,9 @@
-from typing import Dict, Any, List, Optional
-from datetime import datetime
 import asyncio
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import aiohttp
+
 from ..db.exceptions import ValidationError
 from ..models.mongodb import RawSocialMediaPost
 

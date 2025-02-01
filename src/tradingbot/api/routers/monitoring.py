@@ -2,28 +2,29 @@
 Monitoring router for system metrics and performance tracking
 """
 
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, Query, Path, WebSocket
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from ..core.deps import get_database, get_current_user
+from fastapi import APIRouter, Depends, Path, Query, WebSocket
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from ..core.deps import get_current_user, get_database
 from ..core.exceptions import NotFoundError, ValidationError
-from ..models.user import User
 from ..models.monitoring import (
+    Alert,
+    AlertPriority,
+    AlertStatus,
+    AlertType,
+    HealthCheck,
+    MonitoringReport,
+    PerformanceMetrics,
     SystemMetrics,
     TradingMetrics,
-    PerformanceMetrics,
-    MonitoringReport,
-    HealthCheck,
-    Alert,
-    AlertType,
-    AlertStatus,
-    AlertPriority,
 )
+from ..models.user import User
 from ..services.monitoring import MonitoringService
-from ..services.trading import TradingService
 from ..services.risk import RiskManagementService
+from ..services.trading import TradingService
 
 router = APIRouter()
 

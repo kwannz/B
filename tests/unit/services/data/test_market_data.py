@@ -1,15 +1,15 @@
-import pytest
 import asyncio
 import logging
-import aiohttp
-import pandas as pd
-import numpy as np
+import os
+import sys
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import sys
-import os
+import aiohttp
+import numpy as np
+import pandas as pd
+import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tradingbot.shared.backtester import Backtester  # Import backtester module
@@ -756,7 +756,6 @@ async def test_sentiment_analysis(
                 new=deepseek_mock,
             ) as deepseek_patch,
         ):
-
             # Verify mocks are properly configured
             assert finbert_patch.return_value == (
                 None,
@@ -1086,7 +1085,6 @@ async def test_market_data_integration(mock_env, mock_mongodb, mock_exception_ha
             return_value=test_posts,
         ),
     ):
-
         # Mocks are configured via patch return_value
 
         orchestrator = MarketDataOrchestrator(mock_session)

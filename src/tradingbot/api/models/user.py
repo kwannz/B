@@ -2,10 +2,11 @@
 User related models
 """
 
-from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from typing import List, Optional
+
 from bson import ObjectId
+from pydantic import BaseModel, EmailStr, Field
 
 
 class PyObjectId(ObjectId):

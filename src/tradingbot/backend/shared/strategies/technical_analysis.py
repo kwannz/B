@@ -1,8 +1,10 @@
 """Technical analysis trading strategy implementation."""
 
-import numpy as np
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any, Union
+from typing import Any, Dict, List, Optional, Union
+
+import numpy as np
+
 from tradingbot.models.trading import TradeStatus
 
 

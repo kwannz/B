@@ -1,13 +1,14 @@
 import warnings
-from typing import Dict, List, Optional, Union
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Union
+
+import numpy as np
+import pandas as pd
+import ta
 import talib
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import SelectKBest, mutual_info_regression
-import ta
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 def show_deprecation_warning():
@@ -273,12 +274,8 @@ class FeatureEngineer:
         # 新增日内特征
         df["intraday_return"] = (df["close"] - df["open"]) / df["open"]
         df["intraday_range"] = (df["high"] - df["low"]) / df["open"]
-        df["morning_return"] = (df["close"] - df["open"]) / df[
-            "open"
-        ]  # 可根据实际时间调整
-        df["afternoon_return"] = (df["close"] - df["open"]) / df[
-            "open"
-        ]  # 可根据实际时间调整
+        df["morning_return"] = (df["close"] - df["open"]) / df["open"]  # 可根据实际时间调整
+        df["afternoon_return"] = (df["close"] - df["open"]) / df["open"]  # 可根据实际时间调整
 
         # 新增成交量特征
         df["volume_price_corr"] = df["close"].rolling(20).corr(df["volume"])

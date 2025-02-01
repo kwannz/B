@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Request, Response, HTTPException
+import json
+import os
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
-import os
-from typing import Optional
-import json
 
 router = APIRouter()
 

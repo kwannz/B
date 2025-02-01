@@ -4,16 +4,17 @@ Authentication router
 
 from datetime import datetime, timedelta
 from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from passlib.context import CryptContext
 
 from ..core.config import settings
-from ..core.deps import get_database, get_current_user
+from ..core.deps import get_current_user, get_database
 from ..core.exceptions import AuthenticationError, ValidationError
-from ..models.user import User, UserCreate, UserInDB, Token, TokenData
+from ..models.user import Token, TokenData, User, UserCreate, UserInDB
 
 router = APIRouter()
 

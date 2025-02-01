@@ -1,19 +1,20 @@
-import os
 import asyncio
-import logging
-from typing import Dict, List, Optional
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from enum import Enum
-import aiohttp
 import json
-from prometheus_client import Counter, Gauge, Histogram
-import aiosmtplib
-from email.mime.text import MIMEText
+import logging
+import os
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
-import psutil
+from email.mime.text import MIMEText
+from enum import Enum
+from typing import Dict, List, Optional
+
+import aiohttp
 import aioping
+import aiosmtplib
 import asyncpg
+import psutil
+from prometheus_client import Counter, Gauge, Histogram
 
 
 class AlertLevel(Enum):
@@ -62,15 +63,9 @@ class AlertManager:
 
         # 告警配置
         self.alert_config = {
-            "aggregation_window": config.get(
-                "aggregation_window", 300
-            ),  # 5分钟聚合窗口
-            "max_notifications": config.get(
-                "max_notifications", 10
-            ),  # 每个窗口最大通知数
-            "auto_resolve_timeout": config.get(
-                "auto_resolve_timeout", 3600
-            ),  # 1小时自动解决
+            "aggregation_window": config.get("aggregation_window", 300),  # 5分钟聚合窗口
+            "max_notifications": config.get("max_notifications", 10),  # 每个窗口最大通知数
+            "auto_resolve_timeout": config.get("auto_resolve_timeout", 3600),  # 1小时自动解决
             "notification_cooldown": config.get(
                 "notification_cooldown", 600
             ),  # 10分钟通知冷却
@@ -341,9 +336,9 @@ class AlertManager:
             msg = MIMEMultipart()
             msg["From"] = smtp_config.get("from_email")
             msg["To"] = smtp_config.get("to_email")
-            msg["Subject"] = (
-                f"[{alert['level'].value.upper()}] Alert from {alert['source']}"
-            )
+            msg[
+                "Subject"
+            ] = f"[{alert['level'].value.upper()}] Alert from {alert['source']}"
 
             # 构建邮件正文
             body = f"""
@@ -948,7 +943,9 @@ class AlertManager:
         trend = (
             "increasing"
             if change_rate > 10
-            else "decreasing" if change_rate < -10 else "stable"
+            else "decreasing"
+            if change_rate < -10
+            else "stable"
         )
 
         return {

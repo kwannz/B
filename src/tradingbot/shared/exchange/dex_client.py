@@ -1,7 +1,8 @@
-from typing import Dict, Any, Optional
-import aiohttp
 import json
 from datetime import datetime
+from typing import Any, Dict, Optional
+
+import aiohttp
 
 
 class DEXClient:

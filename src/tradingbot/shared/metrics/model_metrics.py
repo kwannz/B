@@ -1,6 +1,7 @@
-from prometheus_client import Counter, Histogram, Gauge, Info
 import time
+
 import psutil
+from prometheus_client import Counter, Gauge, Histogram, Info
 
 # Model info
 model_info = Info("model_info", "Information about the model deployment")

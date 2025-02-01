@@ -2,13 +2,14 @@
 告警管理器测试
 """
 
-import os
-import pytest
 import asyncio
+import os
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
-from tradingbot.shared.alerts_manager import AlertsManager, Alert
+import pytest
+
+from tradingbot.shared.alerts_manager import Alert, AlertsManager
 
 
 @pytest.fixture

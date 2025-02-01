@@ -2,13 +2,14 @@
 Isolated WebSocket Manager Tests
 """
 
-import os
-import time
-import pytest
 import asyncio
 import logging
+import os
+import time
 from unittest.mock import AsyncMock, Mock
-from aiohttp import WSMsgType, WSMessage
+
+import pytest
+from aiohttp import WSMessage, WSMsgType
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)

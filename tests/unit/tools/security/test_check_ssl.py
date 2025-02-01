@@ -1,6 +1,6 @@
-import ssl
 import importlib.util
 import os
+import ssl
 
 
 def test_check_ssl(capsys):

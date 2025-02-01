@@ -1,10 +1,11 @@
 import os
 import uuid
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
+
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from ..db.models import DBUser, DBRole
+from ..db.models import DBRole, DBUser
 from ..db.session import get_db
 
 

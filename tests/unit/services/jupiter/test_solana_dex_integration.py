@@ -1,9 +1,10 @@
 """Unit tests for Solana DEX integration."""
 
-import pytest
 import asyncio
 from decimal import Decimal
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 import requests
 
 from tradingbot.shared.modules.solana_dex_integration import (

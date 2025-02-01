@@ -3,7 +3,8 @@ Tests for monitoring configuration module.
 """
 
 import pytest
-from tradingbot.core.config.monitoring import MonitoringConfig, AlertLevel, AlertChannel
+
+from tradingbot.core.config.monitoring import AlertChannel, AlertLevel, MonitoringConfig
 
 
 def test_monitoring_config_defaults():

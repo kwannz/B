@@ -1,11 +1,13 @@
-from typing import Dict, Any, List
 import json
 from datetime import datetime
-from .base_agent import BaseAgent
-from src.shared.models.deepseek import DeepSeek1_5B
+from typing import Any, Dict, List
+
 from src.shared.db.database_manager import DatabaseManager
+from src.shared.models.deepseek import DeepSeek1_5B
 from src.shared.utils.batch_processor import BatchProcessor
 from src.shared.utils.fallback_manager import FallbackManager
+
+from .base_agent import BaseAgent
 
 
 class FundamentalsAgent(BaseAgent):

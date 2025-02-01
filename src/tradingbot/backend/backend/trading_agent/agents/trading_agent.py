@@ -1,12 +1,14 @@
-import os
 import json
 import logging
-import aiohttp
+import os
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
+
+import aiohttp
+
+from ...shared.sentiment.sentiment_analyzer import analyzer as sentiment_analyzer
 from .base_agent import BaseAgent
 from .wallet_manager import WalletManager
-from ...shared.sentiment.sentiment_analyzer import analyzer as sentiment_analyzer
 
 logger = logging.getLogger(__name__)
 

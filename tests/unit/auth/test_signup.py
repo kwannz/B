@@ -1,11 +1,12 @@
 import os
-import pytest
-from fastapi import HTTPException, Request
 from unittest.mock import Mock, patch
 
-from tradingbot.api_gateway.app.routes.auth.router import signup, SignupRequestExtended
+import pytest
+from fastapi import HTTPException, Request
+
 from tradingbot.api_gateway.app.core.auth import Token
 from tradingbot.api_gateway.app.models.user import User, UserCreate, UserRole
+from tradingbot.api_gateway.app.routes.auth.router import SignupRequestExtended, signup
 
 os.environ["TEST_MODE"] = "true"
 

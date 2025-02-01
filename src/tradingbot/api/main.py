@@ -2,18 +2,19 @@
 Trading Bot API main application
 """
 
+import logging
+import time
+from datetime import datetime
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
-import logging
-from datetime import datetime
-import time
+from fastapi.responses import JSONResponse
 
 from .core.config import Settings
 from .core.exceptions import TradingBotException
-from .routers import trading, risk, monitoring
+from .routers import monitoring, risk, trading
 
 # Configure logging
 logging.basicConfig(

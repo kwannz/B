@@ -2,25 +2,26 @@
 Backtest engine service
 """
 
-from typing import List, Dict, Any, Optional
-from decimal import Decimal
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
 
-from ..models.strategy import Strategy, BacktestResult, StrategyPerformance
+import numpy as np
+import pandas as pd
+
+from ..core.exceptions import BacktestError
+from ..models.market import Kline, Ticker
+from ..models.strategy import BacktestResult, Strategy, StrategyPerformance
 from ..models.trading import (
     Order,
     OrderCreate,
-    OrderType,
     OrderSide,
     OrderStatus,
+    OrderType,
     Position,
     Trade,
 )
-from ..models.market import Ticker, Kline
-from ..core.exceptions import BacktestError
 from .market import MarketDataService
 
 logger = logging.getLogger(__name__)

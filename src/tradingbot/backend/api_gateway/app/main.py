@@ -1,8 +1,9 @@
-from fastapi import FastAPI
-from prometheus_fastapi_instrumentator import Instrumentator
-from prometheus_client import Counter, Histogram, Gauge, make_asgi_app
-import uvicorn
 import os
+
+import uvicorn
+from fastapi import FastAPI
+from prometheus_client import Counter, Gauge, Histogram, make_asgi_app
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # Initialize instrumentator before creating the app
 instrumentator = Instrumentator()

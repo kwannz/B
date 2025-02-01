@@ -3,6 +3,7 @@ Test sentiment analysis with keyword extraction
 """
 
 import pytest
+
 from tradingbot.shared.sentiment.sentiment_analyzer import NewsSentimentAnalyzer
 
 

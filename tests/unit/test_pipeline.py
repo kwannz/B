@@ -1,8 +1,10 @@
-import pytest
-from unittest.mock import patch, MagicMock
-import responses
-from tradingbot.src.data.pipeline import DataPipeline
 import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+import responses
+
+from tradingbot.src.data.pipeline import DataPipeline
 
 
 class TestDataPipeline:

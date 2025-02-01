@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import patch, AsyncMock
 import json
 from datetime import datetime
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 
 @pytest.mark.asyncio
@@ -14,7 +15,6 @@ async def test_local_sentiment_analysis():
         ),
         patch("aiohttp.ClientSession.post") as mock_post,
     ):
-
         from src.shared.sentiment.sentiment_analyzer import analyze_text
 
         mock_response = {"response": json.dumps({"score": 0.9, "label": "positive"})}
@@ -42,7 +42,6 @@ async def test_local_model_error_handling():
         ),
         patch("aiohttp.ClientSession.post") as mock_post,
     ):
-
         from src.shared.sentiment.sentiment_analyzer import analyze_text
 
         mock_response = {"invalid": "response"}
@@ -70,7 +69,6 @@ async def test_local_model_endpoint_configuration():
         ),
         patch("aiohttp.ClientSession.post") as mock_post,
     ):
-
         from src.shared.sentiment.sentiment_analyzer import analyze_text
 
         mock_post.assert_not_called()

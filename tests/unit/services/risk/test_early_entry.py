@@ -1,15 +1,16 @@
 """Unit tests for early entry strategy."""
 
-import pytest
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from tradingbot.shared.strategies.early_entry import EarlyEntryStrategy
-from tradingbot.shared.config.tenant_config import StrategyConfig
-from tradingbot.models.trading import Trade, TradeStatus, Strategy, StrategyType, Wallet
-from tradingbot.models.tenant import Tenant, TenantStatus
+import pytest
+
 from tradingbot.app.db.session import get_tenant_session
+from tradingbot.models.tenant import Tenant, TenantStatus
+from tradingbot.models.trading import Strategy, StrategyType, Trade, TradeStatus, Wallet
+from tradingbot.shared.config.tenant_config import StrategyConfig
 from tradingbot.shared.modules.solana_dex_integration import market_data_aggregator
+from tradingbot.shared.strategies.early_entry import EarlyEntryStrategy
 
 
 @pytest.fixture

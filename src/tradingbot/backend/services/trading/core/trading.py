@@ -1,9 +1,9 @@
 """Trading models."""
 
-from enum import Enum
-from typing import Dict, Any, Optional
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
+from typing import Any, Dict, Optional
 
 
 class TradeStatus(str, Enum):

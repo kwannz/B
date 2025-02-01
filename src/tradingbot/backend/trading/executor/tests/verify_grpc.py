@@ -7,8 +7,9 @@ project_root = os.path.abspath(
 )
 sys.path.insert(0, project_root)
 
-from src.backend.trading.executor.pb import trading_pb2, trading_pb2_grpc
 import logging
+
+from src.backend.trading.executor.pb import trading_pb2, trading_pb2_grpc
 
 logger = logging.getLogger(__name__)
 

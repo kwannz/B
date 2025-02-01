@@ -1,5 +1,5 @@
-from typing import Dict, Any, List, Optional, Union
 from decimal import Decimal
+from typing import Any, Dict, List, Optional, Union
 
 
 def create_trade_dict(

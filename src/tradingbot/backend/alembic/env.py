@@ -4,17 +4,18 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Add src directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
+from models.analytics import NewsArticle, SentimentAnalysis, TenantConfig
+
 # Import models
 from models.base import Base
 from models.tenant import Tenant, User
-from models.trading import Strategy, Wallet, Trade, StrategyType, TradeStatus
-from models.analytics import NewsArticle, SentimentAnalysis, TenantConfig
+from models.trading import Strategy, StrategyType, Trade, TradeStatus, Wallet
 
 # this is the Alembic Config object
 config = context.config

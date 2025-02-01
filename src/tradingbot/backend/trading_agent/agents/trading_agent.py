@@ -1,19 +1,24 @@
-import os
 import json
 import logging
-import aiohttp
+import os
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
+
+import aiohttp
+
+from tradingbot.shared.sentiment.sentiment_analyzer import analyze_text
+
 from .base_agent import BaseAgent
 from .wallet_manager import WalletManager
-from src.shared.sentiment.sentiment_analyzer import analyze_text
 
 logger = logging.getLogger(__name__)
 
 
 class TradingAgent(BaseAgent):
-    def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
-        super().__init__(agent_id, name, config)
+    def __init__(self, name: str, agent_type: str, config: Dict[str, Any]):
+        super().__init__(name, agent_type, config)
+        self.enabled = config.get("enabled", True)
+        self.parameters = config.get("parameters", {})
         self.strategy_type = config.get("strategy_type", "default")
         self.risk_level = config.get("parameters", {}).get("riskLevel", "low")
         self.trade_size = config.get("parameters", {}).get("tradeSize", 1)
@@ -173,6 +178,19 @@ class TradingAgent(BaseAgent):
             return await self.wallet.get_balance()
         except Exception as e:
             return 0.0
+
+    def validate_parameters(self):
+        """Validate trading parameters"""
+        if self.parameters.get("max_position_size", 0) <= 0:
+            raise ValueError("max_position_size must be positive")
+        if self.parameters.get("min_profit_threshold", 0) <= 0:
+            raise ValueError("min_profit_threshold must be positive")
+        if self.parameters.get("stop_loss_threshold", 0) <= 0:
+            raise ValueError("stop_loss_threshold must be positive")
+        if self.parameters.get("order_timeout", 0) <= 0:
+            raise ValueError("order_timeout must be positive")
+        if self.parameters.get("max_slippage", 0) <= 0:
+            raise ValueError("max_slippage must be positive")
 
     def get_status(self) -> Dict[str, Any]:
         """Get detailed trading status"""

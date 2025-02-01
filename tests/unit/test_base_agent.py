@@ -1,9 +1,11 @@
-import pytest
-import aiohttp
 import json
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from tradingbot.trading_agent.agents.base_agent import BaseAgent, AgentResponse
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import aiohttp
+import pytest
 from prometheus_client import REGISTRY
+
+from tradingbot.trading_agent.agents.base_agent import AgentResponse, BaseAgent
 
 
 # Test implementation of BaseAgent since it's abstract

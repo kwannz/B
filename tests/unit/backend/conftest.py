@@ -1,11 +1,13 @@
-import os
-import json
-import pytest
 import asyncio
+import json
+import os
+from typing import Any, Dict
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import nest_asyncio
-from typing import Dict, Any
-from unittest.mock import AsyncMock, patch, MagicMock
-from sqlalchemy import create_engine, MetaData
+import pytest
+from sqlalchemy import MetaData, create_engine
+
 from tradingbot.shared.ai_analyzer import AIAnalyzer
 from tradingbot.shared.models.sentiment import Base, SentimentAnalysis
 

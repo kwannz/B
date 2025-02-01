@@ -1,13 +1,16 @@
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-from .base_agent import BaseAgent
-from src.shared.db.database_manager import DatabaseManager
-from src.shared.models.deepseek import DeepSeek1_5B
-from src.shared.utils.fallback_manager import FallbackManager
-from src.shared.models.trading import Position, Portfolio, Trade
-from src.shared.models.alerts import Alert, AlertLevel
+
 from src.shared.config.tenant_config import TenantConfig
+from src.shared.db.database_manager import DatabaseManager
+from src.shared.models.alerts import Alert, AlertLevel
+from src.shared.models.deepseek import DeepSeek1_5B
+from src.shared.models.trading import Portfolio, Position, Trade
+from src.shared.utils.fallback_manager import FallbackManager
+
+from .base_agent import BaseAgent
 
 
 class PortfolioManagerAgent(BaseAgent):

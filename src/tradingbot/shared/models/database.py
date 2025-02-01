@@ -1,13 +1,12 @@
-from typing import Dict, Any, Optional
-from datetime import datetime
-import motor.motor_asyncio
-import redis.asyncio as redis
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
-import motor.motor_asyncio
-import redis.asyncio as redis
 import os
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+import motor.motor_asyncio
+import redis.asyncio as redis
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 # PostgreSQL Configuration
 POSTGRES_URL = os.getenv(

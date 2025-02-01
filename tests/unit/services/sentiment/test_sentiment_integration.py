@@ -3,14 +3,16 @@ Test sentiment analysis integration
 """
 
 import os
+from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from unittest.mock import AsyncMock, Mock, patch
-from datetime import datetime
-from tradingbot.shared.news_collector.collector import NewsCollector
+
 from tradingbot.shared.models.mongodb import RawNewsArticle
 from tradingbot.shared.models.sentiment import SentimentAnalysis
+from tradingbot.shared.news_collector.collector import NewsCollector
 
 
 @pytest.fixture
@@ -71,8 +73,8 @@ async def test_sentiment_analysis_integration(
         assert sample_article.metadata["sentiment"]["sentiment"] == "positive"
 
         # Verify sentiment analysis record created
-        from sqlalchemy.orm import Session
         from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session
 
         engine = create_engine(os.getenv("DATABASE_URL"))
         with Session(engine) as session:

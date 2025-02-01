@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, List
 from datetime import datetime
+from typing import Dict, List
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
 from ..core.auth import User, get_current_active_user
 from ..models.base import BaseAPIModel
-from pydantic import BaseModel
 
 router = APIRouter()
 

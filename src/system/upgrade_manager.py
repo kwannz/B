@@ -1,15 +1,16 @@
-from typing import Dict, Any, List, Optional
+import json
+import logging
+import os
 import subprocess
 import sys
-import os
-import logging
-import json
-import yaml
 from datetime import datetime
-from packaging import version
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import pkg_resources
 import requests
-from pathlib import Path
+import yaml
+from packaging import version
 
 
 class UpgradeManager:

@@ -3,12 +3,14 @@
 """
 
 import os
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
-from tradingbot.shared.news_collector.collector import NewsCollector
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from tradingbot.shared.models.mongodb import RawNewsArticle
 from tradingbot.shared.models.news_storage import NewsStorage
+from tradingbot.shared.news_collector.collector import NewsCollector
 
 # 测试数据
 MOCK_COINDESK_RESPONSE = {

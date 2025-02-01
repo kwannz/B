@@ -1,8 +1,8 @@
 """Tenant models and enums."""
 
-from enum import Enum
-from typing import Dict, Optional, Any
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, Optional
 
 
 class TenantStatus(str, Enum):

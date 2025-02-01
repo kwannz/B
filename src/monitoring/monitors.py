@@ -1,10 +1,11 @@
-from typing import Dict, Any, List, Optional
-import pandas as pd
-import numpy as np
-from datetime import datetime
-import psutil
 import logging
 from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+import psutil
 
 
 class BaseMonitor(ABC):
@@ -163,9 +164,7 @@ class PerformanceMonitor(BaseMonitor):
         super().__init__(config)
         self.latency_threshold = config.get("latency_threshold", 1.0)  # 秒
         self.error_rate_threshold = config.get("error_rate_threshold", 0.01)
-        self.throughput_threshold = config.get(
-            "throughput_threshold", 100
-        )  # 每秒处理数
+        self.throughput_threshold = config.get("throughput_threshold", 100)  # 每秒处理数
         self.window_size = config.get("window_size", 3600)  # 1小时
         self.metrics_history: List[Dict[str, Any]] = []
 

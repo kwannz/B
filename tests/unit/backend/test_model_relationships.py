@@ -1,11 +1,13 @@
-import pytest
 from datetime import datetime
+
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from src.shared.models.base import User, Strategy, Trade
-from src.shared.models.market_data import MarketData, MarketMetrics
+
+from src.shared.models.base import Strategy, Trade, User
 from src.shared.models.cache import MarketDataCache, OrderBookCache, TradeHistoryCache
+from src.shared.models.market_data import MarketData, MarketMetrics
 
 
 @pytest.mark.asyncio
@@ -119,7 +121,7 @@ async def test_market_data_relationships(db_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_cache_operations():
     """Test Redis cache operations with market data."""
-    from src.shared.models.database import set_cache, get_cache, delete_cache
+    from src.shared.models.database import delete_cache, get_cache, set_cache
 
     # Test market data cache
     market_data = MarketDataCache(

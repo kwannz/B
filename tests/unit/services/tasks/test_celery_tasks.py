@@ -2,13 +2,15 @@
 Test Celery tasks
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from tradingbot.trading_agent.python.api.tasks import (
+    cleanup_old_data,
     collect_news,
     collect_social,
-    cleanup_old_data,
     get_latest_analysis,
 )
 

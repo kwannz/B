@@ -1,7 +1,9 @@
-import pytest
-import numpy as np
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
+
+import numpy as np
+import pytest
+
 from src.backend.trading_agent.social_analyzer import SocialAnalyzer
 
 

@@ -1,13 +1,15 @@
-from typing import Dict, List, Any, Optional, Union, Callable, Awaitable
-from datetime import datetime, timedelta
-import os
-import random
-import aiohttp
 import asyncio
 import inspect
+import os
+import random
+from datetime import datetime, timedelta
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
+
+import aiohttp
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
+
 from src.shared.models.mongodb import RawNewsArticle
 from src.shared.models.sentiment import SentimentAnalysis
 from src.shared.sentiment.sentiment_analyzer import analyze_text
@@ -113,9 +115,9 @@ class NewsCollector:
 
         for attempt in range(max_retries):
             try:
-                self.session._default_headers["User-Agent"] = (
-                    self._get_random_user_agent()
-                )
+                self.session._default_headers[
+                    "User-Agent"
+                ] = self._get_random_user_agent()
 
                 async with self.session.get(
                     url, allow_redirects=True, ssl=False, timeout=30

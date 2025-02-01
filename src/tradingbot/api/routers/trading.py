@@ -2,26 +2,27 @@
 Trading router
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, Path
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timedelta
+from typing import List, Optional
 
-from ..core.deps import get_database, get_current_user
-from ..core.exceptions import NotFoundError, ValidationError, OrderError
-from ..models.user import User
+from fastapi import APIRouter, Depends, Path, Query
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from ..core.deps import get_current_user, get_database
+from ..core.exceptions import NotFoundError, OrderError, ValidationError
 from ..models.trading import (
     Order,
     OrderCreate,
-    Position,
-    Trade,
+    OrderSide,
     OrderStatus,
     OrderType,
-    OrderSide,
+    Position,
     PositionStatus,
+    Trade,
 )
-from ..services.trading import TradingService
+from ..models.user import User
 from ..services.market import MarketDataService
+from ..services.trading import TradingService
 
 router = APIRouter()
 

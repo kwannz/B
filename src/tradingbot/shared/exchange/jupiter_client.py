@@ -1,8 +1,9 @@
-from typing import Dict, Any, Optional
-import aiohttp
 import json
 import logging
 from decimal import Decimal
+from typing import Any, Dict, Optional
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,11 @@
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-from src.shared.models.alerts import Alert, AlertLevel
+
 from src.shared.cache.hybrid_cache import HybridCache
+from src.shared.models.alerts import Alert, AlertLevel
 
 
 class GasAnalyzer:

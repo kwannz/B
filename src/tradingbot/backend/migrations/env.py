@@ -1,11 +1,11 @@
 import os
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from alembic import context
 
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+
+from src.api_gateway.app.models import risk, trading, user  # Import all models
 from src.api_gateway.app.models.base_model import Base
-from src.api_gateway.app.models import user, trading, risk  # Import all models
 
 # this is the Alembic Config object
 config = context.config

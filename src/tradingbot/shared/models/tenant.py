@@ -1,5 +1,6 @@
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Boolean
+
+from sqlalchemy import Boolean, Column, DateTime, String
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()

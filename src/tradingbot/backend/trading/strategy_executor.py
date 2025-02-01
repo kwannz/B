@@ -1,9 +1,10 @@
 import asyncio
-from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import Dict, List, Optional
+
 import numpy as np
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 
 class StrategyState(Enum):
@@ -170,9 +171,7 @@ class StrategyExecutor:
             # 计算每个策略的性能分数
             scores = {}
             for strategy_id in self.strategies:
-                history = self.performance_history[strategy_id][
-                    -100:
-                ]  # 使用最近100次执行记录
+                history = self.performance_history[strategy_id][-100:]  # 使用最近100次执行记录
                 if not history:
                     continue
 

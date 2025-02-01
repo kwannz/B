@@ -1,6 +1,8 @@
+from typing import Any, Dict
+
 import pytest
-from typing import Dict, Any
-from tradingbot.trading_agent.ai.base_agent import BaseAgent, AgentResponse
+
+from tradingbot.trading_agent.ai.base_agent import AgentResponse, BaseAgent
 
 
 class TestAgent(BaseAgent):

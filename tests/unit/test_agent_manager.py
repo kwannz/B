@@ -1,5 +1,6 @@
 import pytest
 import pytest_asyncio
+
 from src.backend.trading_agent.services.agent_manager import AgentManager
 
 

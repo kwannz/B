@@ -68,7 +68,6 @@ better-exceptions==0.3.3
 
 # Security
 bandit==1.7.5
-safety==2.3.5  # Compatible with packaging<22
 ochrona==2.0.2
 detect-secrets==1.4.0
 
@@ -101,7 +100,7 @@ pytest-json-report==1.5.0
 # Dependency Analysis
 pipdeptree==2.13.1
 pip-audit==2.4.0
-packaging==21.3  # Fixed version to resolve conflicts
+packaging>=21.3  # Allow newer versions to resolve conflicts
 
 # ML dependencies (currently mocked)
 # numpy>=1.23.2,<2.0

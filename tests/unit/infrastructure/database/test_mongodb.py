@@ -3,16 +3,17 @@ MongoDB integration tests
 """
 
 import os
-import pytest
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
 
 from tradingbot.shared.models.mongodb import (
-    MongoDBManager,
     MongoConfig,
+    MongoDBManager,
+    MongoDBStorage,
     RawNewsArticle,
     RawSocialMediaPost,
-    MongoDBStorage,
 )
 
 

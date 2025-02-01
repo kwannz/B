@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends, status
-from typing import List, Dict
 from datetime import datetime
-from ..models.strategy import StrategyResponse, StrategyCreate
+from typing import Dict, List
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
 from ..core.auth import get_current_active_user
+from ..models.strategy import StrategyCreate, StrategyResponse
 
 router = APIRouter(tags=["strategies"])
 

@@ -1,7 +1,8 @@
-from typing import List, Optional, Dict
-from pydantic import BaseModel
-import uuid
 import sys
+import uuid
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel
 
 # Create module-level variables
 __name__ = "tests.unit.mocks"

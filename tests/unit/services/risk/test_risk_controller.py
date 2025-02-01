@@ -1,10 +1,12 @@
 import os
 import sys
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import datetime
-from tradingbot.shared.risk_controller import RiskController
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from tradingbot.api_gateway.app.models.database import Position
+from tradingbot.shared.risk_controller import RiskController
 
 
 @pytest.fixture

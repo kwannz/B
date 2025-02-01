@@ -1,11 +1,13 @@
-from typing import Dict, Any, List
-from datetime import datetime
 import json
-from .base_agent import BaseAgent
-from src.shared.models.deepseek import DeepSeek1_5B
+from datetime import datetime
+from typing import Any, Dict, List
+
 from src.shared.db.database_manager import DatabaseManager
+from src.shared.models.deepseek import DeepSeek1_5B
 from src.shared.utils.batch_processor import BatchProcessor
 from src.shared.utils.fallback_manager import FallbackManager
+
+from .base_agent import BaseAgent
 
 
 class SentimentAgent(BaseAgent):
@@ -47,7 +49,9 @@ class SentimentAgent(BaseAgent):
             "sentiment": (
                 "positive"
                 if "positive" in result["text"].lower()
-                else "negative" if "negative" in result["text"].lower() else "neutral"
+                else "negative"
+                if "negative" in result["text"].lower()
+                else "neutral"
             ),
             "score": float(result["confidence"]),
         }

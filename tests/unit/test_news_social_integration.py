@@ -2,16 +2,17 @@
 Integration tests for news collection and social media analysis system
 """
 
-import os
-import sys
-import pytest
 import asyncio
 import logging
+import os
+import sys
+from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from contextlib import AsyncExitStack, asynccontextmanager
-from unittest.mock import AsyncMock, patch, MagicMock, Mock
-from typing import AsyncGenerator, Optional, Dict, Any, List
+from typing import Any, AsyncGenerator, Dict, List, Optional
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 # Configure logging
@@ -41,15 +42,17 @@ mock_keyword_extractor = Mock()
 mock_keyword_extractor.KeywordExtractor = Mock(return_value=MockKeywordExtractor())
 sys.modules["src.shared.keyword_extractor"] = mock_keyword_extractor
 
+import aiohttp
+
+from tradingbot.shared.models.mongodb import RawNewsArticle, RawSocialMediaPost
+
 # Import required modules
 from tradingbot.shared.news_collector.collector import NewsCollector
+from tradingbot.shared.retention_manager import retention_manager
+from tradingbot.shared.sentiment.sentiment_analyzer import sentiment_analyzer
 from tradingbot.shared.social_media_analyzer.social_collector import (
     SocialMediaCollector,
 )
-from tradingbot.shared.retention_manager import retention_manager
-from tradingbot.shared.sentiment.sentiment_analyzer import sentiment_analyzer
-from tradingbot.shared.models.mongodb import RawNewsArticle, RawSocialMediaPost
-import aiohttp
 
 
 @pytest.fixture

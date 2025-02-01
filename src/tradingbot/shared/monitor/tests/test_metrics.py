@@ -1,12 +1,14 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from src.shared.monitor.metrics import (
-    track_inference_time,
-    track_cache_hit,
-    track_cache_miss,
     get_cache_hit_rate,
     get_error_rate,
     get_inference_latency,
+    track_cache_hit,
+    track_cache_miss,
+    track_inference_time,
 )
 
 

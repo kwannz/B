@@ -2,15 +2,16 @@
 Notification service for risk alerts
 """
 
-from typing import List, Dict, Any, Optional, Set
-from decimal import Decimal
 import asyncio
-import aiosmtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import json
 import logging
 from datetime import datetime
+from decimal import Decimal
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any, Dict, List, Optional, Set
+
+import aiosmtplib
 from fastapi import WebSocket
 from pymongo.database import Database
 

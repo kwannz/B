@@ -1,14 +1,16 @@
+import asyncio
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
-import json
-import asyncio
+
 from src.api.main import app
 from src.api.websocket import (
-    manager,
-    broadcast_trade_update,
-    broadcast_position_update,
     broadcast_metrics_update,
+    broadcast_position_update,
+    broadcast_trade_update,
+    manager,
 )
 
 client = TestClient(app)

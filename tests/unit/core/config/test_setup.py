@@ -1,9 +1,10 @@
+import importlib.util
 import os
 import re
 import sys
-import importlib.util
-from setuptools import find_packages
 from unittest.mock import patch
+
+from setuptools import find_packages
 
 
 def import_setup():

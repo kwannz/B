@@ -1,4 +1,5 @@
 import pytest
+
 from tradingbot.shared.errors import AIError, ConfigError
 
 

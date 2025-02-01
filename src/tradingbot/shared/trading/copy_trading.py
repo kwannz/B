@@ -1,9 +1,10 @@
-from typing import Dict, Any, List, Optional
-from decimal import Decimal
 import logging
 from datetime import datetime
-from ..models.trading import TradeType
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
 from ..exchange.dex_client import DEXClient
+from ..models.trading import TradeType
 
 logger = logging.getLogger(__name__)
 

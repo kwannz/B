@@ -2,21 +2,22 @@
 Risk report service for generating interactive reports
 """
 
-from typing import List, Dict, Any, Optional
-from decimal import Decimal
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import logging
 import json
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-from jinja2 import Environment, FileSystemLoader
+import logging
 import os
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
 
-from ..models.trading import Position, OrderSide
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from jinja2 import Environment, FileSystemLoader
+from plotly.subplots import make_subplots
+
 from ..core.exceptions import RiskError
+from ..models.trading import OrderSide, Position
 from .market import MarketDataService
 from .risk import RiskManager
 from .risk_analytics import RiskAnalytics
@@ -109,10 +110,10 @@ class RiskReport:
         )
 
         # Get performance attribution
-        data["performance"] = (
-            await self.risk_attribution.analyze_performance_attribution(
-                user_id, start_date, end_date
-            )
+        data[
+            "performance"
+        ] = await self.risk_attribution.analyze_performance_attribution(
+            user_id, start_date, end_date
         )
 
         # Get historical data

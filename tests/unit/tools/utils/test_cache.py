@@ -3,14 +3,16 @@ Unit tests for caching system.
 """
 
 import asyncio
+from typing import Any, Dict
+
 import pytest
-from typing import Dict, Any
+
 from tradingbot.core.cache import (
     CacheKey,
-    MemoryCache,
-    RedisCache,
-    MultiLevelCache,
     CacheManager,
+    MemoryCache,
+    MultiLevelCache,
+    RedisCache,
     cached_response,
 )
 

@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from trading_agent.strategies.dex_strategy import DEXStrategy
 
 
@@ -34,7 +35,6 @@ async def test_analyze_market_with_promoted_words():
             strategy.risk, "get_risk_metrics", new_callable=AsyncMock
         ) as mock_risk,
     ):
-
         mock_market.return_value = {"price": 100.0}
         mock_analyze.return_value = {"signal": "buy", "confidence": 0.8}
         mock_wallet.return_value = {"balance": 1.0}
@@ -69,7 +69,6 @@ async def test_execute_trade_respects_wallet_requirements():
             strategy.risk, "check_trade", new_callable=AsyncMock
         ) as mock_check,
     ):
-
         mock_check.return_value = {"passed": True}
         mock_trade.return_value = {"status": "executed", "pnl": 0.1}
 

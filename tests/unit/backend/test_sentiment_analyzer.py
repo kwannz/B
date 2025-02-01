@@ -1,5 +1,7 @@
-import pytest
 import os
+
+import pytest
+
 from src.shared.sentiment.sentiment_analyzer import analyze_text
 
 

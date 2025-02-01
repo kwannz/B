@@ -2,21 +2,21 @@
 Market data service
 """
 
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
-import json
 import asyncio
+import json
+from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import Any, Dict, List, Optional
 
 from ..core.exceptions import MarketDataError
 from ..models.market import (
-    Ticker,
-    OrderBook,
-    Trade,
     Kline,
-    MarketOverview,
     MarketDepth,
+    MarketOverview,
+    OrderBook,
     PriceLevel,
+    Ticker,
+    Trade,
 )
 
 

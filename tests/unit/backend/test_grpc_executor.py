@@ -1,10 +1,9 @@
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch
+
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, patch
-from src.backend.trading.executor.grpc_client import TradingExecutorClient, ExecutorPool
+
+from src.backend.trading.executor.grpc_client import ExecutorPool, TradingExecutorClient
 from src.protos import trading_pb2
 
 

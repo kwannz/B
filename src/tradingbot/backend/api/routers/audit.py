@@ -1,9 +1,11 @@
+import logging
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import List, Dict, Optional
-from ..deps import get_database, get_current_user
-from datetime import datetime, timedelta
-import logging
+
+from ..deps import get_current_user, get_database
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 logger = logging.getLogger(__name__)

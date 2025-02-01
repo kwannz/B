@@ -2,15 +2,16 @@
 Strategy context for managing strategy execution state and dependencies
 """
 
-from typing import Dict, Any, Optional
 from datetime import datetime
 from decimal import Decimal
+from typing import Any, Dict, Optional
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis import Redis
 
-from ...models.trading import Position, Order, MarketType
-from ...models.risk import RiskMetrics, RiskLimit
 from ...core.exceptions import ValidationError
+from ...models.risk import RiskLimit, RiskMetrics
+from ...models.trading import MarketType, Order, Position
 
 
 class StrategyContext:

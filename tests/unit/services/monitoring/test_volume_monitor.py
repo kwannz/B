@@ -1,9 +1,11 @@
-import pytest
-from decimal import Decimal
 from datetime import datetime
-from src.shared.monitoring.volume_monitor import VolumeMonitor
+from decimal import Decimal
+
+import pytest
+
+from src.shared.models.alerts import AlertSeverity, AlertType
 from src.shared.models.market_data import MarketData
-from src.shared.models.alerts import AlertType, AlertSeverity
+from src.shared.monitoring.volume_monitor import VolumeMonitor
 
 
 @pytest.fixture

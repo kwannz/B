@@ -1,9 +1,9 @@
 """Common type definitions for DEX interfaces."""
 
-from typing import TypedDict, List, Optional
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
+from typing import List, Optional, TypedDict
 
 
 class OrderType(str, Enum):

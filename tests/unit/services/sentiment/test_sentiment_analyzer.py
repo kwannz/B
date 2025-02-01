@@ -2,9 +2,11 @@
 Test sentiment analyzer implementation
 """
 
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from tradingbot.shared.news_collector.sentiment_analyzer import NewsSentimentAnalyzer
 
 

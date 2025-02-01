@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import List, Dict
-from ..deps import get_database, get_current_user, get_redis
-from ..models.base import RiskMetrics
-from datetime import datetime
-from redis import Redis
 import json
 import logging
+from datetime import datetime
+from typing import Dict, List
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from redis import Redis
+
+from ..deps import get_current_user, get_database, get_redis
+from ..models.base import RiskMetrics
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 logger = logging.getLogger(__name__)

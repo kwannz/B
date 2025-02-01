@@ -2,12 +2,14 @@
 Tests for unified settings module.
 """
 
-import os
-import pytest
 import json
+import os
+
+import pytest
+
+from tradingbot.core.config.monitoring import AlertChannel, AlertLevel
 from tradingbot.core.config.settings import Settings
-from tradingbot.core.config.trading import TradingMode, RiskLevel
-from tradingbot.core.config.monitoring import AlertLevel, AlertChannel
+from tradingbot.core.config.trading import RiskLevel, TradingMode
 
 
 def test_settings_inheritance(settings):

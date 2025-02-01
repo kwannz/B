@@ -1,12 +1,15 @@
-from typing import Dict, Any, List
 from datetime import datetime
-import pandas as pd
+from typing import Any, Dict, List
+
 import numpy as np
-from .base_agent import BaseAgent
+import pandas as pd
+
 from src.shared.db.database_manager import DatabaseManager
 from src.shared.models.deepseek import DeepSeek1_5B
-from src.shared.utils.fallback_manager import FallbackManager
 from src.shared.models.market_data import MarketData, TradingSignal
+from src.shared.utils.fallback_manager import FallbackManager
+
+from .base_agent import BaseAgent
 
 
 class TechnicalAnalystAgent(BaseAgent):
@@ -190,7 +193,9 @@ class TechnicalAnalystAgent(BaseAgent):
         signal = (
             "buy"
             if buy_strength > sell_strength
-            else "sell" if sell_strength > buy_strength else "hold"
+            else "sell"
+            if sell_strength > buy_strength
+            else "hold"
         )
 
         return {

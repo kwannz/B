@@ -2,21 +2,22 @@
 Strategy router
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
 from datetime import datetime
 from decimal import Decimal
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, Query
 
 from ..core.exceptions import StrategyError
-from ..deps import get_db, get_current_active_user, check_rate_limit
-from ..models.user import User
+from ..deps import check_rate_limit, get_current_active_user, get_db
 from ..models.strategy import (
+    BacktestResult,
     Strategy,
     StrategyCreate,
-    StrategyStatus,
     StrategyPerformance,
-    BacktestResult,
+    StrategyStatus,
 )
+from ..models.user import User
 from ..services.strategy import StrategyEngine
 
 router = APIRouter()

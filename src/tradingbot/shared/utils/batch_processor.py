@@ -1,8 +1,9 @@
 import asyncio
-from typing import List, Any, Dict, TypeVar, Generic, Union, Optional
-from datetime import datetime
-import time
 import logging
+import time
+from datetime import datetime
+from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
+
 from src.shared.monitor.metrics import track_batch_utilization
 
 

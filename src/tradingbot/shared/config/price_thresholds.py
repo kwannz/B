@@ -1,6 +1,6 @@
-from typing import Dict, Any
-from decimal import Decimal
 import os
+from decimal import Decimal
+from typing import Any, Dict
 
 
 class PriceThresholds:

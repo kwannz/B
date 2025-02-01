@@ -2,10 +2,11 @@
 
 import os
 import sys
-import pytest
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Mock environment variables with valid base58 addresses
 os.environ.update(
@@ -36,9 +37,9 @@ sys.modules["shared.strategy_executor"] = MagicMock()
 sys.modules["shared.strategy_executor"].strategy_executor = mock_strategy_executor
 
 from trading_agent.trading_bot.python.executor import (
-    TradingExecutor,
-    TradeOrder,
     OrderResult,
+    TradeOrder,
+    TradingExecutor,
 )
 from trading_agent.wallet.manager import WalletManager
 

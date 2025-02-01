@@ -1,9 +1,9 @@
 """Test script for sentiment analyzer."""
 
-import os
-import sys
 import asyncio
 import json
+import os
+import sys
 from datetime import datetime
 
 sys.path.insert(

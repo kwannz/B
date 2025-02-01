@@ -1,9 +1,11 @@
-import pytest
-import aiohttp
 from datetime import datetime
 from unittest.mock import MagicMock, patch
-from src.backend.trading.executor.trade_executor import TradeExecutor
+
+import aiohttp
+import pytest
+
 from src.backend.trading.executor.go_executor_client import execute_trade_in_go
+from src.backend.trading.executor.trade_executor import TradeExecutor
 from src.shared.errors import TradingError
 
 

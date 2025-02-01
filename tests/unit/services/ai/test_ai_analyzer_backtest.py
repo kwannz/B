@@ -1,5 +1,7 @@
-import pytest
 from contextlib import asynccontextmanager
+
+import pytest
+
 from tradingbot.src.shared.ai_analyzer import AIAnalyzer
 
 

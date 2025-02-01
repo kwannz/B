@@ -2,8 +2,10 @@
 Test news and social media storage
 """
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
+
 from tradingbot.shared.models.mongodb import RawNewsArticle, RawSocialMediaPost
 from tradingbot.shared.models.news_storage import NewsStorage, SocialMediaStorage
 

@@ -1,6 +1,7 @@
-from typing import Dict, List, Optional
 from datetime import datetime
-from app.models.agent_models import AgentCreate, AgentUpdate, AgentResponse
+from typing import Dict, List, Optional
+
+from app.models.agent_models import AgentCreate, AgentResponse, AgentUpdate
 
 
 class AgentManager:

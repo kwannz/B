@@ -1,12 +1,14 @@
-from typing import Dict, List, Any, Optional, Union, Callable
-from datetime import datetime, timedelta
-import os
-import aiohttp
 import asyncio
 import inspect
+import os
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, List, Optional, Union
+
+import aiohttp
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
+
 from tradingbot.shared.models.mongodb import RawNewsArticle
 from tradingbot.shared.models.sentiment import SentimentAnalysis
 from tradingbot.shared.sentiment.sentiment_analyzer import analyze_text

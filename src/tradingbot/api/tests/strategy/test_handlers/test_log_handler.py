@@ -2,12 +2,13 @@
 Tests for strategy log handler
 """
 
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
-from ....strategy.handlers.log_handler import StrategyLogHandler
+import pytest
+
 from ....strategy.context.strategy_context import StrategyContext
+from ....strategy.handlers.log_handler import StrategyLogHandler
 
 
 @pytest.fixture

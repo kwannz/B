@@ -3,6 +3,7 @@ Tests for database configuration module.
 """
 
 import pytest
+
 from tradingbot.core.config.database import DatabaseConfig
 
 

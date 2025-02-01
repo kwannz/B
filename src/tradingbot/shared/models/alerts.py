@@ -1,6 +1,6 @@
-from enum import Enum
-from typing import Dict, Any
 from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict
 
 
 class AlertType(Enum):

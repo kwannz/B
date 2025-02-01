@@ -1,8 +1,10 @@
-import pytest
 import asyncio
-from datetime import datetime
 import json
-from unittest.mock import Mock, AsyncMock, patch
+from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from src.backend.data_infrastructure.websocket_manager import (
     WebSocketManager,
     WebSocketMetrics,
@@ -38,7 +40,6 @@ async def ws_manager(config):
 
 
 class TestWebSocketManager:
-
     @pytest.mark.asyncio
     async def test_connection_management(self, ws_manager, mock_connection):
         """测试连接管理功能"""

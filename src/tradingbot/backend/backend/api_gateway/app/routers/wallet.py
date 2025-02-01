@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Dict, Any
 from datetime import datetime
+from typing import Any, Dict
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+
 from ..core.auth import User, get_current_active_user
 from ..core.config import settings
-import httpx
 
 router = APIRouter(tags=["wallet"])
 

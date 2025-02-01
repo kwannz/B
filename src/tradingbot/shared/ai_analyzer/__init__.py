@@ -1,10 +1,11 @@
-import os
-import json
-import aiohttp
 import asyncio
+import json
+import os
 from datetime import datetime
-from typing import Dict, List, Optional, Union, Callable, Awaitable, Any
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 from unittest.mock import AsyncMock, MagicMock
+
+import aiohttp
 
 
 class AIAnalyzer:
@@ -15,15 +16,15 @@ class AIAnalyzer:
     ):
         from tradingbot.shared.config.ai_model import (
             AI_MODEL_MODE,
-            LOCAL_MODEL_ENDPOINT,
-            REMOTE_MODEL_ENDPOINT,
-            LOCAL_MODEL_NAME,
-            REMOTE_MODEL_NAME,
             API_KEY,
-            TEMPERATURE,
-            MIN_CONFIDENCE,
+            LOCAL_MODEL_ENDPOINT,
+            LOCAL_MODEL_NAME,
             MAX_RETRIES,
+            MIN_CONFIDENCE,
+            REMOTE_MODEL_ENDPOINT,
+            REMOTE_MODEL_NAME,
             RETRY_DELAY,
+            TEMPERATURE,
         )
 
         self.mode = AI_MODEL_MODE

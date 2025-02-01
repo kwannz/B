@@ -1,15 +1,16 @@
 """Unit tests for multi-token monitoring strategy."""
 
-import pytest
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
+from tradingbot.models.trading import TradeStatus
+from tradingbot.shared.config.tenant_config import StrategyConfig
+from tradingbot.shared.modules.solana_dex_integration import market_data_aggregator
 from tradingbot.shared.strategies.multi_token_monitoring import (
     MultiTokenMonitoringStrategy,
 )
-from tradingbot.shared.config.tenant_config import StrategyConfig
-from tradingbot.models.trading import TradeStatus
-from tradingbot.shared.modules.solana_dex_integration import market_data_aggregator
 
 
 @pytest.fixture

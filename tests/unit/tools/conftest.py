@@ -1,10 +1,11 @@
 """Fixtures for tool tests"""
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 # File system fixtures

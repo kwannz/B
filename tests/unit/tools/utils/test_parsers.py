@@ -2,16 +2,17 @@
 Test news source parsers
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from bs4 import BeautifulSoup
 
+from tradingbot.shared.models.mongodb import RawNewsArticle
 from tradingbot.shared.news_collector.parsers import (
     parse_coindesk,
     parse_cointelegraph,
     parse_decrypt,
 )
-from tradingbot.shared.models.mongodb import RawNewsArticle
 
 
 @pytest.fixture

@@ -2,18 +2,20 @@
 Tests for Celery worker tasks and helper functions
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
+
 import numpy as np
+import pytest
+
 from tradingbot.src.trading_agent.api.worker import (
-    update_positions,
-    update_metrics,
-    check_strategy_health,
-    get_strategy_instance,
     calculate_max_drawdown,
     calculate_sharpe_ratio,
     celery,
+    check_strategy_health,
+    get_strategy_instance,
+    update_metrics,
+    update_positions,
 )
 
 

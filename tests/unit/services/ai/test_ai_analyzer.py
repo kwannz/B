@@ -1,12 +1,12 @@
+import asyncio
 import os
-import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
+import pytest
 from aiohttp.client_reqrep import ClientResponse
 from aiohttp.helpers import TimerNoop
 from yarl import URL
-import asyncio
 
 
 def create_mock_response(status=200, body=None):

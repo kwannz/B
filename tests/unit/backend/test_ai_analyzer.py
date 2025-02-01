@@ -1,5 +1,7 @@
-import pytest
 from datetime import datetime
+
+import pytest
+
 from src.shared.ai_analyzer import AIAnalyzer
 
 

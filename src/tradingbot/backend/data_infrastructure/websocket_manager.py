@@ -1,12 +1,13 @@
 import asyncio
-from typing import Dict, List, Optional, Callable, Any
-from datetime import datetime
 import json
 import logging
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
+
 import aioboto3
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 
 @dataclass

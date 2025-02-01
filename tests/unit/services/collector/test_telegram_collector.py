@@ -3,13 +3,14 @@ Test Telegram collector
 """
 
 import os
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
-from telegram import Bot, Message, User, Chat
 
-from tradingbot.shared.social_media_analyzer.telegram_collector import TelegramCollector
+import pytest
+from telegram import Bot, Chat, Message, User
+
 from tradingbot.shared.models.mongodb import RawSocialMediaPost
+from tradingbot.shared.social_media_analyzer.telegram_collector import TelegramCollector
 
 
 @pytest.fixture

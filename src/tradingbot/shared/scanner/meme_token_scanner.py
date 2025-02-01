@@ -1,7 +1,9 @@
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-import aiohttp
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import aiohttp
+
 from src.shared.models.market_data import MarketData
 
 

@@ -1,5 +1,7 @@
-import pytest
 from datetime import datetime
+
+import pytest
+
 from ..agents.base_agent import BaseAgent
 
 

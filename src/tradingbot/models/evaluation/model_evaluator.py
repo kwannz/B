@@ -1,23 +1,24 @@
-from typing import Dict, List, Any, Optional, Tuple
-import numpy as np
-import pandas as pd
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    mean_squared_error,
-    mean_absolute_error,
-    r2_score,
-    roc_auc_score,
-    confusion_matrix,
-)
+import json
 import logging
 from datetime import datetime
-import json
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    precision_score,
+    r2_score,
+    recall_score,
+    roc_auc_score,
+)
 
 
 class ModelEvaluator:
@@ -121,21 +122,21 @@ class ModelEvaluator:
 
             # 统计检验
             if validation_rules.get("statistical_tests"):
-                validation_results["statistical_tests"] = (
-                    self._perform_statistical_tests(
-                        validation_data[target_column],
-                        validation_data[prediction_column],
-                    )
+                validation_results[
+                    "statistical_tests"
+                ] = self._perform_statistical_tests(
+                    validation_data[target_column],
+                    validation_data[prediction_column],
                 )
 
             # 性能阈值验证
             if validation_rules.get("performance_threshold"):
-                validation_results["performance_threshold"] = (
-                    self._validate_performance_threshold(
-                        validation_data[target_column],
-                        validation_data[prediction_column],
-                        validation_rules["performance_threshold"],
-                    )
+                validation_results[
+                    "performance_threshold"
+                ] = self._validate_performance_threshold(
+                    validation_data[target_column],
+                    validation_data[prediction_column],
+                    validation_rules["performance_threshold"],
                 )
 
             self.evaluation_results["validation_results"] = validation_results

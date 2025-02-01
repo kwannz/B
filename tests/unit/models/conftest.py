@@ -1,9 +1,10 @@
 """Fixtures for model tests"""
 
-import pytest
 from datetime import datetime
 from decimal import Decimal
 from uuid import uuid4
+
+import pytest
 
 
 # Base model fixtures

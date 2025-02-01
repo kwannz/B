@@ -19,7 +19,7 @@ try:
 except:
     pass
 
-from docutils.core import publish_cmdline, default_description
+from docutils.core import default_description, publish_cmdline
 from docutils.writers import manpage
 
 description = "Generates plain unix manual documents.  " + default_description

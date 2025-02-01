@@ -3,14 +3,15 @@ Test MongoDB integration with NewsCollector
 """
 
 import os
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
-from tradingbot.shared.news_collector import NewsCollector
-from tradingbot.shared.models.mongodb import MongoDBManager, RawNewsArticle
 from tradingbot.shared.models.database import NewsArticle
+from tradingbot.shared.models.mongodb import MongoDBManager, RawNewsArticle
+from tradingbot.shared.news_collector import NewsCollector
 
 
 @pytest.fixture

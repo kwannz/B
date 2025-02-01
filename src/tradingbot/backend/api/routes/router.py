@@ -1,17 +1,18 @@
-from fastapi import APIRouter, HTTPException, Request, status, Depends
+import re
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
-import re
 
 from ...core.auth import (
     SignupRequest,
-    get_password_hash,
-    verify_password,
+    Token,
     create_access_token,
     extract_request_context,
-    Token,
     get_current_active_user,
+    get_password_hash,
+    verify_password,
 )
 from ...models.user import User, UserCreate, UserRole
 

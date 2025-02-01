@@ -2,21 +2,22 @@
 Machine learning service for risk prediction and limit adjustment
 """
 
-from typing import List, Dict, Any, Optional, Tuple
-from decimal import Decimal
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 import logging
+import os
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple
+
+import joblib
+import numpy as np
+import pandas as pd
 from pymongo.database import Database
 from sklearn.ensemble import IsolationForest, RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import TimeSeriesSplit
-import joblib
-import os
+from sklearn.preprocessing import StandardScaler
 
-from ..models.trading import Position, OrderSide
 from ..core.exceptions import RiskError
+from ..models.trading import OrderSide, Position
 from .market import MarketDataService
 from .risk import RiskManager
 from .risk_analytics import RiskAnalytics

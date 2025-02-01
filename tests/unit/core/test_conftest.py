@@ -1,12 +1,13 @@
 """Test conftest.py fixtures"""
 
-import pytest
-from unittest.mock import MagicMock
-from sqlalchemy.orm import Session
 from datetime import datetime
+from unittest.mock import MagicMock
+
+import pytest
+from sqlalchemy.orm import Session
 
 from tradingbot.models.tenant import Tenant
-from tradingbot.models.trading import Wallet, Strategy, StrategyType
+from tradingbot.models.trading import Strategy, StrategyType, Wallet
 
 
 def test_event_loop_policy(event_loop_policy):

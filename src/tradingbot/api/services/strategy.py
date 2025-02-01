@@ -2,31 +2,32 @@
 Strategy engine service
 """
 
-from typing import Optional, List, Dict, Any, Type
-from decimal import Decimal
 import asyncio
 import logging
 from datetime import datetime
-import pandas as pd
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Type
+
 import numpy as np
+import pandas as pd
 from pymongo.database import Database
 
+from ..core.exceptions import StrategyError
 from ..models.strategy import (
-    Strategy,
-    StrategyCreate,
-    StrategyType,
-    StrategyStatus,
-    StrategyPerformance,
+    ArbitrageStrategyConfig,
     BacktestResult,
     GridStrategyConfig,
-    MomentumStrategyConfig,
     MeanReversionStrategyConfig,
-    ArbitrageStrategyConfig,
+    MomentumStrategyConfig,
+    Strategy,
+    StrategyCreate,
+    StrategyPerformance,
+    StrategyStatus,
+    StrategyType,
 )
-from ..models.trading import Order, OrderCreate, OrderType, OrderSide
-from ..core.exceptions import StrategyError
-from .trading import TradingEngine
+from ..models.trading import Order, OrderCreate, OrderSide, OrderType
 from .market import MarketDataService
+from .trading import TradingEngine
 
 logger = logging.getLogger(__name__)
 

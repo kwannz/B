@@ -2,9 +2,10 @@
 数据验证器测试
 """
 
-import pytest
 from datetime import datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from tradingbot.shared.data_validator import DataValidator
 

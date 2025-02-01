@@ -1,9 +1,10 @@
+from functools import lru_cache
 from typing import Generator
+
 from fastapi import Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorClient
-from redis import Redis
-from functools import lru_cache
 from pydantic_settings import BaseSettings
+from redis import Redis
 
 
 class Settings(BaseSettings):

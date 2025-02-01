@@ -2,23 +2,24 @@
 预定义调度任务测试
 """
 
-import os
-import pytest
 import asyncio
+import os
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
-from tradingbot.shared.task_scheduler import TaskScheduler
-from tradingbot.shared.scheduled_tasks import setup_scheduled_tasks
+import pytest
+
 from tradingbot.shared.models.database import (
-    Trade,
-    Position,
-    PerformanceMetric,
-    MarketData,
-    ErrorLog,
-    SystemStatus,
     AIAnalysis,
+    ErrorLog,
+    MarketData,
+    PerformanceMetric,
+    Position,
+    SystemStatus,
+    Trade,
 )
+from tradingbot.shared.scheduled_tasks import setup_scheduled_tasks
+from tradingbot.shared.task_scheduler import TaskScheduler
 
 
 @pytest.fixture

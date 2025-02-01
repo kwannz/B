@@ -1,11 +1,12 @@
 """Early entry trading strategy implementation."""
 
-from typing import Dict, Optional, Any, List
-import numpy as np
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from tradingbot.shared.config.tenant_config import StrategyConfig
+import numpy as np
+
 from tradingbot.models.trading import TradeStatus
+from tradingbot.shared.config.tenant_config import StrategyConfig
 
 
 class EarlyEntryStrategy:

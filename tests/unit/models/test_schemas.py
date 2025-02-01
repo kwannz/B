@@ -2,41 +2,43 @@
 Tests for API schemas
 """
 
-import pytest
 from datetime import datetime
 from decimal import Decimal
+
+import pytest
 from pydantic import ValidationError
+
 from tradingbot.src.trading_agent.api.schemas import (
-    UserBase,
-    UserCreate,
-    UserUpdate,
-    UserInDB,
     APIKeyBase,
     APIKeyCreate,
-    APIKeyUpdate,
     APIKeyInDB,
-    StrategyBase,
-    StrategyCreate,
-    StrategyUpdate,
-    StrategyInDB,
-    PositionBase,
-    PositionCreate,
-    PositionUpdate,
-    PositionInDB,
-    TradeBase,
-    TradeCreate,
-    TradeUpdate,
-    TradeInDB,
+    APIKeyUpdate,
     MetricBase,
     MetricCreate,
-    MetricUpdate,
     MetricInDB,
+    MetricUpdate,
+    PositionBase,
+    PositionCreate,
+    PositionInDB,
+    PositionUpdate,
     SettingBase,
     SettingCreate,
-    SettingUpdate,
     SettingInDB,
+    SettingUpdate,
+    StrategyBase,
+    StrategyCreate,
+    StrategyInDB,
+    StrategyUpdate,
     Token,
     TokenData,
+    TradeBase,
+    TradeCreate,
+    TradeInDB,
+    TradeUpdate,
+    UserBase,
+    UserCreate,
+    UserInDB,
+    UserUpdate,
 )
 
 

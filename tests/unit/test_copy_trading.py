@@ -1,8 +1,10 @@
-import pytest
-from decimal import Decimal
 from datetime import datetime
-from src.shared.trading.copy_trading import CopyTradingManager
+from decimal import Decimal
+
+import pytest
+
 from src.shared.models.trading import TradeType
+from src.shared.trading.copy_trading import CopyTradingManager
 
 
 @pytest.fixture

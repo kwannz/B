@@ -2,11 +2,12 @@
 新闻情感分析器测试
 """
 
+from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import numpy as np
 import pytest
 import torch
-import numpy as np
-from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime
 
 from tradingbot.shared.news_sentiment_analyzer import NewsSentimentAnalyzer
 

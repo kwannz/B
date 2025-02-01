@@ -1,10 +1,12 @@
-from typing import Dict, Any, Optional, List
 import asyncio
 import json
 from datetime import datetime, timedelta
-from src.shared.sentiment.sentiment_analyzer import analyze_text
+from typing import Any, Dict, List, Optional
+
 from src.shared.db.mongodb import MongoDBManager
 from src.shared.metrics.metrics_manager import MetricsManager
+from src.shared.sentiment.sentiment_analyzer import analyze_text
+
 from .base_agent import BaseAgent
 
 

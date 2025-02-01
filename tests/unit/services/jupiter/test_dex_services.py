@@ -1,10 +1,11 @@
 """Tests for DEX service implementations."""
 
-import pytest
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
-from trading_agent.dex_services.uniswap import UniswapService
+
+import pytest
 from trading_agent.dex_services.jupiter import JupiterService
+from trading_agent.dex_services.uniswap import UniswapService
 
 
 @pytest.fixture

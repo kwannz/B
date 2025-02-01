@@ -1,21 +1,22 @@
 import asyncio
 import importlib
-import pytest
 import sys
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from fastapi import HTTPException, Request
 from jose import jwt
-from unittest.mock import Mock, patch, MagicMock
 
 from tradingbot.api_gateway.app.core.auth import (
-    verify_password,
-    get_password_hash,
-    create_access_token,
-    get_current_user,
-    get_current_active_user,
-    extract_request_context,
     Token,
     TokenData,
+    create_access_token,
+    extract_request_context,
+    get_current_active_user,
+    get_current_user,
+    get_password_hash,
+    verify_password,
 )
 from tradingbot.api_gateway.app.core.config import settings
 
@@ -98,8 +99,8 @@ def test_create_access_token():
 async def test_get_current_user():
     """Test current user retrieval from token."""
     # Ensure test mode is set and environment is initialized
-    import os
     import importlib
+    import os
 
     os.environ["TEST_MODE"] = "true"
 
@@ -252,8 +253,8 @@ def test_token_models():
 @pytest.mark.asyncio
 async def test_import_paths():
     """Test import paths for both test and non-test environments."""
-    import os
     import importlib
+    import os
 
     # Store original modules and environment
     original_modules = dict(sys.modules)

@@ -1,19 +1,20 @@
+import asyncio
 import os
 import sys
-import pytest
-import asyncio
 from datetime import datetime
 from pathlib import Path
+
+import pytest
 
 # 添加项目根目录到Python路径
 project_root = str(Path(__file__).parent.parent.parent)
 sys.path.append(project_root)
 
-from tradingbot.python.dex.aggregator import DEXAggregator
 from tradingbot.python.analysis.ai_analyzer import AIAnalyzer
-from tradingbot.python.wallet.manager import WalletManager
+from tradingbot.python.dex.aggregator import DEXAggregator
 from tradingbot.python.risk.manager import RiskManager
 from tradingbot.python.strategies.dex_strategy import DEXStrategy
+from tradingbot.python.wallet.manager import WalletManager
 
 
 @pytest.fixture

@@ -1,10 +1,12 @@
+from datetime import datetime, timedelta
+from typing import Dict, List
+
+import numpy as np
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import List, Dict
-from ..deps import get_database, get_current_user
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
+
+from ..deps import get_current_user, get_database
 
 router = APIRouter(prefix="/visualization", tags=["visualization"])
 

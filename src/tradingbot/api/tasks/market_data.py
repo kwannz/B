@@ -4,11 +4,11 @@ Market data background tasks
 
 import asyncio
 import logging
-from typing import List
 from datetime import datetime
+from typing import List
 
-from ..services.market import MarketDataService
 from ..core.exceptions import MarketDataError
+from ..services.market import MarketDataService
 
 logger = logging.getLogger(__name__)
 

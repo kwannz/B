@@ -1,16 +1,17 @@
 """Unit tests for social sentiment trading strategy."""
 
-import pytest
 from datetime import datetime
 
-from tradingbot.shared.strategies.social_sentiment import SocialSentimentStrategy
-from tradingbot.shared.config.tenant_config import StrategyConfig
-from tradingbot.models.trading import Trade, TradeStatus, Strategy, StrategyType, Wallet
-from tradingbot.models.tenant import Tenant, TenantStatus
+import pytest
+
 from tradingbot.app.db.session import tenant_session
-from tradingbot.shared.sentiment.sentiment_analyzer import sentiment_analyzer
-from tradingbot.shared.modules.twitter_connector import twitter_connector
+from tradingbot.models.tenant import Tenant, TenantStatus
+from tradingbot.models.trading import Strategy, StrategyType, Trade, TradeStatus, Wallet
+from tradingbot.shared.config.tenant_config import StrategyConfig
 from tradingbot.shared.modules.discord_connector import discord_connector
+from tradingbot.shared.modules.twitter_connector import twitter_connector
+from tradingbot.shared.sentiment.sentiment_analyzer import sentiment_analyzer
+from tradingbot.shared.strategies.social_sentiment import SocialSentimentStrategy
 
 
 @pytest.fixture

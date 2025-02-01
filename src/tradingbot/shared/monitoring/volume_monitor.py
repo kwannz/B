@@ -1,9 +1,10 @@
-from typing import Dict, Any, List, Optional
-from decimal import Decimal
 import logging
 from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
+from ..models.alerts import Alert, AlertSeverity, AlertType
 from ..models.market_data import MarketData
-from ..models.alerts import Alert, AlertType, AlertSeverity
 
 logger = logging.getLogger(__name__)
 

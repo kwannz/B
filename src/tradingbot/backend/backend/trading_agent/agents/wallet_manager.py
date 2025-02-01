@@ -1,7 +1,8 @@
 from typing import Optional
-from solana.rpc.api import Client
+
+from base58 import b58decode, b58encode
 from solana.keypair import Keypair
-from base58 import b58encode, b58decode
+from solana.rpc.api import Client
 
 
 class WalletManager:

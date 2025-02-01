@@ -2,18 +2,19 @@
 Risk analytics service for advanced risk analysis
 """
 
-from typing import List, Dict, Any, Optional, Tuple
-from decimal import Decimal
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 from pymongo.database import Database
 from scipy import stats
 from sklearn.covariance import EmpiricalCovariance
 
-from ..models.trading import Position, OrderSide
 from ..core.exceptions import RiskError
+from ..models.trading import OrderSide, Position
 from .market import MarketDataService
 from .risk import RiskManager
 

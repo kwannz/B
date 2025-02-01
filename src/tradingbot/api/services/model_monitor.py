@@ -2,27 +2,28 @@
 Model monitoring service for tracking and updating ML models
 """
 
-from typing import List, Dict, Any, Optional, Tuple
-from decimal import Decimal
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
+import json
 import logging
+import os
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 from pymongo.database import Database
 from sklearn.metrics import (
-    mean_squared_error,
-    mean_absolute_error,
-    r2_score,
-    roc_auc_score,
-    precision_score,
-    recall_score,
     f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    precision_score,
+    r2_score,
+    recall_score,
+    roc_auc_score,
 )
-import json
-import os
 
-from ..models.trading import Position, OrderSide
 from ..core.exceptions import RiskError
+from ..models.trading import OrderSide, Position
 from .market import MarketDataService
 from .risk import RiskManager
 from .risk_analytics import RiskAnalytics
@@ -75,7 +76,6 @@ class ModelMonitor:
                     or (current_time - self._last_update).total_seconds()
                     >= self.update_interval
                 ):
-
                     # Evaluate models
                     metrics = await self.evaluate_models()
 
@@ -112,9 +112,9 @@ class ModelMonitor:
 
         # Evaluate risk predictors
         for predictor in ["var", "volatility", "correlation"]:
-            metrics["models"][f"{predictor}_predictor"] = (
-                await self._evaluate_predictor(predictor, evaluation_data)
-            )
+            metrics["models"][
+                f"{predictor}_predictor"
+            ] = await self._evaluate_predictor(predictor, evaluation_data)
 
         return metrics
 

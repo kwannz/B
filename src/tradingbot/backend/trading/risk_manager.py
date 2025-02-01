@@ -1,10 +1,11 @@
 import asyncio
-from typing import Dict, List, Optional
+import time
 from dataclasses import dataclass
 from enum import Enum
+from typing import Dict, List, Optional
+
 import numpy as np
-from prometheus_client import Counter, Histogram, Gauge
-import time
+from prometheus_client import Counter, Gauge, Histogram
 
 
 class RiskLevel(Enum):
@@ -224,9 +225,7 @@ class RiskManager:
             # 更新熔断器状态
             self.circuit_breakers[risk_type] = {
                 "triggered_at": time.time(),
-                "cool_down": self.config.get(
-                    "circuit_breaker_cooldown", 300
-                ),  # 5分钟冷却
+                "cool_down": self.config.get("circuit_breaker_cooldown", 300),  # 5分钟冷却
             }
 
             # 增加触发计数

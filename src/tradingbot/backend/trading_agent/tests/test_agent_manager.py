@@ -1,6 +1,7 @@
 import pytest
-from ..services.agent_manager import AgentManager
+
 from ..agents.trading_agent import TradingAgent
+from ..services.agent_manager import AgentManager
 
 
 @pytest.fixture

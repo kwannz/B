@@ -1,5 +1,8 @@
 from enum import Enum
-from sqlalchemy import Column, String, Float, Boolean, JSON, ForeignKey, Enum as SQLEnum
+
+from sqlalchemy import JSON, Boolean, Column
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Float, ForeignKey, String
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()

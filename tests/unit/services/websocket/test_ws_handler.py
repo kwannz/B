@@ -1,18 +1,20 @@
-import pytest
 import asyncio
 import json
+import os
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import psutil
+import pytest
 from fastapi import WebSocket, WebSocketDisconnect
+
 from src.api.websocket.handler import (
     ConnectionManager,
-    handle_websocket,
     broadcast_trade_update,
+    handle_websocket,
 )
-from src.utils.security import create_ws_token, validate_ws_token
 from src.models.metrics import WebSocketMetrics
-import psutil
-import os
+from src.utils.security import create_ws_token, validate_ws_token
 
 
 class MockWebSocket:
@@ -59,7 +61,6 @@ def connection_manager():
 
 @pytest.mark.asyncio
 class TestWebSocketHandler:
-
     async def test_connection_lifecycle(self, mock_websocket, connection_manager):
         """测试WebSocket连接的完整生命周期"""
         # 测试连接建立
@@ -107,9 +108,7 @@ class TestWebSocketHandler:
         await connection_manager.connect(mock_websocket, "trades")
         mock_websocket.send_json = AsyncMock(side_effect=Exception("Send error"))
         await connection_manager.broadcast({"type": "test"}, "trades")
-        assert (
-            len(connection_manager.active_connections["trades"]) == 0
-        )  # 应该移除失败的连接
+        assert len(connection_manager.active_connections["trades"]) == 0  # 应该移除失败的连接
 
     async def test_concurrent_connections(self, connection_manager):
         """测试并发连接处理"""

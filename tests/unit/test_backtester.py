@@ -4,15 +4,16 @@
 
 import os
 import sys
-import pytest
-import numpy as np
-import pandas as pd
 from datetime import datetime, timedelta
 from decimal import Decimal
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from typing import Dict, Any, List, Optional, Union, Type
-import aiohttp
+from typing import Any, Dict, List, Optional, Type, Union
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from zoneinfo import ZoneInfo
+
+import aiohttp
+import numpy as np
+import pandas as pd
+import pytest
 from pandas import DataFrame, DatetimeIndex
 
 # Add project root to Python path
@@ -475,17 +476,13 @@ async def test_load_data_validation(backtester):
     # Test invalid input type
     with pytest.raises(ValueError) as exc_info:
         await backtester.load_data(123)  # Using a number instead of DataFrame
-    assert "数据验证失败: 数据必须是DataFrame或包含交易数据的列表" in str(
-        exc_info.value
-    )
+    assert "数据验证失败: 数据必须是DataFrame或包含交易数据的列表" in str(exc_info.value)
 
     # Test missing required columns
     df_missing = pd.DataFrame({"close": [100.0], "volume": [1000.0]})
     with pytest.raises(ValueError) as exc_info:
         await backtester.load_data(df_missing)
-    assert "数据验证失败: DataFrame必须包含以下列: open, high, low" in str(
-        exc_info.value
-    )
+    assert "数据验证失败: DataFrame必须包含以下列: open, high, low" in str(exc_info.value)
 
     # Test invalid timestamp format
     df_invalid_ts = pd.DataFrame(

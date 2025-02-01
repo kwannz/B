@@ -1,24 +1,25 @@
 import asyncio
-from typing import Dict, List, Optional, Callable, Any, Union
-from datetime import datetime, timedelta
-import numpy as np
-from dataclasses import dataclass
-import logging
-import json
-import websockets
-from websockets.exceptions import WebSocketException
-from prometheus_client import Counter, Histogram, Gauge
-from enum import Enum
-import psutil
-import os
 import gc
+import json
+import logging
+import os
 import time
 import zlib
-import msgpack
+from collections import OrderedDict, defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 from functools import lru_cache
-from collections import defaultdict, OrderedDict
-import snappy
 from statistics import mean, stdev
+from typing import Any, Callable, Dict, List, Optional, Union
+
+import msgpack
+import numpy as np
+import psutil
+import snappy
+import websockets
+from prometheus_client import Counter, Gauge, Histogram
+from websockets.exceptions import WebSocketException
 
 
 class MonitoringState(Enum):
@@ -186,16 +187,16 @@ class CompressionStrategy:
 
         # 保持统计数据在合理范围内
         if len(self.compression_stats["algorithm_performance"][message_type]) > 1000:
-            self.compression_stats["algorithm_performance"][message_type] = (
-                self.compression_stats["algorithm_performance"][message_type][-1000:]
-            )
+            self.compression_stats["algorithm_performance"][
+                message_type
+            ] = self.compression_stats["algorithm_performance"][message_type][-1000:]
 
         # 更新压缩比统计
         self.compression_stats["compression_ratios"][message_type].append(ratio)
         if len(self.compression_stats["compression_ratios"][message_type]) > 1000:
-            self.compression_stats["compression_ratios"][message_type] = (
-                self.compression_stats["compression_ratios"][message_type][-1000:]
-            )
+            self.compression_stats["compression_ratios"][
+                message_type
+            ] = self.compression_stats["compression_ratios"][message_type][-1000:]
 
         # 更新大小分布
         size_bucket = self._get_size_bucket(original_size)

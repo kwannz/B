@@ -1,7 +1,7 @@
 """Helper script to process API responses."""
 
-import sys
 import json
+import sys
 
 
 def process_json():

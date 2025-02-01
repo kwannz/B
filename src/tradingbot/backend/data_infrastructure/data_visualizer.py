@@ -1,11 +1,12 @@
-from typing import Dict, List, Optional, Union
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import matplotlib.pyplot as plt
-import seaborn as sns
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Union
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import seaborn as sns
+from plotly.subplots import make_subplots
 
 
 class DataVisualizer:

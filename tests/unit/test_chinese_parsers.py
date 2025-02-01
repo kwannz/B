@@ -2,19 +2,20 @@
 Test Chinese news source parsers
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from bs4 import BeautifulSoup
 
+from tradingbot.shared.models.mongodb import RawNewsArticle
 from tradingbot.shared.news_collector.parsers import (
-    parse_binance_cn,
-    parse_jinse,
-    parse_odaily,
     BINANCE_CN_URL,
     JINSE_URL,
     ODAILY_URL,
+    parse_binance_cn,
+    parse_jinse,
+    parse_odaily,
 )
-from tradingbot.shared.models.mongodb import RawNewsArticle
 
 
 @pytest.fixture

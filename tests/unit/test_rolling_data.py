@@ -1,9 +1,10 @@
 """Unit tests for RollingDataFrame class."""
 
-import pytest
+from datetime import datetime, timedelta
+
 import pandas as pd
 import pandas_ta as ta
-from datetime import datetime, timedelta
+import pytest
 
 from tradingbot.core.services.rolling_data import RollingDataFrame
 

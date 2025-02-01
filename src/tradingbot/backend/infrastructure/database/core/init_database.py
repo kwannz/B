@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+
 from src.api_gateway.app.db.session import init_db
 
 logging.basicConfig(

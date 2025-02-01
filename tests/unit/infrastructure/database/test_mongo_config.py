@@ -3,12 +3,14 @@ Test MongoDB configuration
 """
 
 import os
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
+
 from tradingbot.config.mongo_config import (
-    MongoDBConnection,
     NEWS_DB_NAME,
     SOCIAL_DB_NAME,
+    MongoDBConnection,
 )
 
 

@@ -2,16 +2,17 @@
 Exchange client interface
 """
 
-from typing import Optional, List, Dict, Any
-from decimal import Decimal
-from datetime import datetime
-import logging
-import hmac
 import hashlib
-import time
+import hmac
 import json
-import aiohttp
+import logging
+import time
+from datetime import datetime
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 

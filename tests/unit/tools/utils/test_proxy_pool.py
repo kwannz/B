@@ -2,12 +2,14 @@
 Test proxy pool implementation
 """
 
-import os
-import pytest
 import asyncio
+import os
 from unittest.mock import AsyncMock, Mock, patch
+
 import aiohttp
-from tradingbot.shared.proxy_pool import ProxyPool, Proxy
+import pytest
+
+from tradingbot.shared.proxy_pool import Proxy, ProxyPool
 
 
 @pytest.fixture
