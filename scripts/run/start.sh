@@ -1,21 +1,3 @@
-#!/bin/bash
-
-# Initialize Python environment
-python -m venv venv
-source venv/bin/activate
-
-# Install Python dependencies
-pip install --upgrade pip
-pip install -r src/api_gateway/requirements.txt
-
-# Install frontend dependencies
-cd src/frontend
-npm install
-
-# Start services in background
-cd ../api_gateway
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-
-# Start frontend
-cd ../frontend
-npm start
+version https://git-lfs.github.com/spec/v1
+oid sha256:cffc65e67a80c2b83fdd283385e164d3c70ea9056576bd18214f5da5249ed52e
+size 409

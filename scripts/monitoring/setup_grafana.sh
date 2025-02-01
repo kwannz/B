@@ -1,21 +1,3 @@
-#!/bin/bash
-set -e
-
-# Create Grafana directories
-mkdir -p /var/lib/grafana/dashboards
-mkdir -p /etc/grafana/provisioning/dashboards
-mkdir -p /etc/grafana/provisioning/datasources
-
-# Set permissions
-chown -R grafana:grafana /var/lib/grafana/dashboards
-chown -R grafana:grafana /etc/grafana/provisioning
-
-# Copy dashboard files
-cp /app/docker/grafana/dashboards/*.json /var/lib/grafana/dashboards/
-cp /app/docker/grafana/provisioning/dashboards/*.yml /etc/grafana/provisioning/dashboards/
-cp /app/docker/grafana/provisioning/datasources/*.yml /etc/grafana/provisioning/datasources/
-
-# Set correct permissions on copied files
-chown -R grafana:grafana /var/lib/grafana/dashboards/*.json
-chown -R grafana:grafana /etc/grafana/provisioning/dashboards/*.yml
-chown -R grafana:grafana /etc/grafana/provisioning/datasources/*.yml
+version https://git-lfs.github.com/spec/v1
+oid sha256:84898a20a97038adf7bf95a921dae50140e1b06b3edf91654b7661c93495ef59
+size 820
