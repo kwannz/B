@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useMetricsContext } from '@/hooks/useMetricsContext';
-import { TradingDashboard } from '@/components/TradingDashboard';
-import { StrategyForm } from '@/components/StrategyForm';
-import type { TradingMetrics } from '@/types/trading';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { useMetricsContext } from '@/app/hooks/useMetricsContext';
+import { TradingDashboard } from '@/app/components/TradingDashboard';
+import { StrategyForm } from '@/app/components/StrategyForm';
+import type { TradingMetrics } from '@/app/types/trading';
 
 export default function DexSwapPage() {
   const { metrics } = useMetricsContext<TradingMetrics>();

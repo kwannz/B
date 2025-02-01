@@ -2,7 +2,7 @@ import React from 'react'
 import { render as rtlRender, screen, fireEvent, waitFor, RenderOptions } from '@testing-library/react'
 import type { RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { TestMetrics, TradingConfig } from '../types/test.types'
+import type { TestMetrics, TradingConfig } from '@/app/tests/types/test.types'
 
 interface MockProviderProps {
   children: React.ReactNode;
