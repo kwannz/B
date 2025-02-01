@@ -40,24 +40,39 @@ tests/              # Test suites
    ./deploy/scripts/deploy.sh
    ```
 
-## Local Model Setup with Ollama
+## DeepSeek R1 1.5B Model Setup
 
 1. Install Ollama:
 ```bash
-curl https://ollama.ai/install.sh | sh
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
+
+# macOS and Windows
+Visit https://ollama.com/download
 ```
 
-2. Pull the DeepSeek 1.5b model:
+2. Run DeepSeek R1 1.5B model:
 ```bash
-ollama pull deepseek:1.5b
+ollama run deepseek-r1:1.5b
 ```
 
-3. Configure environment:
+3. Model Interaction:
+```bash
+>>> Query: Market analysis for token X
+>>> Response: Analysis of market conditions and trading recommendations
+
+# Example Chinese interaction
+>>> 你能做什么?
+>>> 你好!我是 DeepSeek-R1,一个由 DeepSeek 创建的人工智能助手。
+   我可以回答问题、提供建议、协助编程等。有什么我可以帮助你的吗?
+```
+
+4. Configure environment:
 ```bash
 # In deploy/config/.env
 AI_MODEL_MODE=LOCAL
 LOCAL_MODEL_ENDPOINT=http://localhost:11434
-LOCAL_MODEL_NAME=deepseek-1.5b
+LOCAL_MODEL_NAME=deepseek-r1-1.5b
 ```
 
 4. Start services with Docker Compose:
@@ -78,7 +93,22 @@ curl -X POST http://localhost:8000/api/v1/sentiment \
 ```
 
 ## Core Components
-- DeepSeek Integration: R1 and V3 models for market analysis
+
+### Primary Trading Functions
+1. DEX Swap Trading
+   - Jupiter DEX integration
+   - Real-time market analysis
+   - Advanced strategy configuration
+   - Position management dashboard
+
+2. Meme Coin Trading (pump.fun)
+   - Market trend analysis
+   - Risk monitoring system
+   - Performance tracking
+   - Automated trading strategies
+
+### System Components
+- DeepSeek R1 1.5B Model: Advanced market analysis and trading insights
 - News Collection: Multi-source aggregation with sentiment analysis
 - Trading Strategies: Capital rotation and batch position management
 - Wallet Integration: Solana wallet with minimum 0.5 SOL requirement
@@ -349,6 +379,26 @@ Commands:
    - Webhook support
 
 ## Development
+
+### System Operation Guide
+
+1. Trading Interface Selection:
+   - Access the trading dashboard
+   - Choose between DEX swap or meme coin trading
+   - Configure trading parameters
+   - Monitor positions and performance
+
+2. Trading Strategy Setup:
+   - Select trading type (DEX swap/meme coin)
+   - Set risk parameters
+   - Configure automation rules
+   - Enable/disable AI assistance
+
+3. System Monitoring:
+   - Track trading performance
+   - Monitor system health
+   - View AI model insights
+   - Manage wallet balances
 
 ### Local Setup
 1. Create a virtual environment:
