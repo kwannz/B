@@ -38,9 +38,14 @@
     "@typescript-eslint/no-non-null-assertion": "warn",
     "@typescript-eslint/no-namespace": ["error", { "allowDeclarations": true }],
     "@typescript-eslint/ban-ts-comment": "warn",
+    "@typescript-eslint/no-unnecessary-type-constraint": "warn",
+    "@typescript-eslint/no-var-requires": "warn",
     "react/react-in-jsx-scope": "off",
     "react/prop-types": "off",
-    "react-hooks/rules-of-hooks": "error",
+    "react/jsx-no-undef": "error",
+    "react-hooks/rules-of-hooks": ["error", {
+      "enableDangerousAutomaticEntryPointDetection": true
+    }],
     "react-hooks/exhaustive-deps": "warn",
     "no-var": "error",
     "no-case-declarations": "off",
