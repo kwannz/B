@@ -1,239 +1,240 @@
 """
-Unit tests for database optimizations.
+Tests for database operations
 """
-
 import pytest
-import asyncio
-from typing import List, Dict, Any
-from sqlalchemy import text
-from tradingbot.core.database import (
-    DatabaseConfig,
-    DatabaseManager,
-    QueryOptimizer,
-    BulkOperations,
-    DataLoader,
-    QueryBuilder,
-    DatabaseMetrics
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import Column, Integer, String, Boolean, Float
+from tradingbot.src.trading_agent.api.database import (
+    Base,
+    get_db,
+    CRUDBase,
+    UserCRUD,
+    StrategyCRUD,
+    PositionCRUD,
+    TradeCRUD,
+    MetricCRUD,
+    SettingCRUD
 )
 
-@pytest.fixture
-async def db_config():
-    """Database configuration fixture."""
-    return DatabaseConfig(
-        url="postgresql+asyncpg://test:test@localhost/testdb",
-        pool_size=5,
-        max_overflow=10,
-        pool_timeout=30,
-        pool_recycle=1800,
-        echo=False
-    )
+# Test models
+class TestUser(Base):
+    __tablename__ = "test_users"
+    id = Column(Integer, primary_key=True)
+    username = Column(String, unique=True)
+    email = Column(String, unique=True)
+    hashed_password = Column(String)
+
+class TestStrategy(Base):
+    __tablename__ = "test_strategies"
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    user_id = Column(Integer)
+    is_active = Column(Boolean, default=True)
+
+class TestPosition(Base):
+    __tablename__ = "test_positions"
+    id = Column(Integer, primary_key=True)
+    strategy_id = Column(Integer)
+    status = Column(String)
+
+class TestTrade(Base):
+    __tablename__ = "test_trades"
+    id = Column(Integer, primary_key=True)
+    strategy_id = Column(Integer)
+    position_id = Column(Integer)
+
+class TestMetric(Base):
+    __tablename__ = "test_metrics"
+    id = Column(Integer, primary_key=True)
+    strategy_id = Column(Integer)
+    value = Column(Float)
+
+class TestSetting(Base):
+    __tablename__ = "test_settings"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
+    key = Column(String)
+    value = Column(String)
+
+@pytest.fixture(scope="function")
+def test_db():
+    """Create a test database"""
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = TestSession()
+    try:
+        yield session
+    finally:
+        session.close()
+        Base.metadata.drop_all(engine)
 
 @pytest.fixture
-async def db_manager(db_config):
-    """Database manager fixture."""
-    manager = await DatabaseManager(db_config)
-    yield manager
-    await manager.engine.dispose()
+def user_crud():
+    return UserCRUD(TestUser)
 
-@pytest.mark.asyncio
-async def test_database_connection(db_manager):
-    """Test database connection and basic query."""
-    async with db_manager.get_session() as session:
-        result = await session.execute(text("SELECT 1"))
-        value = result.scalar()
-        assert value == 1
+@pytest.fixture
+def strategy_crud():
+    return StrategyCRUD(TestStrategy)
 
-@pytest.mark.asyncio
-async def test_query_optimizer():
-    """Test query optimization utilities."""
-    # Test SELECT optimization
-    query = text("SELECT * FROM test_table")
-    optimized = QueryOptimizer.optimize_select(query)
-    
-    # Verify optimization options
-    assert optimized.execution_options.get('stream_results') is True
-    assert optimized.execution_options.get('max_row_buffer') == 100
-    
-    # Test query hints
-    query_with_hints = QueryOptimizer.add_query_hints(query)
-    assert "INDEX_MERGE" in str(query_with_hints)
-    assert "ORDERED" in str(query_with_hints)
-    
-    # Test pagination
-    paginated = QueryOptimizer.paginate_query(query, page=2, page_size=10)
-    assert "LIMIT 10 OFFSET 10" in str(paginated).upper()
+@pytest.fixture
+def position_crud():
+    return PositionCRUD(TestPosition)
 
-@pytest.mark.asyncio
-async def test_bulk_operations(db_manager):
-    """Test bulk database operations."""
-    bulk_ops = BulkOperations(db_manager)
-    
-    # Generate test data
-    test_data = [
-        {"id": i, "value": f"test_{i}"}
-        for i in range(100)
-    ]
-    
-    # Test bulk insert
-    inserted = await bulk_ops.bulk_insert("test_table", test_data)
-    assert inserted == 100
-    
-    # Verify inserted data
-    async with db_manager.get_session() as session:
-        result = await session.execute(
-            text("SELECT COUNT(*) FROM test_table")
-        )
-        count = result.scalar()
-        assert count == 100
+@pytest.fixture
+def trade_crud():
+    return TradeCRUD(TestTrade)
 
-@pytest.mark.asyncio
-async def test_data_loader(db_manager):
-    """Test data loader functionality."""
-    loader = DataLoader(db_manager)
-    
-    # Create test data
-    async with db_manager.get_session() as session:
-        await session.execute(
-            text("""
-                CREATE TEMPORARY TABLE test_data (
-                    id SERIAL PRIMARY KEY,
-                    value TEXT
-                )
-            """)
-        )
-        # Insert test rows
-        for i in range(1000):
-            await session.execute(
-                text("INSERT INTO test_data (value) VALUES (:value)"),
-                {"value": f"value_{i}"}
-            )
-        await session.commit()
-    
-    # Test chunk loading
-    total_rows = 0
-    async for chunk in loader.load_by_chunks(
-        text("SELECT * FROM test_data"),
-        chunk_size=100
-    ):
-        total_rows += len(chunk)
-        assert len(chunk) <= 100  # Verify chunk size
-    
-    assert total_rows == 1000
+@pytest.fixture
+def metric_crud():
+    return MetricCRUD(TestMetric)
 
-@pytest.mark.asyncio
-async def test_query_builder():
-    """Test query builder functionality."""
-    # Test filter query building
-    filters = {
-        "status": "active",
-        "type": ["type1", "type2"],
-        "value": 100
+@pytest.fixture
+def setting_crud():
+    return SettingCRUD(TestSetting)
+
+def test_crud_base_operations(test_db):
+    crud = CRUDBase(TestUser)
+    
+    # Test create
+    user_data = {"username": "test", "email": "test@example.com", "hashed_password": "hash"}
+    user = crud.create(test_db, obj_in=user_data)
+    assert user.username == "test"
+    
+    # Test get
+    retrieved_user = crud.get(test_db, id=user.id)
+    assert retrieved_user.email == "test@example.com"
+    
+    # Test get_multi
+    users = crud.get_multi(test_db)
+    assert len(users) == 1
+    
+    # Test update
+    update_data = {"username": "updated"}
+    updated_user = crud.update(test_db, db_obj=user, obj_in=update_data)
+    assert updated_user.username == "updated"
+    
+    # Test delete
+    deleted_user = crud.delete(test_db, id=user.id)
+    assert deleted_user.id == user.id
+    assert crud.get(test_db, id=user.id) is None
+
+def test_user_crud_operations(test_db, user_crud):
+    # Create test user
+    user_data = {
+        "username": "testuser",
+        "email": "test@example.com",
+        "hashed_password": "hash"
     }
+    user = user_crud.create(test_db, obj_in=user_data)
     
-    order_by = [
-        ("created_at", "DESC"),
-        ("id", "ASC")
-    ]
+    # Test get_by_email
+    found_user = user_crud.get_by_email(test_db, email="test@example.com")
+    assert found_user.username == "testuser"
     
-    query = QueryBuilder.build_filter_query(
-        "test_table",
-        filters,
-        order_by
+    # Test get_by_username
+    found_user = user_crud.get_by_username(test_db, username="testuser")
+    assert found_user.email == "test@example.com"
+
+def test_strategy_crud_operations(test_db, strategy_crud):
+    # Create test strategies
+    strategy_data = {
+        "name": "test_strategy",
+        "user_id": 1,
+        "is_active": True
+    }
+    strategy = strategy_crud.create(test_db, obj_in=strategy_data)
+    
+    # Test get_by_user
+    strategies = strategy_crud.get_by_user(test_db, user_id=1)
+    assert len(strategies) == 1
+    assert strategies[0].name == "test_strategy"
+    
+    # Test get_active_strategies
+    active_strategies = strategy_crud.get_active_strategies(test_db, user_id=1)
+    assert len(active_strategies) == 1
+    
+    # Create inactive strategy
+    inactive_strategy = strategy_crud.create(
+        test_db,
+        obj_in={"name": "inactive", "user_id": 1, "is_active": False}
     )
-    
-    query_str = str(query)
-    
-    # Verify WHERE clauses
-    assert "status = :status" in query_str
-    assert "type IN :type" in query_str
-    assert "value = :value" in query_str
-    
-    # Verify ORDER BY
-    assert "ORDER BY created_at DESC, id ASC" in query_str.upper()
+    active_strategies = strategy_crud.get_active_strategies(test_db, user_id=1)
+    assert len(active_strategies) == 1
 
-@pytest.mark.asyncio
-async def test_database_metrics():
-    """Test database metrics collection."""
-    metrics = DatabaseMetrics()
+def test_position_crud_operations(test_db, position_crud):
+    # Create test positions
+    position_data = {
+        "strategy_id": 1,
+        "status": "open"
+    }
+    position = position_crud.create(test_db, obj_in=position_data)
     
-    # Record some metrics
-    await metrics.record_query_time(0.1)
-    await metrics.record_query_time(0.2)
-    await metrics.record_query_time(0.3)
-    await metrics.record_error()
-    await metrics.record_error()
+    # Test get_by_strategy
+    positions = position_crud.get_by_strategy(test_db, strategy_id=1)
+    assert len(positions) == 1
     
-    # Test average query time
-    avg_time = metrics.get_average_query_time()
-    assert avg_time == 0.2  # (0.1 + 0.2 + 0.3) / 3
+    # Test get_open_positions
+    open_positions = position_crud.get_open_positions(test_db, strategy_id=1)
+    assert len(open_positions) == 1
     
-    # Test error rate
-    error_rate = metrics.get_error_rate()
-    assert error_rate == 0.4  # 2 errors out of 5 total operations
+    # Create closed position
+    closed_position = position_crud.create(
+        test_db,
+        obj_in={"strategy_id": 1, "status": "closed"}
+    )
+    open_positions = position_crud.get_open_positions(test_db, strategy_id=1)
+    assert len(open_positions) == 1
 
-@pytest.mark.asyncio
-async def test_concurrent_database_access(db_manager):
-    """Test concurrent database access."""
-    async def insert_record(i: int):
-        async with db_manager.get_session() as session:
-            await session.execute(
-                text("INSERT INTO test_table (value) VALUES (:value)"),
-                {"value": f"value_{i}"}
-            )
-            await session.commit()
+def test_trade_crud_operations(test_db, trade_crud):
+    # Create test trades
+    trade_data = {
+        "strategy_id": 1,
+        "position_id": 1
+    }
+    trade = trade_crud.create(test_db, obj_in=trade_data)
     
-    # Run concurrent inserts
-    tasks = [insert_record(i) for i in range(10)]
-    await asyncio.gather(*tasks)
+    # Test get_by_strategy
+    trades = trade_crud.get_by_strategy(test_db, strategy_id=1)
+    assert len(trades) == 1
     
-    # Verify all records were inserted
-    async with db_manager.get_session() as session:
-        result = await session.execute(
-            text("SELECT COUNT(*) FROM test_table")
-        )
-        count = result.scalar()
-        assert count == 10
+    # Test get_by_position
+    position_trades = trade_crud.get_by_position(test_db, position_id=1)
+    assert len(position_trades) == 1
 
-@pytest.mark.asyncio
-async def test_database_retry_mechanism(db_manager):
-    """Test database retry mechanism."""
-    fail_count = 0
+def test_metric_crud_operations(test_db, metric_crud):
+    # Create test metric
+    metric_data = {
+        "strategy_id": 1,
+        "value": 100.0
+    }
+    metric = metric_crud.create(test_db, obj_in=metric_data)
     
-    async def failing_query():
-        nonlocal fail_count
-        if fail_count < 2:
-            fail_count += 1
-            raise Exception("Temporary failure")
-        return "success"
-    
-    # Should succeed after retries
-    result = await db_manager.execute_query(failing_query)
-    assert result == "success"
-    assert fail_count == 2
+    # Test get_by_strategy
+    found_metric = metric_crud.get_by_strategy(test_db, strategy_id=1)
+    assert found_metric.value == 100.0
 
-@pytest.mark.asyncio
-async def test_query_timeout(db_manager):
-    """Test query timeout handling."""
-    async def slow_query():
-        await asyncio.sleep(2)  # Simulate slow query
-        return "result"
+def test_setting_crud_operations(test_db, setting_crud):
+    # Create test settings
+    setting_data = {
+        "user_id": 1,
+        "key": "theme",
+        "value": "dark"
+    }
+    setting = setting_crud.create(test_db, obj_in=setting_data)
     
-    # Should timeout
-    with pytest.raises(asyncio.TimeoutError):
-        await db_manager.execute_query(
-            slow_query,
-            timeout=1
-        )
+    # Test get_by_user
+    settings = setting_crud.get_by_user(test_db, user_id=1)
+    assert len(settings) == 1
+    assert settings[0].key == "theme"
+    
+    # Test get_by_key
+    found_setting = setting_crud.get_by_key(test_db, user_id=1, key="theme")
+    assert found_setting.value == "dark"
 
-@pytest.mark.asyncio
-async def test_connection_pool_limits(db_manager):
-    """Test connection pool limits."""
-    async def get_connection():
-        async with db_manager.get_session() as session:
-            await session.execute(text("SELECT pg_sleep(0.5)"))
-    
-    # Try to exceed pool size
-    tasks = [get_connection() for _ in range(10)]
-    
-    # Should not raise connection pool errors
-    await asyncio.gather(*tasks, return_exceptions=True)
+def test_db_context_manager():
+    """Test the database context manager"""
+    with get_db() as db:
+        assert db is not None
+    # Context manager should close the session after the block

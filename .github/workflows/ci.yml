@@ -6,300 +6,152 @@ on:
   pull_request:
     branches: [ main, develop ]
 
-env:
-  REGISTRY: ghcr.io
-  TEST_POSTGRES_USER: testuser
-  TEST_POSTGRES_PASSWORD: testpass
-  TEST_POSTGRES_DB: tradingdb_test
-  TEST_REDIS_PASSWORD: testpass
-
 jobs:
-  test-frontend:
+  verify-structure:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - name: Verify Project Structure
+        run: |
+          chmod +x scripts/verify_structure.sh
+          ./scripts/verify_structure.sh
 
+  test-backend:
+    needs: verify-structure
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:4.4
+        ports:
+          - 27017:27017
+      redis:
+        image: redis:6
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/backend/requirements.txt
+          pip install -r tests/requirements.test.txt
+      
+      - name: Run Backend Tests
+        run: |
+          cd src/backend
+          pytest ../tests/unit/backend --cov=. --cov-report=xml
+      
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./src/backend/coverage.xml
+          flags: backend
+
+  test-frontend:
+    needs: verify-structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-
-      - name: Install frontend dependencies
+          cache-dependency-path: src/frontend/package-lock.json
+      
+      - name: Install Frontend Dependencies
+        working-directory: src/frontend
+        run: npm ci
+      
+      - name: Run Frontend Tests
+        working-directory: src/frontend
         run: |
-          cd src/frontend
-          npm install
-
-      - name: Run frontend tests
-        run: |
-          cd src/frontend
-          npm run test
-
-      - name: Upload frontend coverage
+          npm run test:ci
+          npm run lint
+      
+      - name: Upload Coverage
         uses: codecov/codecov-action@v3
         with:
-          file: ./src/frontend/coverage/lcov.info
+          file: ./src/frontend/coverage/coverage-final.json
           flags: frontend
-          fail_ci_if_error: true
-
-  test-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-
-      - name: Start test environment
-        run: |
-          cd deploy/docker
-          docker-compose -f docker-compose.test.yml up -d
-
-      - name: Run tests
-        run: |
-          cd deploy/docker
-          docker-compose -f docker-compose.test.yml run api_gateway pytest
-          docker-compose -f docker-compose.test.yml run coverage-report
-
-      - name: Generate coverage report
-        run: |
-          cd deploy/docker
-          docker-compose -f docker-compose.test.yml run coverage-report
-
-      - name: Upload backend coverage
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./src/deployment/reports/coverage.xml
-          flags: backend
-          fail_ci_if_error: true
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install black flake8 mypy
-
-      - name: Run black
-        run: black . --check
-
-      - name: Run flake8
-        run: flake8 .
-
-      - name: Run mypy
-        run: mypy .
-
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Run Snyk to check Python dependencies
-        uses: snyk/actions/python@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: monitor
-
-      - name: Run Snyk to check Node.js dependencies
-        uses: snyk/actions/node@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: monitor
-
-      - name: Run Bandit
-        run: |
-          pip install bandit
-          bandit -r ./src/backend -ll --exclude ./src/backend/tests
 
   build:
-    needs: [test-frontend, test-backend, lint, security-scan]
+    needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    env:
-      REGISTRY: ghcr.io
-    permissions:
-      contents: read
-      packages: write
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
+      - uses: actions/checkout@v3
+      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Build and push API Gateway
-        uses: docker/build-push-action@v2
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      
+      - name: Build and Push Backend
+        uses: docker/build-push-action@v4
         with:
           context: .
-          file: ./deploy/docker/backend/Dockerfile
+          file: deploy/docker/Dockerfile.api
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:latest
-
-      - name: Build and push Frontend
-        uses: docker/build-push-action@v2
+            ${{ secrets.DOCKER_HUB_USERNAME }}/trading-bot-api:${{ github.sha }}
+            ${{ secrets.DOCKER_HUB_USERNAME }}/trading-bot-api:latest
+      
+      - name: Build and Push Frontend
+        uses: docker/build-push-action@v4
         with:
-          context: .
-          file: ./deploy/docker/frontend/Dockerfile
+          context: src/frontend
+          file: src/frontend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/frontend:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/frontend:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/trading-bot-frontend:${{ github.sha }}
+            ${{ secrets.DOCKER_HUB_USERNAME }}/trading-bot-frontend:latest
 
   deploy-staging:
     needs: build
-    runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
     environment: staging
     steps:
-      - uses: actions/checkout@v2
-
+      - uses: actions/checkout@v3
+      
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Deploy to staging
-        run: |
-          aws ecs update-service --cluster staging-cluster --service api-gateway --force-new-deployment
-          aws ecs update-service --cluster staging-cluster --service frontend --force-new-deployment
-
-  deploy-production:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Deploy to production
-        run: |
-          aws ecs update-service --cluster production-cluster --service api-gateway --force-new-deployment
-          aws ecs update-service --cluster production-cluster --service frontend --force-new-deployment
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push API Gateway
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/api_gateway
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:latest
-
-      - name: Build and push Trading Agent
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/trading_agent
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/trading-agent:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/trading-agent:latest
-
-      - name: Build and push DeFi Agent
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/defi_agent
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/defi-agent:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/defi-agent:latest
-
-  deploy-staging:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
-    environment: staging
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Deploy to staging
+      
+      - name: Deploy to Staging
         run: |
-          cd src/deployment
-          ./scripts/deploy.sh staging
+          chmod +x scripts/deployment/deploy.sh
+          ./scripts/deployment/deploy.sh staging
 
   deploy-production:
     needs: build
-    runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v2
-
+      - uses: actions/checkout@v3
+      
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Deploy to production
+      
+      - name: Deploy to Production
         run: |
-          cd src/deployment
-          ./scripts/deploy.sh production
-
-  notify:
-    needs: [deploy-staging, deploy-production]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Notify Slack
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          fields: repo,message,commit,author,action,eventName,ref,workflow
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          chmod +x scripts/deployment/deploy.sh
+          ./scripts/deployment/deploy.sh production

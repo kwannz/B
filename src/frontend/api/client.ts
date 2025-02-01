@@ -21,7 +21,7 @@ export interface WalletAuthData {
 
 export interface AgentResponse {
   id: string;
-  type: 'trading' | 'defi';
+  type: 'trading';
   status: 'running' | 'stopped' | 'error';
   lastUpdated: string;
 }
@@ -143,98 +143,4 @@ class ApiClient {
 
   async stopAgent(agentType: string): Promise<ApiResponse<void>> {
     try {
-      await this.client.post(`/agents/${agentType}/stop`);
-      return { success: true };
-    } catch (error) {
-      return { error: this.handleError(error), success: false };
-    }
-  }
-
-  // Strategy Management
-  async createStrategy(strategy: {
-    name: string;
-    promotion_words: string;
-    timeframe: string;
-    risk_level: string;
-    description: string;
-    preferred_model?: 'deepseek-v3' | 'deepseek-r1';
-    min_confidence?: number;
-  }): Promise<ApiResponse<StrategyResponse & {
-    confidence?: number;
-    model_used?: string;
-    fallback_used?: boolean;
-  }>> {
-    try {
-      const response = await this.client.post('/strategies/trading/create', strategy);
-      return { data: response.data, success: true };
-    } catch (error) {
-      return { error: this.handleError(error), success: false };
-    }
-  }
-
-  async getStrategies(): Promise<ApiResponse<StrategyResponse[]>> {
-    try {
-      const response = await this.client.get('/strategies');
-      return { data: response.data, success: true };
-    } catch (error) {
-      return { error: this.handleError(error), success: false };
-    }
-  }
-
-  // Wallet Management
-  async createWallet(name: string): Promise<ApiResponse<WalletResponse>> {
-    try {
-      const response = await this.client.post('/wallet/create', { name });
-      return { data: response.data, success: true };
-    } catch (error) {
-      return { error: this.handleError(error), success: false };
-    }
-  }
-
-  async confirmWallet(walletAddress: string): Promise<ApiResponse<void>> {
-    try {
-      const response = await this.client.post('/wallet/confirm', { 
-        wallet_address: walletAddress, 
-        confirmed: true 
-      });
-      if (response.data?.success === false) {
-        return { error: response.data.error || 'Confirmation failed', success: false };
-      }
-      return { success: true };
-    } catch (error) {
-      const errorMessage = this.handleError(error);
-      return { error: typeof errorMessage === 'string' ? errorMessage : 'Confirmation failed', success: false };
-    }
-  }
-
-  async getWalletBalance(walletAddress: string): Promise<ApiResponse<string>> {
-    try {
-      const response = await this.client.get(`/wallet/balance/${walletAddress}`);
-      return { data: response.data.balance, success: true };
-    } catch (error) {
-      return { error: this.handleError(error), success: false };
-    }
-  }
-
-  async getWalletTransactions(walletAddress: string): Promise<ApiResponse<WalletResponse['transactions']>> {
-    try {
-      const response = await this.client.get(`/wallet/transactions/${walletAddress}`);
-      return { data: response.data, success: true };
-    } catch (error) {
-      return { error: this.handleError(error), success: false };
-    }
-  }
-
-  private handleError(error: any): string {
-    if (error.response?.data?.detail) {
-      return error.response.data.detail;
-    }
-    if (error.message) {
-      return error.message;
-    }
-    return 'An unexpected error occurred';
-  }
-}
-
-export const apiClient = new ApiClient();
-export default apiClient;
+      await this.client.post(`

@@ -1,66 +1,126 @@
+"""
+风险管理器测试
+"""
 import pytest
-from src.shared.risk.risk_manager import RiskManager, RiskConfig
-from typing import Dict, Any
+from decimal import Decimal
+from datetime import datetime
+from unittest.mock import Mock, patch, AsyncMock
+
+# Mock AI dependencies
+import sys
+sys.modules['trading_agent.python.ai.analyzer'] = Mock()
+
+<<<<<<< HEAD
+from tradingbot.python.risk.manager import RiskManager
+from tradingbot.shared.errors import RiskError
+||||||| fa1bd03
+from tradingbot.trading_agent.python.risk.manager import RiskManager
+from tradingbot.shared.errors import RiskError
+=======
+from trading_agent.python.risk.manager import RiskManager
+from trading_agent.python.errors import RiskError
+>>>>>>> origin/main
 
 @pytest.fixture
-def risk_manager():
-    return RiskManager()
+async def risk_manager():
+    """创建风险管理器实例"""
+    manager = RiskManager()
+    yield manager
 
-@pytest.fixture
-def meme_token_params():
-    return {
-        "symbol": "DOGE/USDT",
-        "is_meme_coin": True,
-        "price": 0.1,
-        "volume": 1000000,
-        "liquidity": 500000,
-        "volatility": 2.0,
-        "position_size": 10000,
-        "take_profit_levels": [0.15, 0.25, 0.4],
-        "stop_loss": 0.08
+@pytest.mark.asyncio
+async def test_check_trade_validation(risk_manager):
+    """测试交易验证"""
+    # 测试缺少必需字段
+    invalid_trade = {
+        "price": 100,
+        "amount": 1
     }
+    with pytest.raises(RiskError, match="交易数据缺少必需字段"):
+        await risk_manager.check_trade(invalid_trade)
+        
+    # 测试无效的数值
+    invalid_values = {
+        "price": -100,
+        "amount": 1,
+        "type": "buy",
+        "portfolio_value": 10000
+    }
+    with pytest.raises(RiskError, match="价格、数量和投资组合价值必须大于0"):
+        await risk_manager.check_trade(invalid_values)
+        
+    # 测试无效的交易类型
+    invalid_type = {
+        "price": 100,
+        "amount": 1,
+        "type": "invalid",
+        "portfolio_value": 10000
+    }
+    with pytest.raises(RiskError, match="交易类型必须是 buy 或 sell"):
+        await risk_manager.check_trade(invalid_type)
 
-async def test_adjust_for_meme_coins(risk_manager, meme_token_params):
-    adjusted_params = await risk_manager.adjust_for_meme_coins(meme_token_params.copy(), {"is_meme": True})
+@pytest.mark.asyncio
+async def test_check_trade_limits(risk_manager):
+    """测试交易限制"""
+    # 设置初始状态
+    risk_manager.daily_trades = 0
+    risk_manager.daily_loss = 0
+    risk_manager.total_exposure = 0
     
-    assert adjusted_params["max_allocation"] == risk_manager.config.MEME_MAX_ALLOCATION
-    assert adjusted_params["max_position_size"] == risk_manager.config.MEME_MAX_POSITION_SIZE
-    assert adjusted_params["min_liquidity"] == risk_manager.config.MEME_MIN_LIQUIDITY
-    assert adjusted_params["max_slippage"] == risk_manager.config.MEME_MAX_SLIPPAGE
+    # 有效交易
+    valid_trade = {
+        "price": 100,
+        "amount": 1,
+        "type": "buy",
+        "portfolio_value": 10000
+    }
+    result = await risk_manager.check_trade(valid_trade)
+    assert result["passed"] is True
     
-    expected_position = meme_token_params["position_size"] * (1.0 - risk_manager.config.MEME_VOLATILITY_CUSHION)
-    assert adjusted_params["position_size"] == expected_position
-    
-    expected_levels = [level * risk_manager.config.MEME_TAKE_PROFIT_MULTIPLIER 
-                      for level in meme_token_params["take_profit_levels"]]
-    assert adjusted_params["take_profit_levels"] == expected_levels
-    
-    expected_stop = meme_token_params["stop_loss"] * risk_manager.config.MEME_STOP_LOSS_MULTIPLIER
-    assert adjusted_params["stop_loss"] == expected_stop
+    # 测试每日交易次数限制
+    risk_manager.daily_trades = 30  # 超过high风险等级的限制
+    result = await risk_manager.check_trade(valid_trade)
+    assert result["passed"] is False
+    assert result["checks"]["daily_trades"] is False
 
-async def test_risk_config_validation():
-    config = RiskConfig()
+@pytest.mark.asyncio
+async def test_position_size_calculation(risk_manager):
+    """测试仓位计算"""
+    portfolio_value = 10000
+    risk_per_trade = 0.01  # 1%
     
-    config.validate()  # Should pass with default values
-    
-    config.MEME_MAX_ALLOCATION = 0.2
-    with pytest.raises(ValueError, match="MEME_MAX_ALLOCATION must be between 0 and 0.1"):
-        config.validate()
-    config.MEME_MAX_ALLOCATION = 0.05
-    
-    config.MEME_VOLATILITY_CUSHION = 0.1
-    with pytest.raises(ValueError, match="MEME_VOLATILITY_CUSHION must be between 0 and 0.05"):
-        config.validate()
-    config.MEME_VOLATILITY_CUSHION = 0.02
-    
-    config.MEME_MAX_POSITION_SIZE = config.MAX_POSITION_SIZE + 1000
-    with pytest.raises(ValueError, match="MEME_MAX_POSITION_SIZE must be between 0 and MAX_POSITION_SIZE"):
-        config.validate()
+    size = risk_manager.calculate_position_size(portfolio_value, risk_per_trade)
+    assert isinstance(size, float)
+    assert size > 0
+    assert size <= portfolio_value * 0.15  # 不超过high风险等级的限制
 
-async def test_calculate_risk_metrics_with_meme_coins(risk_manager, meme_token_params):
-    metrics = await risk_manager._calculate_risk_metrics(meme_token_params, meme_token_params["position_size"])
+@pytest.mark.asyncio
+async def test_risk_metrics(risk_manager):
+    """测试风险指标"""
+    metrics = await risk_manager.get_risk_metrics()
+    assert "daily_loss" in metrics
+    assert "daily_trades" in metrics
+    assert "total_exposure" in metrics
+    assert "risk_level" in metrics
+    assert "limits" in metrics
+    assert isinstance(metrics["timestamp"], str)
+
+@pytest.mark.asyncio
+async def test_risk_level_adjustment(risk_manager):
+    """测试风险等级调整"""
+    # 测试高收益低波动场景
+    high_performance = {
+        "daily_return": 0.02,
+        "volatility": 0.05,
+        "sharpe_ratio": 2.5
+    }
+    await risk_manager.adjust_risk_level(high_performance)
+    assert risk_manager.risk_level == "high"
     
-    assert metrics["is_valid"]
-    assert metrics["position_size"] <= meme_token_params["position_size"]
-    assert metrics["risk_level"] > 0.5
-    assert len(metrics["recommendations"]) > 0
+    # 测试低收益高波动场景
+    low_performance = {
+        "daily_return": -0.01,
+        "volatility": 0.25,
+        "sharpe_ratio": 0.5
+    }
+    await risk_manager.adjust_risk_level(low_performance)
+    assert risk_manager.risk_level == "low"

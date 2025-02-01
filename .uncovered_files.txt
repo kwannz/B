@@ -1,5 +1,0 @@
-Name
-----------------------------------------------------------------
-tradingbot/check_ssl.py
-tradingbot/setup.py
-tradingbot/tests/conftest.py

@@ -3,7 +3,7 @@
 import { Box, Typography, Button, Card, CardContent } from '@mui/material';
 
 interface AgentCardProps {
-  type: 'trading' | 'defi';
+  type: 'trading';
   title: string;
   description: string;
   onSelect: () => void;

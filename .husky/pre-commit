@@ -1,0 +1,26 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 验证项目结构..."
+./scripts/verify_structure.sh
+
+echo "🧹 运行代码格式化..."
+# Frontend
+cd src/frontend && npm run format && npm run lint
+if [ $? -ne 0 ]; then
+  echo "❌ 前端代码格式化失败"
+  exit 1
+fi
+
+# Backend
+cd ../backend
+black .
+isort .
+flake8 .
+mypy .
+if [ $? -ne 0 ]; then
+  echo "❌ 后端代码格式化失败"
+  exit 1
+fi
+
+echo "✨ 代码检查完成" 

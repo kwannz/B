@@ -56,7 +56,7 @@ export default function StrategyCreation() {
         <Card className="max-w-4xl mx-auto">
           <CardContent className="space-y-6">
             <Typography variant="h5" component="h1" className="text-center mb-4">
-              Create Your {agentType === 'trading' ? 'Trading' : 'DeFi'} Strategy
+              Create Your Trading Strategy
             </Typography>
 
             <Stepper activeStep={1} alternativeLabel className="mb-8">
@@ -82,7 +82,7 @@ export default function StrategyCreation() {
       <Card className="max-w-4xl mx-auto">
         <CardContent className="space-y-6">
           <Typography variant="h5" component="h1" className="text-center mb-4">
-            Create Your {agentType === 'dexSwap' ? 'DEX Swap' : 'Meme Coin'} Strategy
+            Create Your Trading Strategy
           </Typography>
 
           <Stepper activeStep={1} alternativeLabel className="mb-8">

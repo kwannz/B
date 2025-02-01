@@ -55,7 +55,7 @@ source venv/bin/activate
 # Install Python dependencies for each component
 log "Installing Python dependencies..."
 pip install --upgrade pip
-components=("api_gateway" "defi_agent" "trading_agent")
+components=("api_gateway" "trading_agent")
 for component in "${components[@]}"; do
     if [ -f "src/$component/requirements.txt" ]; then
         log "Installing dependencies for $component..."
@@ -65,7 +65,7 @@ done
 
 # Configure environment variables
 log "Configuring environment variables..."
-components=("api_gateway" "defi_agent" "trading_agent")
+components=("api_gateway" "trading_agent")
 for component in "${components[@]}"; do
     if [ -f "src/$component/config/.env.example" ]; then
         cp "src/$component/config/.env.example" "src/$component/config/.env"
@@ -144,24 +144,6 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-# DeFi Agent Service
-cat > /etc/systemd/system/tradingbot-defi.service <<EOF
-[Unit]
-Description=Trading Bot DeFi Agent
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$INSTALL_DIR/src/defi_agent/python
-Environment=PATH=$INSTALL_DIR/venv/bin:\$PATH
-ExecStart=$INSTALL_DIR/venv/bin/python defi_ai_agent.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
 # Setup monitoring
 log "Setting up monitoring..."
 mkdir -p /etc/prometheus
@@ -170,7 +152,7 @@ cp src/deployment/monitoring/prometheus/prometheus.yml /etc/prometheus/
 # Enable and start services
 log "Starting services..."
 systemctl daemon-reload
-services=("tradingbot-api" "tradingbot-agent" "tradingbot-defi")
+services=("tradingbot-api" "tradingbot-agent")
 for service in "${services[@]}"; do
     systemctl enable $service
     systemctl start $service
