@@ -4,152 +4,219 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# 打印带颜色的消息
-print_message() {
-    echo -e "${GREEN}[TradingBot]${NC} $1"
+# 日志函数
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
 }
 
-print_error() {
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+# 检查系统要求
+check_system_requirements() {
+    log_info "检查系统要求..."
+    
+    # 检查操作系统
+    if [[ "$(uname)" != "Darwin" ]]; then
+        log_error "目前只支持macOS系统"
+        exit 1
+    fi
+    
+    # 检查必要工具
+    command -v brew >/dev/null 2>&1 || {
+        log_error "需要安装Homebrew"
+        echo "请访问 https://brew.sh/ 安装Homebrew"
+        exit 1
+    }
 }
 
-# 检查是否为root用户
-if [ "$EUID" -ne 0 ]; then 
-    print_error "Please run as root"
-    exit 1
-fi
+# 安装系统依赖
+install_system_dependencies() {
+    log_info "安装系统依赖..."
+    
+    # 更新Homebrew
+    brew update
+    
+    # 安装基础工具
+    brew install wget curl git tmux
 
-# 检查操作系统
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    OS=$NAME
-    VER=$VERSION_ID
-else
-    print_error "Cannot detect OS"
-    exit 1
-fi
+    # 安装Python
+    brew install python@3.11
+    
+    # 安装Go
+    brew install go@1.21
+    
+    # 安装Node.js
+    brew install node@18
+    
+    # 安装数据库
+    brew install postgresql@14
+    brew install mongodb-community
+    brew install redis
+    
+    # 安装监控工具
+    brew install prometheus
+    brew install grafana
+    
+    # 安装Protocol Buffers
+    brew install protobuf
+    
+    # 安装开发工具
+    brew install make cmake
+}
 
-print_message "Installing on $OS $VER"
+# 安装Python依赖
+install_python_dependencies() {
+    log_info "安装Python依赖..."
+    
+    # 创建虚拟环境
+    python3.11 -m venv venv
+    source venv/bin/activate
+    
+    # 升级pip
+    pip install --upgrade pip
+    
+    # 安装依赖
+    pip install -r requirements.txt
+}
 
-# 安装基本系统依赖
-print_message "Installing system dependencies..."
-apt-get update
-apt-get install -y \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release \
-    git \
-    build-essential \
-    python3-dev \
-    python3-pip \
-    libssl-dev \
-    libffi-dev \
-    postgresql-client \
-    libpq-dev \
-    gcc \
-    g++ \
-    make \
-    wget
+# 安装Node.js依赖
+install_node_dependencies() {
+    log_info "安装Node.js依赖..."
+    
+    # 安装pnpm
+    npm install -g pnpm
+    
+    # 进入前端目录
+    cd src/frontend
+    
+    # 安装依赖
+    pnpm install
+    
+    # 返回根目录
+    cd ../..
+}
 
-# 安装Docker
-print_message "Installing Docker..."
-if ! command -v docker &> /dev/null; then
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
-    systemctl enable docker
-    systemctl start docker
-else
-    print_warning "Docker already installed"
-fi
+# 安装Go依赖
+install_go_dependencies() {
+    log_info "安装Go依赖..."
+    
+    # 进入Go执行器目录
+    cd src/go_executor
+    
+    # 下载依赖
+    go mod download
+    
+    # 返回根目录
+    cd ../..
+}
 
-# 安装Docker Compose
-print_message "Installing Docker Compose..."
-if ! command -v docker-compose &> /dev/null; then
-    curl -L "https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-else
-    print_warning "Docker Compose already installed"
-fi
+# 配置环境
+setup_environment() {
+    log_info "配置环境..."
+    
+    # 复制环境变量示例文件
+    cp config/.env.example config/.env
+    
+    # 创建必要的目录
+    mkdir -p /data/prometheus
+    mkdir -p /data/backups
+    mkdir -p /var/log/tradingbot
+    
+    # 设置目录权限
+    chmod -R 755 /data/prometheus
+    chmod -R 755 /data/backups
+    chmod -R 755 /var/log/tradingbot
+}
 
-# 创建必要的目录
-print_message "Creating directories..."
-mkdir -p /opt/tradingbot/{config,logs,backups}
-chmod -R 755 /opt/tradingbot
+# 配置数据库
+setup_databases() {
+    log_info "配置数据库..."
+    
+    # 启动PostgreSQL
+    brew services start postgresql@14
+    
+    # 创建数据库和用户
+    psql postgres -c "CREATE DATABASE tradingbot;"
+    psql postgres -c "CREATE USER admin WITH ENCRYPTED PASSWORD 'secret';"
+    psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE tradingbot TO admin;"
+    
+    # 启动MongoDB
+    brew services start mongodb-community
+    
+    # 启动Redis
+    brew services start redis
+}
 
-# 生成加密密钥
-print_message "Generating encryption keys..."
-if [ ! -f /opt/tradingbot/config/master.key ]; then
-    openssl rand -hex 32 > /opt/tradingbot/config/master.key
-    chmod 600 /opt/tradingbot/config/master.key
-fi
+# 配置监控
+setup_monitoring() {
+    log_info "配置监控..."
+    
+    # 复制Prometheus配置
+    cp config/prometheus/prometheus.yml /data/prometheus/
+    
+    # 启动Prometheus
+    brew services start prometheus
+    
+    # 启动Grafana
+    brew services start grafana
+}
 
-# 配置环境变量
-print_message "Setting up environment variables..."
-if [ ! -f .env ]; then
-    cp .env.example .env
-    # 生成随机密码
-    REDIS_PASSWORD=$(openssl rand -hex 16)
-    GRAFANA_PASSWORD=$(openssl rand -hex 16)
-    # 更新.env文件
-    sed -i "s/REDIS_PASSWORD=.*/REDIS_PASSWORD=$REDIS_PASSWORD/" .env
-    sed -i "s/GRAFANA_PASSWORD=.*/GRAFANA_PASSWORD=$GRAFANA_PASSWORD/" .env
-fi
+# 验证安装
+verify_installation() {
+    log_info "验证安装..."
+    
+    # 检查Python
+    python3.11 --version
+    
+    # 检查Node.js
+    node --version
+    
+    # 检查Go
+    go version
+    
+    # 检查数据库
+    pg_isready
+    mongosh --eval "db.version()"
+    redis-cli ping
+    
+    # 检查监控服务
+    curl -f http://localhost:9090/-/healthy
+    curl -f http://localhost:3000/api/health
+}
 
-# 配置系统限制
-print_message "Configuring system limits..."
-cat > /etc/security/limits.d/tradingbot.conf << EOF
-*         soft    nofile      65536
-*         hard    nofile      65536
-*         soft    nproc       65536
-*         hard    nproc       65536
-EOF
+# 主函数
+main() {
+    log_info "开始安装TradingBot..."
+    
+    # 检查系统要求
+    check_system_requirements
+    
+    # 安装依赖
+    install_system_dependencies
+    install_python_dependencies
+    install_node_dependencies
+    install_go_dependencies
+    
+    # 配置环境
+    setup_environment
+    setup_databases
+    setup_monitoring
+    
+    # 验证安装
+    verify_installation
+    
+    log_info "安装完成!"
+    log_info "请编辑 config/.env 文件配置您的环境变量"
+    log_info "使用 ./scripts/run/run_local.sh 启动服务"
+}
 
-# 配置系统参数
-cat > /etc/sysctl.d/99-tradingbot.conf << EOF
-net.core.somaxconn = 65536
-net.ipv4.tcp_max_syn_backlog = 65536
-net.ipv4.ip_local_port_range = 1024 65535
-net.ipv4.tcp_fin_timeout = 30
-EOF
-sysctl --system
-
-# 启动服务
-print_message "Starting services..."
-docker-compose -f docker-compose.prod.yml up -d
-
-# 等待服务启动
-print_message "Waiting for services to start..."
-sleep 30
-
-# 检查服务健康状态
-print_message "Checking service health..."
-if curl -s http://localhost:8000/health > /dev/null; then
-    print_message "API Gateway is running"
-else
-    print_error "API Gateway is not responding"
-fi
-
-if curl -s http://localhost:8001/health > /dev/null; then
-    print_message "Trading Agent is running"
-else
-    print_error "Trading Agent is not responding"
-fi
-
-if curl -s http://localhost:3000/api/health > /dev/null; then
-    print_message "Grafana is running"
-else
-    print_error "Grafana is not responding"
-fi
-
-print_message "Installation completed!"
-print_message "Grafana dashboard: http://localhost:3000 (admin/admin)"
-print_message "API documentation: http://localhost:8000/docs"
-print_message "Please change default passwords in production environment!"
+# 执行主函数
+main

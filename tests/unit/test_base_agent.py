@@ -4,22 +4,46 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import aiohttp
 import pytest
 from prometheus_client import REGISTRY
+import asyncio
 
-from tradingbot.trading_agent.agents.base_agent import AgentResponse, BaseAgent
+from tradingbot.backend.trading_agent.agents.base_agent import BaseAgent, AgentResponse
+from tradingbot.shared.models.errors import TradingError
+from typing import Any, Dict
 
 
 # Test implementation of BaseAgent since it's abstract
 class TestAgent(BaseAgent):
-    async def process(self, input_data):
-        return AgentResponse(success=True, data=input_data)
+    def __init__(self):
+        super().__init__(
+            name="test_agent",
+            agent_type="test",
+            config={"test_config": "value"}
+        )
+        self.cache_hit_count = 0
+        self.cache_miss_count = 0
+        self.error_count = 0
 
-    def validate_input(self, input_data):
-        return True
+    async def process_request(self, request: Dict[str, Any]) -> AgentResponse:
+        if not request:
+            raise TradingError("Empty request")
+        return AgentResponse(success=True, data=request)
+
+    async def start(self):
+        """Start the agent"""
+        pass
+
+    async def stop(self):
+        """Stop the agent"""
+        pass
+
+    async def update_config(self, config: Dict[str, Any]):
+        """Update agent configuration"""
+        pass
 
 
 @pytest.fixture
 def agent():
-    return TestAgent(api_key="test_key")
+    return TestAgent()
 
 
 @pytest.fixture
@@ -30,9 +54,7 @@ def mock_response():
 @pytest.mark.asyncio
 async def test_agent_init():
     """Test agent initialization"""
-    agent = TestAgent(api_key="test_key", model_name="test-model")
-    assert agent.api_key == "test_key"
-    assert agent.model_name == "test-model"
+    agent = TestAgent()
     assert agent.session is None
     assert agent.agent_type == "TestAgent"
 
@@ -40,7 +62,7 @@ async def test_agent_init():
 @pytest.mark.asyncio
 async def test_context_manager():
     """Test async context manager methods"""
-    async with TestAgent(api_key="test_key") as agent:
+    async with TestAgent() as agent:
         assert isinstance(agent.session, aiohttp.ClientSession)
         assert not agent.session.closed
     assert agent.session.closed
@@ -218,3 +240,73 @@ async def test_agent_response_dataclass():
     assert not response.success
     assert response.data is None
     assert response.error == "Test error"
+
+
+@pytest.mark.asyncio
+async def test_base_agent_request_validation():
+    agent = TestAgent()
+    
+    # Test empty request
+    with pytest.raises(TradingError):
+        await agent.process_request({})
+    
+    # Test valid request
+    request = {"test": "data"}
+    response = await agent.process_request(request)
+    assert response.success
+    assert response.data == request
+
+
+@pytest.mark.asyncio
+async def test_base_agent_cache_operations_advanced():
+    agent = TestAgent()
+    
+    # Test cache operations with different data types
+    test_cases = [
+        ("key1", "value1"),
+        ("key2", 123),
+        ("key3", {"nested": "data"}),
+        ("key4", None),
+    ]
+    
+    for key, value in test_cases:
+        # Test cache set
+        await agent.set_cache(key, value)
+        
+        # Test cache get
+        result = await agent.get_cache(key)
+        if value is None:
+            assert result == {}
+        else:
+            assert result == value
+
+
+@pytest.mark.asyncio
+async def test_base_agent_metrics_detailed():
+    agent = TestAgent()
+    
+    # Simulate mixed cache hits and misses
+    await agent.set_cache("key1", "value1")
+    await agent.get_cache("key1")  # Hit
+    await agent.get_cache("key2")  # Miss
+    
+    metrics = agent.get_metrics()
+    assert metrics["cache_hit_count"] >= 1
+    assert metrics["cache_miss_count"] >= 1
+    assert metrics["error_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_base_agent_concurrent_cache_access():
+    agent = TestAgent()
+    
+    # Test concurrent cache operations
+    await agent.set_cache("concurrent_key", "value")
+    
+    # Simulate multiple concurrent reads
+    results = await asyncio.gather(
+        *[agent.get_cache("concurrent_key") for _ in range(5)]
+    )
+    
+    # Verify all reads return the same value
+    assert all(result == "value" for result in results)

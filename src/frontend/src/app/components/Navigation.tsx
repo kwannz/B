@@ -2,13 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AppBar, Toolbar, Button, Box, Typography } from '@mui/material';
+import { AppBar, Toolbar, Button, Box, Typography, Divider } from '@mui/material';
 import { useWallet } from '@solana/wallet-adapter-react';
 import WalletConnect from './WalletConnect';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Navigation() {
   const pathname = usePathname();
   const { connected } = useWallet();
+  const { t } = useLanguage();
 
   return (
     <AppBar position="static" color="default" elevation={1}>
@@ -25,7 +28,7 @@ export default function Navigation() {
                 color="primary"
                 variant={pathname === '/agent-selection' ? 'contained' : 'text'}
               >
-                Start Trading
+                {t('trading.status')}
               </Button>
             </Link>
             <Link href="/wallet-comparison" passHref>
@@ -33,13 +36,15 @@ export default function Navigation() {
                 color="primary"
                 variant={pathname === '/wallet-comparison' ? 'contained' : 'text'}
               >
-                Compare Wallets
+                {t('wallet.status')}
               </Button>
             </Link>
           </Box>
         </Box>
-        <Box>
+        <Box className="flex items-center gap-4">
           <WalletConnect />
+          <Divider orientation="vertical" flexItem />
+          <LanguageSwitcher />
         </Box>
       </Toolbar>
     </AppBar>

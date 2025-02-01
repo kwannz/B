@@ -1,8 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from tradingbot.shared.cache.hybrid_cache import HybridCache
+from tradingbot.shared.models.errors import TradingError
 
 from tradingbot.shared.monitor.metrics import (
     get_cache_hit_rate,
@@ -15,6 +16,12 @@ from tradingbot.shared.monitor.metrics import (
 from tradingbot.shared.monitor.prometheus import start_prometheus_server
 
 
+class AgentResponse:
+    def __init__(self, success: bool = True, data: Any = None, error: str = None):
+        self.success = success
+        self.data = data
+        self.error = error
+
 class BaseAgent(ABC):
     def __init__(self, name: str, agent_type: str, config: Dict[str, Any]):
         self.agent_id = name
@@ -24,6 +31,11 @@ class BaseAgent(ABC):
         self.status = "inactive"
         self.last_update = None
         self.cache = HybridCache()
+        self._cache = {}
+        self.cache_hit_count = 0
+        self.cache_miss_count = 0
+        self.error_count = 0
+        self.agent_type = self.__class__.__name__
 
     @abstractmethod
     async def start(self):
@@ -38,13 +50,20 @@ class BaseAgent(ABC):
     @track_inference_time
     async def _process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Base method for processing requests with monitoring"""
+        if not isinstance(request, dict):
+            raise TypeError("Request must be a dictionary")
+            
+        cache_key = request.get("cache_key")
+        if not cache_key or not isinstance(cache_key, str) or not cache_key.strip():
+            raise ValueError("cache_key is required")
+        
         try:
-            cached = self.cache.get(request.get("cache_key"))
-            if cached:
+            cached = self.cache.get(cache_key)
+            if cached is not None:
                 track_cache_hit()
                 return cached
             track_cache_miss()
-            return {}
+            return {}  # Return empty dict for cache miss
         except Exception as e:
             logging.error(f"Error processing request in {self.name}: {str(e)}")
             raise
@@ -76,14 +95,46 @@ class BaseAgent(ABC):
 
         # Add warnings for metrics outside target ranges
         warnings = []
-        if status["metrics"]["cache_hit_rate"] < 0.65:
+        if status["metrics"]["cache_hit_rate"] <= 0.65:
             warnings.append("Cache hit rate below target 65%")
-        if status["metrics"]["error_rate"] > 0.005:
+        if status["metrics"]["error_rate"] >= 0.005:
             warnings.append("Error rate above target 0.5%")
-        if status["metrics"]["inference_latency"] > 0.1:
+        if status["metrics"]["inference_latency"] >= 0.1:
             warnings.append("Inference latency above target 100ms")
 
         if warnings:
             status["warnings"] = warnings
 
         return status
+
+    async def process_request(self, request: Dict[str, Any]) -> AgentResponse:
+        """Process a request and return a response"""
+        raise NotImplementedError
+
+    async def get_cache(self, key: str) -> Any:
+        """Get a value from cache"""
+        if key in self._cache:
+            self.cache_hit_count += 1
+            return self._cache[key]
+        self.cache_miss_count += 1
+        return {}
+
+    async def set_cache(self, key: str, value: Any) -> None:
+        """Set a value in cache"""
+        self._cache[key] = value
+
+    def get_metrics(self) -> Dict[str, int]:
+        """Get agent metrics"""
+        return {
+            "cache_hit_count": self.cache_hit_count,
+            "cache_miss_count": self.cache_miss_count,
+            "error_count": self.error_count
+        }
+
+    async def __aenter__(self):
+        """Async context manager entry"""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit"""
+        pass

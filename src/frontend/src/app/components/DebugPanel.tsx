@@ -1,16 +1,18 @@
-import { useDebug } from '../contexts/DebugContext';
+'use client';
+
+import { useState } from 'react';
 import { Box, Paper, Typography, IconButton, Collapse, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from '@mui/material';
 import { BugReport, Close, ExpandMore, Download } from '@mui/icons-material';
-import { useState } from 'react';
+import { LogLevel, DebugLog, useDebug } from '../contexts/DebugContext';
 
-const severityColors = {
+const severityColors: Record<LogLevel, 'default' | 'info' | 'warning' | 'error'> = {
   debug: 'default',
   info: 'info',
   warn: 'warning',
   error: 'error'
 } as const;
 
-export const DebugPanel = () => {
+export default function DebugPanel() {
   const [expanded, setExpanded] = useState(false);
   const { isDebugMode, toggleDebugMode, debugLogs, debugSummary, clearDebugLogs, exportDebugLogs } = useDebug();
 
@@ -42,11 +44,8 @@ export const DebugPanel = () => {
     <Paper
       elevation={3}
       sx={{
-        position: 'fixed',
-        bottom: 16,
-        right: 16,
-        width: expanded ? '80%' : 'auto',
-        maxWidth: '1200px',
+        position: 'relative',
+        width: '100%',
         zIndex: 1000,
         transition: 'width 0.3s ease'
       }}
@@ -54,17 +53,17 @@ export const DebugPanel = () => {
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="h6" component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <BugReport />
-          Debug Panel
+          调试面板
           {debugSummary.error_count > 0 && (
             <Chip
-              label={`${debugSummary.error_count} Errors`}
+              label={`${debugSummary.error_count} 错误`}
               color="error"
               size="small"
             />
           )}
           {debugSummary.warning_count > 0 && (
             <Chip
-              label={`${debugSummary.warning_count} Warnings`}
+              label={`${debugSummary.warning_count} 警告`}
               color="warning"
               size="small"
             />
@@ -88,18 +87,18 @@ export const DebugPanel = () => {
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Time</TableCell>
-                <TableCell>Level</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Message</TableCell>
-                <TableCell>Data</TableCell>
+                <TableCell>时间</TableCell>
+                <TableCell>级别</TableCell>
+                <TableCell>类别</TableCell>
+                <TableCell>消息</TableCell>
+                <TableCell>数据</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {debugLogs.map((log, index) => (
+              {debugLogs.map((log: DebugLog, index: number) => (
                 <TableRow key={index} hover>
                   <TableCell>
-                    {new Date(log.timestamp).toLocaleTimeString()}
+                    {new Date(log.timestamp).toLocaleTimeString('zh-CN')}
                   </TableCell>
                   <TableCell>
                     <Chip
@@ -135,4 +134,4 @@ export const DebugPanel = () => {
       </Collapse>
     </Paper>
   );
-};
+}

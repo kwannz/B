@@ -127,6 +127,22 @@ monitoring:
   retention_period: 24h
   alerts_channel: "trading:alerts"
   metrics_channel: "trading:metrics"
+  cache_hit_rate_threshold: 0.65
+  inference_latency_threshold: 100
+  error_rate_threshold: 0.005
+  test_coverage:
+    unit_test_threshold: 0.95
+    integration_test_threshold: 0.85
+    e2e_test_threshold: 1.0
+
+testing:
+  coverage_report_path: "./coverage"
+  test_results_path: "./test-results"
+  performance_benchmark_path: "./benchmarks"
+  critical_paths:
+    - "trading_agent/agents/base_agent.py"
+    - "trading/executor/base_executor.py"
+    - "models/trading.py"
 
 versioning:
   metrics_interval: 10s
@@ -147,16 +163,23 @@ export TRADING_NATS_URL="nats://nats.example.com:4222"
 
 ### 监控指标
 1. 系统指标
-   - CPU使用率
-   - 内存使用率
-   - 磁盘I/O
+   - CPU使用率 (<80%)
+   - 内存使用率 (<85%)
+   - 磁盘I/O (<90%)
    - 网络流量
+   - 缓存命中率 (>65%)
+   - 推理延迟 (<100ms)
+   - 错误率 (<0.5%)
 
 2. 业务指标
    - 订单处理速率
    - 订单成功率
    - 平均响应时间
    - 错误率
+   - 测试覆盖率
+     - 单元测试 ≥95%
+     - 集成测试 ≥85%
+     - E2E测试 100%
 
 3. 风控指标
    - 持仓规模
@@ -169,11 +192,16 @@ export TRADING_NATS_URL="nats://nats.example.com:4222"
    - CPU使用率 > 80%
    - 内存使用率 > 85%
    - 磁盘使用率 > 90%
+   - 缓存命中率 < 65%
+   - 推理延迟 > 100ms
+   - 错误率 > 0.5%
 
 2. 业务告警
    - 错误率 > 1%
    - P99延迟 > 100ms
    - 订单拒绝率 > 5%
+   - 测试覆盖率下降
+   - 性能指标异常
 
 3. 风控告警
    - 接近持仓限制

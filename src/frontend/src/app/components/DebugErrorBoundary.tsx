@@ -1,19 +1,20 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+'use client';
+
+import React from 'react';
 import { Box, Typography, Button, Paper } from '@mui/material';
 import { useDebug } from '../contexts/DebugContext';
-import { createErrorEvent } from '../utils/debug';
 
 interface Props {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
+  errorInfo: React.ErrorInfo | null;
 }
 
-export class DebugErrorBoundary extends Component<Props, State> {
+export default class DebugErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -31,57 +32,48 @@ export class DebugErrorBoundary extends Component<Props, State> {
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    const { addDebugLog } = useDebug();
-    
-    addDebugLog({
-      level: 'error',
-      category: 'system',
-      message: `React Component Error: ${error.message}`,
-      data: {
-        componentStack: errorInfo.componentStack,
-        error: {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        }
-      }
-    });
-  }
-
-  handleReset = () => {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null
+      error,
+      errorInfo
     });
-  };
+
+    // 获取DebugContext并记录错误
+    const debugContext = (window as any).__DEBUG_CONTEXT__;
+    if (debugContext?.log) {
+      debugContext.log('error', 'System', '组件错误', {
+        error: error.toString(),
+        stack: error.stack,
+        componentStack: errorInfo.componentStack
+      });
+    }
+  }
 
   render() {
     if (this.state.hasError) {
       return (
-        <Paper
+        <Paper 
           elevation={3}
           sx={{
             p: 3,
             m: 2,
-            bgcolor: 'error.light',
+            backgroundColor: 'error.light',
             color: 'error.contrastText'
           }}
         >
-          <Typography variant="h6" component="h2" gutterBottom>
-            Component Error
+          <Typography variant="h6" gutterBottom>
+            组件错误
           </Typography>
           <Typography variant="body1" gutterBottom>
             {this.state.error?.message}
           </Typography>
           {this.state.errorInfo && (
-            <Box
+            <Box 
               component="pre"
               sx={{
                 mt: 2,
                 p: 2,
-                bgcolor: 'rgba(0, 0, 0, 0.1)',
+                backgroundColor: 'rgba(0, 0, 0, 0.1)',
                 borderRadius: 1,
                 overflow: 'auto',
                 maxHeight: '200px',
@@ -94,10 +86,10 @@ export class DebugErrorBoundary extends Component<Props, State> {
           <Button
             variant="contained"
             color="inherit"
-            onClick={this.handleReset}
             sx={{ mt: 2 }}
+            onClick={() => window.location.reload()}
           >
-            Try Again
+            刷新页面
           </Button>
         </Paper>
       );
@@ -105,4 +97,19 @@ export class DebugErrorBoundary extends Component<Props, State> {
 
     return this.props.children;
   }
+}
+
+// 包装器组件以访问DebugContext
+export function DebugErrorBoundaryWrapper({ children }: { children: React.ReactNode }) {
+  const debug = useDebug();
+
+  // 将debug context存储在window对象中供ErrorBoundary使用
+  React.useEffect(() => {
+    (window as any).__DEBUG_CONTEXT__ = debug;
+    return () => {
+      delete (window as any).__DEBUG_CONTEXT__;
+    };
+  }, [debug]);
+
+  return <DebugErrorBoundary>{children}</DebugErrorBoundary>;
 }

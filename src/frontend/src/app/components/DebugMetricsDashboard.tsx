@@ -1,118 +1,93 @@
-import { Box, Card, CardContent, Grid, Typography, CircularProgress, LinearProgress } from '@mui/material';
-import { useMetricsStore } from '../stores/metricsStore';
-import { DebugMetricsChart } from './DebugMetricsChart';
-import { useDebugMetrics } from '../providers/DebugMetricsProvider';
-import { DEBUG_CONFIG } from '../config/debug.config';
+'use client';
 
-export const DebugMetricsDashboard = () => {
-  const { getLatestMetrics } = useMetricsStore();
-  const { exportMetrics } = useDebugMetrics();
-  const metrics = getLatestMetrics();
+import React from 'react';
+import { Box, Grid, Typography, Card, CardContent, Tabs, Tab } from '@mui/material';
+import { useDebug } from '../contexts/DebugContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { useState } from 'react';
+import DebugMetrics from './DebugMetrics';
+import DebugMetricsChart from './DebugMetricsChart';
+import DebugPanel from './DebugPanel';
+import ModelDebugInfo from './ModelDebugInfo';
+import SystemDebugInfo from './SystemDebugInfo';
 
-  const formatPercentage = (value: number) => `${(value * 100).toFixed(1)}%`;
-  const formatDuration = (ms: number) => `${ms.toFixed(1)}ms`;
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
 
-  const getHealthColor = (value: number, thresholds = { warning: 0.7, error: 0.9 }) => {
-    if (value > thresholds.error) return 'error.main';
-    if (value > thresholds.warning) return 'warning.main';
-    return 'success.main';
-  };
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>System Health</Typography>
-              <Box sx={{ position: 'relative', display: 'inline-flex', mb: 2 }}>
-                <CircularProgress
-                  variant="determinate"
-                  value={metrics.performance.systemHealth * 100}
-                  size={80}
-                  sx={{ color: getHealthColor(metrics.performance.systemHealth) }}
-                />
-                <Box
-                  sx={{
-                    top: 0,
-                    left: 0,
-                    bottom: 0,
-                    right: 0,
-                    position: 'absolute',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Typography variant="caption" component="div">
-                    {formatPercentage(metrics.performance.systemHealth)}
-                  </Typography>
-                </Box>
-              </Box>
-              <Typography variant="body2">
-                Memory Usage: {formatPercentage(metrics.performance.memoryUsage)}
-              </Typography>
-              <Typography variant="body2">
-                Error Rate: {formatPercentage(metrics.performance.errorRate)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`debug-tabpanel-${index}`}
+      aria-labelledby={`debug-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ py: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
 
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Trading Performance</Typography>
-              <Typography variant="body2" gutterBottom>
-                Active Positions: {metrics.trading.activePositions}
-              </Typography>
-              <Typography variant="body2" gutterBottom>
-                Total Trades: {metrics.trading.totalTrades}
-              </Typography>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Success Rate
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={metrics.trading.successRate * 100}
-                  color={metrics.trading.successRate > 0.7 ? 'success' : 'warning'}
-                  sx={{ mt: 1 }}
-                />
-              </Box>
-              <Typography variant="caption">
-                Last Update: {new Date(metrics.wallet.lastUpdate).toLocaleString()}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+export default function DebugMetricsDashboard() {
+  const { isDebugMode } = useDebug();
+  const { language } = useLanguage();
+  const [currentTab, setCurrentTab] = useState(0);
 
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>API Performance</Typography>
-              <Typography variant="body2" gutterBottom>
-                Latency: {formatDuration(metrics.performance.apiLatency)}
-              </Typography>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Health Status
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={(1 - metrics.performance.errorRate) * 100}
-                  color={metrics.performance.errorRate < 0.05 ? 'success' : 'error'}
-                  sx={{ mt: 1 }}
-                />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+  if (!isDebugMode) return null;
 
-        <Grid item xs={12}>
-          <DebugMetricsChart />
+  return (
+    <Box className="p-4">
+      <Box className="flex justify-between items-center mb-4">
+        <Typography variant="h5">
+          {language === 'zh' ? '调试指标面板' : 'Debug Metrics Dashboard'}
+        </Typography>
+        <Tabs value={currentTab} onChange={(_, newValue) => setCurrentTab(newValue)}>
+          <Tab label={language === 'zh' ? '系统' : 'System'} />
+          <Tab label={language === 'zh' ? '模型' : 'Model'} />
+          <Tab label={language === 'zh' ? '性能' : 'Performance'} />
+          <Tab label={language === 'zh' ? '日志' : 'Logs'} />
+        </Tabs>
+      </Box>
+
+      <TabPanel value={currentTab} index={0}>
+        <SystemDebugInfo />
+      </TabPanel>
+
+      <TabPanel value={currentTab} index={1}>
+        <ModelDebugInfo />
+      </TabPanel>
+
+      <TabPanel value={currentTab} index={2}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <DebugMetrics />
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <DebugMetricsChart />
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
-      </Grid>
+      </TabPanel>
+
+      <TabPanel value={currentTab} index={3}>
+        <DebugPanel />
+      </TabPanel>
     </Box>
   );
-};
+}
