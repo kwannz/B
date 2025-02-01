@@ -1,28 +1,24 @@
 'use client';
 
+import type { Theme } from '@mui/material/styles';
+import type { SxProps } from '@mui/system';
+import type { MouseEvent } from 'react';
+import type { WalletContextState } from '@solana/wallet-adapter-react';
+import type { Trade, BotStatus } from '../../../types/trading';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, Typography, Grid, Card, CardContent, Button, Alert, CircularProgress, Stepper, Step, StepLabel } from '@mui/material';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { getBotStatus, updateBotStatus, getWallet } from '@/app/api/client';
-import WalletConnect from '@/app/components/WalletConnect';
+import { getBotStatus, updateBotStatus, getWallet } from '../api/client';
+import WalletConnect from '../components/WalletConnect';
 
 const steps = ['Agent Selection', 'Strategy Creation', 'Bot Integration', 'Wallet Setup', 'Trading Dashboard'];
-
-interface Trade {
-  id: string;
-  timestamp: string;
-  type: 'buy' | 'sell';
-  amount: number;
-  price: number;
-  status: 'completed' | 'pending' | 'failed';
-}
 
 export default function TradingDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { connected } = useWallet();
-  const [botStatus, setBotStatus] = useState<'active' | 'inactive'>('inactive');
+  const { connected }: WalletContextState = useWallet();
+  const [botStatus, setBotStatus] = useState<BotStatus>('inactive');
   const [trades, setTrades] = useState<Trade[]>([]);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,10 +56,11 @@ export default function TradingDashboard() {
     fetchData();
   }, [router, searchParams, connected]);
 
-  const handleToggleBot = async () => {
+  const handleToggleBot = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
     const botId = searchParams.get('botId');
     if (!botId || !connected) return;
-
+    
     try {
       setIsUpdating(true);
       setError(null);
@@ -137,17 +134,46 @@ export default function TradingDashboard() {
             </Box>
           ) : (
             <Grid container spacing={4}>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12}>
+                <Card className="mb-4">
+                  <CardContent>
+                    <Box className="flex justify-between items-center mb-4">
+                      <Typography variant="h6">Trading Options</Typography>
+                    </Box>
+                    <Box className="flex gap-4">
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        onClick={() => router.push('/dex-swap')}
+                      >
+                        DEX Swap
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        onClick={() => router.push('/meme-coin')}
+                      >
+                        Meme Coin
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
                 <Card className="h-full">
                   <CardContent className="space-y-4">
-                    <Typography variant="h6">Bot Status</Typography>
-                    <Typography 
-                      variant="h5"
-                      color={botStatus === 'active' ? 'success.main' : 'error.main'}
-                      className="font-bold"
-                    >
-                      {botStatus.toUpperCase()}
-                    </Typography>
+                    <Box className="flex justify-between items-center">
+                      <Typography variant="h6">Bot Status</Typography>
+                      <Typography 
+                        variant="body2"
+                        color={botStatus === 'active' ? 'success.main' : 'error.main'}
+                        className="font-bold px-2 py-1 rounded-full bg-opacity-10"
+                        sx={{ bgcolor: (theme: Theme) => `${botStatus === 'active' ? theme.palette.success.main : theme.palette.error.main}20` }}
+                      >
+                        {botStatus.toUpperCase()}
+                      </Typography>
+                    </Box>
                     <Button
                       variant="contained"
                       color={botStatus === 'active' ? 'error' : 'success'}
@@ -155,6 +181,7 @@ export default function TradingDashboard() {
                       disabled={isUpdating}
                       className="relative"
                       fullWidth
+                      sx={{ mt: 2 }}
                     >
                       {isUpdating ? (
                         <>
@@ -170,22 +197,53 @@ export default function TradingDashboard() {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <Card className="h-full">
                   <CardContent className="space-y-4">
                     <Typography variant="h6">Wallet Balance</Typography>
-                    <Typography variant="h4">
-                      {walletBalance !== null ? `${walletBalance.toFixed(4)} SOL` : '---'}
-                    </Typography>
+                    <Box className="flex items-baseline gap-2">
+                      <Typography variant="h4" className="font-bold">
+                        {walletBalance !== null ? walletBalance.toFixed(4) : '---'}
+                      </Typography>
+                      <Typography variant="subtitle1" color="text.secondary">
+                        SOL
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Card className="h-full">
+                  <CardContent className="space-y-4">
+                    <Typography variant="h6">Trading Summary</Typography>
+                    <Box className="grid grid-cols-2 gap-4">
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Total Trades</Typography>
+                        <Typography variant="h6">{trades.length}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Success Rate</Typography>
+                        <Typography variant="h6">
+                          {trades.length > 0
+                            ? `${((trades.filter(t => t.status === 'completed').length / trades.length) * 100).toFixed(1)}%`
+                            : '---'}
+                        </Typography>
+                      </Box>
+                    </Box>
                   </CardContent>
                 </Card>
               </Grid>
               <Grid item xs={12}>
                 <Card>
                   <CardContent className="space-y-4">
-                    <Typography variant="h6">
-                      Trading History
-                    </Typography>
+                    <Box className="flex justify-between items-center mb-4">
+                      <Typography variant="h6">Trading History</Typography>
+                      {trades.length > 0 && (
+                        <Button variant="text" size="small">
+                          Export History
+                        </Button>
+                      )}
+                    </Box>
                     {trades.length === 0 ? (
                       <Alert severity="info">
                         No trades executed yet
@@ -193,24 +251,38 @@ export default function TradingDashboard() {
                     ) : (
                       <Box className="space-y-2">
                         {trades.map((trade) => (
-                          <Card key={trade.id} variant="outlined">
-                            <CardContent className="flex justify-between items-center">
-                              <Box>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                  {new Date(trade.timestamp).toLocaleString()}
-                                </Typography>
-                                <Typography>
-                                  {trade.type.toUpperCase()} {trade.amount} @ {trade.price} SOL
-                                </Typography>
+                          <Card key={trade.id} variant="outlined" className="hover:bg-gray-50 transition-colors">
+                            <CardContent className="flex justify-between items-center p-4">
+                              <Box className="flex gap-4 items-center">
+                                <Box className={`w-2 h-2 rounded-full ${
+                                  trade.type === 'buy' ? 'bg-green-500' : 'bg-red-500'
+                                }`} />
+                                <Box>
+                                  <Typography variant="subtitle2" color="text.secondary">
+                                    {new Date(trade.timestamp).toLocaleString()}
+                                  </Typography>
+                                  <Typography className="font-medium">
+                                    {trade.type.toUpperCase()} {trade.amount} @ {trade.price} SOL
+                                  </Typography>
+                                </Box>
                               </Box>
                               <Typography
-                                color={
-                                  trade.status === 'completed'
-                                    ? 'success.main'
-                                    : trade.status === 'failed'
-                                    ? 'error.main'
-                                    : 'warning.main'
-                                }
+                                variant="body2"
+                                className="px-2 py-1 rounded-full"
+                                sx={{
+                                  color: (theme: Theme) =>
+                                    trade.status === 'completed'
+                                      ? theme.palette.success.main
+                                      : trade.status === 'failed'
+                                      ? theme.palette.error.main
+                                      : theme.palette.warning.main,
+                                  bgcolor: (theme: Theme) =>
+                                    `${trade.status === 'completed'
+                                      ? theme.palette.success.main
+                                      : trade.status === 'failed'
+                                      ? theme.palette.error.main
+                                      : theme.palette.warning.main}20`
+                                } as SxProps<Theme>}
                               >
                                 {trade.status.toUpperCase()}
                               </Typography>
