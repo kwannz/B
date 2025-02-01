@@ -13,45 +13,40 @@ class MomentumStrategy:
     def __init__(self, config: StrategyConfig):
         """Initialize strategy with configuration parameters."""
         params = config.parameters
-        
+
         # Validate momentum parameters
         self.momentum_window = self._validate_positive_int(
-            params.get("momentum_window", 20),
-            "momentum_window"
+            params.get("momentum_window", 20), "momentum_window"
         )
         self.momentum_threshold = self._validate_positive_float(
             params.get("momentum_threshold", 0.02),  # 2% minimum momentum
-            "momentum_threshold"
+            "momentum_threshold",
         )
-        
+
         # Validate trend parameters
         self.trend_window = self._validate_positive_int(
-            params.get("trend_window", 50),
-            "trend_window"
+            params.get("trend_window", 50), "trend_window"
         )
         self.trend_strength = self._validate_positive_float(
             params.get("trend_strength", 0.6),  # 60% directional strength
-            "trend_strength"
+            "trend_strength",
         )
-        
+
         # Validate volume and volatility
         self.min_volume = self._validate_positive_float(
-            params.get("min_volume", 1000),
-            "min_volume"
+            params.get("min_volume", 1000), "min_volume"
         )
         self.max_volatility = self._validate_positive_float(
             params.get("max_volatility", 0.03),  # 3% maximum volatility
-            "max_volatility"
+            "max_volatility",
         )
-        
+
         # Validate profit target and stop loss
         self.profit_target = self._validate_positive_float(
-            params.get("profit_target", 0.05),  # 5% profit target
-            "profit_target"
+            params.get("profit_target", 0.05), "profit_target"  # 5% profit target
         )
         self.stop_loss = self._validate_positive_float(
-            params.get("stop_loss", 0.03),  # 3% stop loss
-            "stop_loss"
+            params.get("stop_loss", 0.03), "stop_loss"  # 3% stop loss
         )
 
     def _validate_positive_int(self, value: int, param_name: str) -> int:
@@ -78,16 +73,16 @@ class MomentumStrategy:
         """Calculate price momentum."""
         if len(prices) < self.momentum_window:
             return None
-            
-        returns = np.diff(np.log(prices[-self.momentum_window:]))
+
+        returns = np.diff(np.log(prices[-self.momentum_window :]))
         return np.mean(returns)
 
     def _calculate_trend_strength(self, prices: List[float]) -> Optional[float]:
         """Calculate trend directional strength."""
         if len(prices) < self.trend_window:
             return None
-            
-        returns = np.diff(np.log(prices[-self.trend_window:]))
+
+        returns = np.diff(np.log(prices[-self.trend_window :]))
         positive_days = sum(1 for r in returns if r > 0)
         return positive_days / len(returns)
 
@@ -95,18 +90,14 @@ class MomentumStrategy:
         """Calculate price volatility."""
         if len(prices) < 2:
             return None
-            
+
         returns = np.diff(np.log(prices))
         return np.std(returns)
 
     async def calculate_signals(self, market_data: List[Dict]) -> Dict[str, Any]:
         """Calculate trading signals based on momentum and trend."""
         if not market_data:
-            return {
-                "signal": "neutral",
-                "confidence": 0.0,
-                "reason": "no_data"
-            }
+            return {"signal": "neutral", "confidence": 0.0, "reason": "no_data"}
 
         try:
             # Check volume
@@ -114,7 +105,7 @@ class MomentumStrategy:
                 return {
                     "signal": "neutral",
                     "confidence": 0.0,
-                    "reason": "insufficient_volume"
+                    "reason": "insufficient_volume",
                 }
 
             # Calculate indicators
@@ -122,12 +113,12 @@ class MomentumStrategy:
             momentum = self._calculate_momentum(prices)
             trend_strength = self._calculate_trend_strength(prices)
             volatility = self._calculate_volatility(prices)
-            
+
             if None in (momentum, trend_strength, volatility):
                 return {
                     "signal": "neutral",
                     "confidence": 0.0,
-                    "reason": "insufficient_data"
+                    "reason": "insufficient_data",
                 }
 
             # Check volatility
@@ -135,7 +126,7 @@ class MomentumStrategy:
                 return {
                     "signal": "neutral",
                     "confidence": 0.0,
-                    "reason": "high_volatility"
+                    "reason": "high_volatility",
                 }
 
             # Generate signals
@@ -157,22 +148,18 @@ class MomentumStrategy:
                 "trend_strength": trend_strength,
                 "volatility": volatility,
                 "price": market_data[-1]["price"],
-                "volume": market_data[-1]["volume"]
+                "volume": market_data[-1]["volume"],
             }
 
         except Exception as e:
             return {
                 "signal": "neutral",
                 "confidence": 0.0,
-                "reason": f"error: {str(e)}"
+                "reason": f"error: {str(e)}",
             }
 
     async def execute_trade(
-        self,
-        tenant_id: str,
-        wallet: Dict,
-        market_data: Dict,
-        signal: Dict
+        self, tenant_id: str, wallet: Dict, market_data: Dict, signal: Dict
     ) -> Optional[Dict]:
         """Execute trade based on signal."""
         if signal["signal"] == "neutral":
@@ -191,17 +178,25 @@ class MomentumStrategy:
                 "trend_strength": signal["trend_strength"],
                 "confidence": signal["confidence"],
                 "entry_price": market_data["price"],
-                "profit_target": market_data["price"] * (1 + self.profit_target if signal["signal"] == "buy" else 1 - self.profit_target),
-                "stop_loss": market_data["price"] * (1 - self.stop_loss if signal["signal"] == "buy" else 1 + self.stop_loss)
-            }
+                "profit_target": market_data["price"]
+                * (
+                    1 + self.profit_target
+                    if signal["signal"] == "buy"
+                    else 1 - self.profit_target
+                ),
+                "stop_loss": market_data["price"]
+                * (
+                    1 - self.stop_loss
+                    if signal["signal"] == "buy"
+                    else 1 + self.stop_loss
+                ),
+            },
         }
 
         return trade
 
     async def update_positions(
-        self,
-        tenant_id: str,
-        market_data: Optional[Dict]
+        self, tenant_id: str, market_data: Optional[Dict]
     ) -> Optional[Dict]:
         """Update existing positions based on new market data."""
         if market_data is None:
@@ -210,9 +205,7 @@ class MomentumStrategy:
         current_price = market_data["price"]
         result = {
             "status": TradeStatus.OPEN,
-            "trade_metadata": {
-                "current_price": current_price
-            }
+            "trade_metadata": {"current_price": current_price},
         }
 
         # Check profit target and stop loss

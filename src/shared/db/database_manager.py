@@ -9,27 +9,35 @@ from sqlalchemy.exc import SQLAlchemyError
 from .exceptions import MongoDBError, PostgreSQLError, ValidationError, ConnectionError
 
 from ..models.mongodb import (
-    RawNewsArticle, RawSocialMediaPost, MarketDataSnapshot,
-    UnstructuredAnalysis, AgentAnalysisResult
+    RawNewsArticle,
+    RawSocialMediaPost,
+    MarketDataSnapshot,
+    UnstructuredAnalysis,
+    AgentAnalysisResult,
 )
-from ..models.sentiment import SentimentAnalysis, AgentSentimentSignal, CombinedMarketSentiment
+from ..models.sentiment import (
+    SentimentAnalysis,
+    AgentSentimentSignal,
+    CombinedMarketSentiment,
+)
 from ..models.trading import Strategy, Wallet
+
 
 class DatabaseManager:
     def __init__(self, mongodb_url: str, postgres_url: str):
         try:
             # MongoDB setup
             self.mongodb_client = motor.motor_asyncio.AsyncIOMotorClient(mongodb_url)
-            db_name = mongodb_url.split('/')[-1].split('?')[0]
+            db_name = mongodb_url.split("/")[-1].split("?")[0]
             self.mongodb = self.mongodb_client[db_name]
-            
+
             # PostgreSQL setup
             self.postgres_engine = create_async_engine(postgres_url)
             self.async_session = sessionmaker(
                 self.postgres_engine, class_=AsyncSession, expire_on_commit=False
             )
         except Exception as e:
-            if hasattr(self, 'mongodb_client'):
+            if hasattr(self, "mongodb_client"):
                 self.mongodb_client.close()
             raise ConnectionError("Failed to initialize database connections", e)
 
@@ -56,7 +64,9 @@ class DatabaseManager:
 
     async def store_unstructured_analysis(self, analysis: UnstructuredAnalysis) -> str:
         try:
-            result = await self.mongodb.unstructured_analysis.insert_one(analysis.dict())
+            result = await self.mongodb.unstructured_analysis.insert_one(
+                analysis.dict()
+            )
             return str(result.inserted_id)
         except Exception as e:
             raise MongoDBError("Failed to store unstructured analysis", e)
@@ -72,14 +82,18 @@ class DatabaseManager:
         try:
             return float(value)
         except (TypeError, ValueError):
-            raise ValidationError(f"Invalid value for {field}: {value} (must be a number)")
+            raise ValidationError(
+                f"Invalid value for {field}: {value} (must be a number)"
+            )
 
-    async def store_sentiment_analysis(self, sentiment: Dict[str, Any]) -> SentimentAnalysis:
+    async def store_sentiment_analysis(
+        self, sentiment: Dict[str, Any]
+    ) -> SentimentAnalysis:
         try:
             # Validate numeric fields
-            if 'score' in sentiment:
-                sentiment['score'] = self._validate_float(sentiment['score'], 'score')
-            
+            if "score" in sentiment:
+                sentiment["score"] = self._validate_float(sentiment["score"], "score")
+
             async with self.async_session() as session:
                 analysis = SentimentAnalysis(**sentiment)
                 session.add(analysis)
@@ -92,13 +106,21 @@ class DatabaseManager:
         except Exception as e:
             raise ValidationError("Invalid sentiment data", e)
 
-    async def store_agent_sentiment(self, sentiment: Dict[str, Any]) -> AgentSentimentSignal:
+    async def store_agent_sentiment(
+        self, sentiment: Dict[str, Any]
+    ) -> AgentSentimentSignal:
         try:
             # Validate numeric fields
-            sentiment['sentiment_score'] = self._validate_float(sentiment['sentiment_score'], 'sentiment_score')
-            sentiment['confidence'] = self._validate_float(sentiment['confidence'], 'confidence')
-            sentiment['signal_strength'] = self._validate_float(sentiment['signal_strength'], 'signal_strength')
-            
+            sentiment["sentiment_score"] = self._validate_float(
+                sentiment["sentiment_score"], "sentiment_score"
+            )
+            sentiment["confidence"] = self._validate_float(
+                sentiment["confidence"], "confidence"
+            )
+            sentiment["signal_strength"] = self._validate_float(
+                sentiment["signal_strength"], "signal_strength"
+            )
+
             async with self.async_session() as session:
                 signal = AgentSentimentSignal(**sentiment)
                 session.add(signal)
@@ -111,14 +133,24 @@ class DatabaseManager:
         except Exception as e:
             raise ValidationError("Invalid agent sentiment data", e)
 
-    async def store_combined_sentiment(self, sentiment: Dict[str, Any]) -> CombinedMarketSentiment:
+    async def store_combined_sentiment(
+        self, sentiment: Dict[str, Any]
+    ) -> CombinedMarketSentiment:
         try:
             # Validate numeric fields
-            sentiment['news_sentiment'] = self._validate_float(sentiment['news_sentiment'], 'news_sentiment')
-            sentiment['social_sentiment'] = self._validate_float(sentiment['social_sentiment'], 'social_sentiment')
-            sentiment['market_sentiment'] = self._validate_float(sentiment['market_sentiment'], 'market_sentiment')
-            sentiment['combined_score'] = self._validate_float(sentiment['combined_score'], 'combined_score')
-            
+            sentiment["news_sentiment"] = self._validate_float(
+                sentiment["news_sentiment"], "news_sentiment"
+            )
+            sentiment["social_sentiment"] = self._validate_float(
+                sentiment["social_sentiment"], "social_sentiment"
+            )
+            sentiment["market_sentiment"] = self._validate_float(
+                sentiment["market_sentiment"], "market_sentiment"
+            )
+            sentiment["combined_score"] = self._validate_float(
+                sentiment["combined_score"], "combined_score"
+            )
+
             async with self.async_session() as session:
                 combined = CombinedMarketSentiment(**sentiment)
                 session.add(combined)
@@ -131,25 +163,33 @@ class DatabaseManager:
         except Exception as e:
             raise ValidationError("Invalid combined sentiment data", e)
 
-    async def get_latest_market_sentiment(self, symbol: str) -> Optional[CombinedMarketSentiment]:
+    async def get_latest_market_sentiment(
+        self, symbol: str
+    ) -> Optional[CombinedMarketSentiment]:
         try:
             async with self.async_session() as session:
-                query = select(CombinedMarketSentiment).filter_by(
-                    symbol=symbol
-                ).order_by(CombinedMarketSentiment.created_at.desc())
+                query = (
+                    select(CombinedMarketSentiment)
+                    .filter_by(symbol=symbol)
+                    .order_by(CombinedMarketSentiment.created_at.desc())
+                )
                 result = await session.execute(query)
                 return result.scalars().first()
         except SQLAlchemyError as e:
             raise PostgreSQLError("Failed to fetch market sentiment", e)
 
-    async def get_raw_news_by_source(self, source: str, limit: int = 100) -> List[Dict[str, Any]]:
+    async def get_raw_news_by_source(
+        self, source: str, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         try:
             cursor = self.mongodb.raw_news.find({"source": source}).limit(limit)
             return [doc async for doc in cursor]
         except Exception as e:
             raise MongoDBError("Failed to fetch raw news", e)
 
-    async def get_social_posts_by_platform(self, platform: str, limit: int = 100) -> List[Dict[str, Any]]:
+    async def get_social_posts_by_platform(
+        self, platform: str, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         try:
             cursor = self.mongodb.social_posts.find({"platform": platform}).limit(limit)
             return [doc async for doc in cursor]
@@ -158,9 +198,9 @@ class DatabaseManager:
 
     async def close(self):
         try:
-            if hasattr(self, 'mongodb_client'):
+            if hasattr(self, "mongodb_client"):
                 self.mongodb_client.close()
-            if hasattr(self, 'postgres_engine'):
+            if hasattr(self, "postgres_engine"):
                 await self.postgres_engine.dispose()
         except Exception as e:
             raise ConnectionError("Failed to close database connections", e)

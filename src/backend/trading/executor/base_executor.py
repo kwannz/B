@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from src.shared.models.errors import TradingError
 
+
 class BaseExecutor:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -11,9 +12,13 @@ class BaseExecutor:
 
     def _validate_config(self) -> None:
         required_fields = ["strategy_type", "risk_level", "trade_size"]
-        missing_fields = [field for field in required_fields if field not in self.config]
+        missing_fields = [
+            field for field in required_fields if field not in self.config
+        ]
         if missing_fields:
-            raise TradingError(f"Missing required config fields: {', '.join(missing_fields)}")
+            raise TradingError(
+                f"Missing required config fields: {', '.join(missing_fields)}"
+            )
 
     async def execute_trade(self, trade_params: Dict[str, Any]) -> Dict[str, Any]:
         raise NotImplementedError("Subclasses must implement execute_trade")
@@ -38,5 +43,5 @@ class BaseExecutor:
         return {
             "status": self.status,
             "last_update": self.last_update,
-            "config": self.config
+            "config": self.config,
         }

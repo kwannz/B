@@ -8,8 +8,10 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
 class WalletCreate(BaseModel):
     bot_id: str
+
 
 class WalletResponse(BaseModel):
     address: str
@@ -17,15 +19,19 @@ class WalletResponse(BaseModel):
     bot_id: str
     balance: float = 0.0
 
+
 class WalletListResponse(BaseModel):
     wallets: List[WalletResponse]
 
+
 wallets_db = {}
+
 
 def generate_mock_solana_keypair():
     private_key = secrets.token_bytes(32)
-    address = base58.b58encode(secrets.token_bytes(32)).decode('utf-8')
+    address = base58.b58encode(secrets.token_bytes(32)).decode("utf-8")
     return private_key.hex(), address
+
 
 @router.post("/wallets", response_model=WalletResponse)
 async def create_wallet(wallet_request: WalletCreate):
@@ -35,7 +41,7 @@ async def create_wallet(wallet_request: WalletCreate):
             address=address,
             private_key=private_key,
             bot_id=wallet_request.bot_id,
-            balance=0.5  # Initial balance for testing
+            balance=0.5,  # Initial balance for testing
         )
         wallets_db[address] = wallet
         logger.info(f"Created wallet for bot {wallet_request.bot_id}")
@@ -44,6 +50,7 @@ async def create_wallet(wallet_request: WalletCreate):
         logger.error(f"Failed to create wallet: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create wallet")
 
+
 @router.get("/wallets", response_model=WalletListResponse)
 async def list_wallets():
     try:
@@ -51,6 +58,7 @@ async def list_wallets():
     except Exception as e:
         logger.error(f"Failed to list wallets: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to list wallets")
+
 
 @router.get("/wallets/{bot_id}", response_model=WalletResponse)
 async def get_wallet(bot_id: str):

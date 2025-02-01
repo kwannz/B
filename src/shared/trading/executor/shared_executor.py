@@ -2,9 +2,11 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from enum import Enum
 
+
 class TradeType(str, Enum):
     BUY = "buy"
     SELL = "sell"
+
 
 class TradeStatus(str, Enum):
     PENDING = "pending"
@@ -14,9 +16,12 @@ class TradeStatus(str, Enum):
     FAILED = "failed"
     COMPLETED = "completed"
 
+
 class TradingError(Exception):
     """Custom exception for trading-related errors."""
+
     pass
+
 
 class SharedExecutor:
     def __init__(self):
@@ -27,7 +32,9 @@ class SharedExecutor:
         required_fields = ["symbol", "size", "type", "price"]
         missing_fields = [field for field in required_fields if field not in params]
         if missing_fields:
-            raise TradingError(f"Missing required trade parameters: {', '.join(missing_fields)}")
+            raise TradingError(
+                f"Missing required trade parameters: {', '.join(missing_fields)}"
+            )
 
         if params["type"] not in [TradeType.BUY, TradeType.SELL]:
             raise TradingError(f"Invalid trade type: {params['type']}")
@@ -38,29 +45,33 @@ class SharedExecutor:
         if params["price"] <= 0:
             raise TradingError("Trade price must be greater than 0")
 
-    def record_trade(self, trade_id: str, params: Dict[str, Any], status: str = TradeStatus.PENDING) -> Dict[str, Any]:
+    def record_trade(
+        self, trade_id: str, params: Dict[str, Any], status: str = TradeStatus.PENDING
+    ) -> Dict[str, Any]:
         trade = {
             "id": trade_id,
             "params": params,
             "status": status,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
-        
+
         if status == TradeStatus.PENDING:
             self.active_trades[trade_id] = trade
         else:
             self.trade_history.append(trade)
-            
+
         return trade
 
-    def update_trade_status(self, trade_id: str, status: str, details: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    def update_trade_status(
+        self, trade_id: str, status: str, details: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
         trade = self.active_trades.get(trade_id)
         if not trade:
             return None
 
         trade["status"] = status
         trade["updated_at"] = datetime.now().isoformat()
-        
+
         if details:
             trade.update(details)
 
@@ -72,8 +83,7 @@ class SharedExecutor:
 
     def get_trade(self, trade_id: str) -> Optional[Dict[str, Any]]:
         return self.active_trades.get(trade_id) or next(
-            (trade for trade in self.trade_history if trade["id"] == trade_id),
-            None
+            (trade for trade in self.trade_history if trade["id"] == trade_id), None
         )
 
     def get_active_trades(self) -> List[Dict[str, Any]]:

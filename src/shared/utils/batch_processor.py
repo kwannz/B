@@ -5,14 +5,18 @@ import time
 import logging
 from src.shared.monitor.metrics import track_batch_utilization
 
+
 class BatchProcessingError(Exception):
     """Raised when batch processing fails"""
+
     def __init__(self, message: str, batch_id: Optional[int] = None):
         self.batch_id = batch_id
         super().__init__(message)
 
-T = TypeVar('T')
-R = TypeVar('R')
+
+T = TypeVar("T")
+R = TypeVar("R")
+
 
 class BatchProcessor(Generic[T, R]):
     def __init__(self, max_batch: int = 16, timeout: int = 50):
@@ -25,7 +29,7 @@ class BatchProcessor(Generic[T, R]):
         self._errors: Dict[int, Exception] = {}
         self._current_batch_id = 0
         self._shutdown = False
-        
+
     async def shutdown(self):
         try:
             self._shutdown = True
@@ -44,14 +48,14 @@ class BatchProcessor(Generic[T, R]):
             self.batch.clear()
             self.results.clear()
             self._errors.clear()
-        
+
     async def _process_items(self, items: List[T]) -> List[R]:
         """Process a batch of items. Must be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement _process_items")
-        
+
     async def process(self, request: Union[T, List[T]]) -> Union[Optional[R], List[R]]:
         from src.shared.monitor.metrics import track_batch_size, track_batch_utilization
-        
+
         # Handle list requests directly
         if isinstance(request, list):
             if not request:
@@ -62,8 +66,7 @@ class BatchProcessor(Generic[T, R]):
             try:
                 async with self._lock:
                     results = await asyncio.wait_for(
-                        self._process_batch(request),
-                        timeout=self.timeout/1000
+                        self._process_batch(request), timeout=self.timeout / 1000
                     )
                     if results is None:
                         raise BatchProcessingError("Invalid batch result")
@@ -88,17 +91,17 @@ class BatchProcessor(Generic[T, R]):
                         del self.results[old_id]
                         if old_id in self._errors:
                             del self._errors[old_id]
-            
+
                 # Add request to batch
                 self.batch.append(request)
                 batch_id = self._current_batch_id
-                
+
                 # Process immediately if batch is full
                 if len(self.batch) >= self.max_batch:
                     try:
                         results = await asyncio.wait_for(
                             self._process_batch(self.batch.copy()),
-                            timeout=self.timeout/1000
+                            timeout=self.timeout / 1000,
                         )
                         self.results[batch_id] = results
                         self.batch.clear()
@@ -118,17 +121,16 @@ class BatchProcessor(Generic[T, R]):
                         error_msg = f"Error processing batch: {str(e)}"
                         logging.error(error_msg)
                         raise BatchProcessingError(error_msg)
-                
+
                 # Start delayed flush if not already processing
                 if not self.processing:
                     self.processing = True
                     asyncio.create_task(self._delayed_flush())
-                    
+
             # Wait for result outside lock
             try:
                 result = await asyncio.wait_for(
-                    self._wait_for_result(request),
-                    timeout=self.timeout/1000
+                    self._wait_for_result(request), timeout=self.timeout / 1000
                 )
                 if result is not None:
                     return result
@@ -154,7 +156,6 @@ class BatchProcessor(Generic[T, R]):
             logging.error(f"Unexpected error in process: {str(e)}")
             raise BatchProcessingError(str(e))
 
-                
     async def _delayed_flush(self):
         try:
             await asyncio.sleep(self.timeout / 1000)
@@ -169,10 +170,10 @@ class BatchProcessor(Generic[T, R]):
                                 del self.results[old_id]
                                 if old_id in self._errors:
                                     del self._errors[old_id]
-                                    
+
                         results = await asyncio.wait_for(
                             self._process_batch(self.batch.copy()),
-                            timeout=self.timeout/1000
+                            timeout=self.timeout / 1000,
                         )
                         self.results[batch_id] = results
                         self.batch.clear()
@@ -195,11 +196,11 @@ class BatchProcessor(Generic[T, R]):
                         raise error
         finally:
             self.processing = False
-            
+
     async def _process_batch(self, batch: List[T]) -> List[R]:
         if not batch:
             raise ValueError("Empty batch")
-            
+
         batch_id = self._current_batch_id
         try:
             async with self._lock:
@@ -210,17 +211,16 @@ class BatchProcessor(Generic[T, R]):
                         del self.results[old_id]
                         if old_id in self._errors:
                             del self._errors[old_id]
-                            
+
                 results = await asyncio.wait_for(
-                    self._process_items(batch),
-                    timeout=self.timeout/1000
+                    self._process_items(batch), timeout=self.timeout / 1000
                 )
-                
+
                 if results is None:
                     error = BatchProcessingError("Invalid batch result", batch_id)
                     self._errors[batch_id] = error
                     raise error
-                    
+
                 if len(results) != len(batch):
                     error = BatchProcessingError("Invalid batch result size", batch_id)
                     self._errors[batch_id] = error
@@ -241,20 +241,20 @@ class BatchProcessor(Generic[T, R]):
             error = BatchProcessingError(str(e), batch_id)
             self._errors[batch_id] = error
             raise error
-            
+
     async def _process_items(self, items: List[T]) -> List[R]:
         """Process a batch of items. Must be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement _process_items")
-            
+
     async def _flush(self) -> List[R]:
         if not self.batch:
             raise ValueError("Empty batch")
-            
+
         batch = self.batch.copy()
         self.batch.clear()
         batch_id = self._current_batch_id
         self._current_batch_id += 1
-        
+
         # Clean up old results before processing new batch
         async with self._lock:
             if len(self.results) > 100:
@@ -263,16 +263,16 @@ class BatchProcessor(Generic[T, R]):
                     del self.results[old_id]
                     if old_id in self._errors:
                         del self._errors[old_id]
-        
+
         from src.shared.monitor.metrics import track_batch_size, track_batch_utilization
+
         batch_len = len(batch)
         track_batch_size(batch_len)
         track_batch_utilization(batch_len / float(self.max_batch))
-        
+
         try:
             results = await asyncio.wait_for(
-                self._process_batch(batch),
-                timeout=self.timeout/1000
+                self._process_batch(batch), timeout=self.timeout / 1000
             )
             async with self._lock:
                 self.results[batch_id] = results
@@ -299,7 +299,7 @@ class BatchProcessor(Generic[T, R]):
             error = BatchProcessingError(f"Error processing batch: {str(e)}", batch_id)
             self._errors[batch_id] = error
             raise error
-            
+
     async def _wait_for_result(self, request: T) -> Optional[R]:
         start_time = time.time()
         while True:
@@ -324,7 +324,9 @@ class BatchProcessor(Generic[T, R]):
                                     return result
                             elif request == result:
                                 return result
-                            elif hasattr(request, '__dict__') and hasattr(result, '__dict__'):
+                            elif hasattr(request, "__dict__") and hasattr(
+                                result, "__dict__"
+                            ):
                                 if request.__dict__ == result.__dict__:
                                     return result
 

@@ -1,14 +1,16 @@
 """Helper script to process API responses."""
+
 import sys
 import json
+
 
 def process_json():
     """Process JSON from stdin and print formatted output."""
     try:
         data = json.load(sys.stdin)
         if isinstance(data, dict):
-            if 'access_token' in data:
-                print(data['access_token'])
+            if "access_token" in data:
+                print(data["access_token"])
             else:
                 print(json.dumps(data, indent=2))
         else:
@@ -17,6 +19,7 @@ def process_json():
         print("Error: Invalid JSON input")
     except Exception as e:
         print(f"Error: {str(e)}")
+
 
 if __name__ == "__main__":
     process_json()

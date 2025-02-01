@@ -12,99 +12,160 @@ cd "$PROJECT_ROOT"
 
 echo -e "${YELLOW}开始验证项目结构...${NC}"
 
-# 定义关键路径
+# 关键路径定义
 declare -a CRITICAL_PATHS=(
-    # 后端核心
+    # Backend paths
+    "src/backend/services/dex/interfaces"
+    "src/backend/services/memecoins"
     "src/backend/core/strategies"
     "src/backend/core/risk"
-    "src/backend/core/__init__.py"
+    "src/backend/api"
+    "src/backend/infrastructure/database"
+    "src/backend/infrastructure/cache"
     
-    # 后端服务
-    "src/backend/services/dex"
-    "src/backend/services/memecoins"
-    
-    # 前端结构
+    # Frontend paths
     "src/frontend/src/components"
-    "src/frontend/src/features"
-    "src/frontend/src/shared"
+    "src/frontend/src/features/dex"
+    "src/frontend/src/features/memecoins"
+    "src/frontend/src/shared/visualization"
     
-    # 共享代码
+    # Shared paths
     "src/shared/types"
     "src/shared/utils"
     "src/shared/config"
     
-    # 文档
-    "docs/architecture/system_workflow.md"
-    "docs/api/README.md"
-    "docs/development/README.md"
+    # Documentation
+    "docs/architecture"
+    "docs/api"
+    "docs/development"
     
-    # 配置
+    # Configuration
     "config/env"
     "config/strategies"
+    
+    # Scripts
+    "scripts/deployment"
+    "scripts/migration"
+    "scripts/tools"
 )
 
-# 定义必需文件
+# 必需文件定义
 declare -a REQUIRED_FILES=(
-    # 后端文件
+    # Backend files
     "src/backend/core/__init__.py"
     "src/backend/services/dex/__init__.py"
     "src/backend/services/memecoins/__init__.py"
     
-    # 前端文件
+    # Frontend files
     "src/frontend/package.json"
     "src/frontend/tsconfig.json"
     
-    # 配置文件
+    # Configuration files
     "config/README.md"
     ".gitignore"
     
-    # 文档
+    # Documentation files
     "docs/architecture/README.md"
     "docs/api/README.md"
     "docs/development/README.md"
 )
 
-# 验证目录结构
-VERIFY_FAILED=0
+# 检查目录
+check_directories() {
+    local errors=0
+    echo -e "${YELLOW}Checking critical directories...${NC}"
+    
+    for path in "${CRITICAL_PATHS[@]}"; do
+        if [ ! -d "$path" ]; then
+            echo -e "${RED}Missing directory: $path${NC}"
+            errors=$((errors + 1))
+        else
+            echo -e "${GREEN}✓ Found directory: $path${NC}"
+        fi
+    done
+    
+    return $errors
+}
 
-echo -e "${YELLOW}检查关键路径...${NC}"
-for path in "${CRITICAL_PATHS[@]}"; do
-    if [ ! -e "$path" ]; then
-        echo -e "${RED}错误：关键路径缺失 - $path${NC}"
-        VERIFY_FAILED=1
-    fi
-done
-
-echo -e "\n${YELLOW}检查必需文件...${NC}"
-for file in "${REQUIRED_FILES[@]}"; do
-    if [ ! -f "$file" ]; then
-        echo -e "${RED}错误：必需文件缺失 - $file${NC}"
-        VERIFY_FAILED=1
-    fi
-done
+# 检查文件
+check_files() {
+    local errors=0
+    echo -e "\n${YELLOW}Checking required files...${NC}"
+    
+    for file in "${REQUIRED_FILES[@]}"; do
+        if [ ! -f "$file" ]; then
+            echo -e "${RED}Missing file: $file${NC}"
+            errors=$((errors + 1))
+        else
+            echo -e "${GREEN}✓ Found file: $file${NC}"
+        fi
+    done
+    
+    return $errors
+}
 
 # 检查空目录
-echo -e "\n${YELLOW}检查空目录...${NC}"
-find src -type d -empty -print | while read -r dir; do
-    echo -e "${YELLOW}警告：空目录 - $dir${NC}"
-done
+check_empty_directories() {
+    local errors=0
+    echo -e "\n${YELLOW}Checking for empty directories...${NC}"
+    
+    for path in "${CRITICAL_PATHS[@]}"; do
+        if [ -d "$path" ] && [ -z "$(ls -A $path)" ]; then
+            echo -e "${RED}Empty directory: $path${NC}"
+            errors=$((errors + 1))
+        fi
+    done
+    
+    return $errors
+}
 
-# 检查重复文件
-echo -e "\n${YELLOW}检查重复文档...${NC}"
-declare -a DOC_PATTERNS=(
-    "workflow.md"
-    "deployment.md"
-    "development.md"
-)
+# 检查重复文档
+check_duplicate_docs() {
+    local errors=0
+    echo -e "\n${YELLOW}Checking for duplicate documentation...${NC}"
+    
+    local -a doc_patterns=("workflow.md" "deployment.md" "development.md")
+    
+    for pattern in "${doc_patterns[@]}"; do
+        local count=$(find docs -name "$pattern" | wc -l)
+        if [ $count -gt 1 ]; then
+            echo -e "${RED}Found duplicate documentation: $pattern ($count copies)${NC}"
+            find docs -name "$pattern"
+            errors=$((errors + 1))
+        fi
+    done
+    
+    return $errors
+}
 
-for pattern in "${DOC_PATTERNS[@]}"; do
-    duplicates=$(find docs -name "$pattern" | wc -l)
-    if [ "$duplicates" -gt 1 ]; then
-        echo -e "${RED}错误：发现重复文档 - $pattern (${duplicates}个副本)${NC}"
-        find docs -name "$pattern" -exec echo "  - {}" \;
-        VERIFY_FAILED=1
+# 主函数
+main() {
+    local total_errors=0
+    
+    check_directories
+    total_errors=$((total_errors + $?))
+    
+    check_files
+    total_errors=$((total_errors + $?))
+    
+    check_empty_directories
+    total_errors=$((total_errors + $?))
+    
+    check_duplicate_docs
+    total_errors=$((total_errors + $?))
+    
+    echo -e "\n${YELLOW}Verification complete.${NC}"
+    if [ $total_errors -eq 0 ]; then
+        echo -e "${GREEN}All checks passed successfully!${NC}"
+        exit 0
+    else
+        echo -e "${RED}Found $total_errors issue(s) that need attention.${NC}"
+        exit 1
     fi
-done
+}
+
+# 执行主函数
+main
 
 # 检查文件权限
 echo -e "\n${YELLOW}检查文件权限...${NC}"
@@ -113,16 +174,8 @@ find scripts -type f -name "*.sh" ! -perm -u=x -print | while read -r script; do
     chmod +x "$script"
 done
 
-if [ $VERIFY_FAILED -eq 1 ]; then
-    echo -e "\n${RED}验证失败：系统结构不完整${NC}"
-    echo "请运行 project_init.sh 修复问题"
-    exit 1
-else
-    echo -e "\n${GREEN}验证通过：系统结构完整${NC}"
-    
-    # 显示目录结构
-    if command -v tree &> /dev/null; then
-        echo -e "\n${YELLOW}当前目录结构：${NC}"
-        tree -L 3 -I "node_modules|__pycache__|*.pyc|.git"
-    fi
+# 显示目录结构
+if command -v tree &> /dev/null; then
+    echo -e "\n${YELLOW}当前目录结构：${NC}"
+    tree -L 3 -I "node_modules|__pycache__|*.pyc|.git"
 fi 

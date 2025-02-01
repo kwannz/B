@@ -100,10 +100,17 @@ if [ "$CI" != "true" ]; then
 fi
 
 # Check coverage threshold
-coverage report --fail-under=90 || {
-    echo -e "${RED}Coverage is below 90%${NC}"
+coverage report --fail-under=95 || {
+    echo -e "${RED}Coverage is below 95%${NC}"
+    echo -e "${YELLOW}Generating detailed coverage report...${NC}"
+    coverage report --show-missing
     exit 1
 }
+
+# Generate detailed coverage reports
+echo -e "${YELLOW}Generating detailed coverage reports...${NC}"
+coverage html --directory=coverage/html
+coverage xml -o coverage/coverage.xml
 
 echo -e "${GREEN}All tests passed successfully!${NC}"
 

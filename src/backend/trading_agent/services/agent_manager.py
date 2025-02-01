@@ -10,19 +10,28 @@ from ..agents.portfolio_manager_agent import PortfolioManagerAgent
 from ..agents.base_agent import BaseAgent
 
 AgentType = Union[
-    TradingAgent, MarketDataAgent, ValuationAgent, SentimentAgent,
-    FundamentalsAgent, TechnicalAnalystAgent, RiskManagerAgent, PortfolioManagerAgent
+    TradingAgent,
+    MarketDataAgent,
+    ValuationAgent,
+    SentimentAgent,
+    FundamentalsAgent,
+    TechnicalAnalystAgent,
+    RiskManagerAgent,
+    PortfolioManagerAgent,
 ]
+
 
 class AgentManager:
     def __init__(self):
         self.agents: Dict[str, AgentType] = {}
 
-    async def create_agent(self, agent_id: str, name: str, config: Dict) -> TradingAgent:
+    async def create_agent(
+        self, agent_id: str, name: str, config: Dict
+    ) -> TradingAgent:
         """Create a new trading agent"""
         if agent_id in self.agents:
             raise ValueError(f"Agent with ID {agent_id} already exists")
-        
+
         agent = TradingAgent(agent_id, name, config)
         self.agents[agent_id] = agent
         return agent

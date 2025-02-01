@@ -6,7 +6,8 @@ import asyncio
 import time
 from contextlib import contextmanager
 
-__all__ = ['PrometheusMetrics', 'start_prometheus_server']
+__all__ = ["PrometheusMetrics", "start_prometheus_server"]
+
 
 def start_prometheus_server(port: int = 8000) -> Optional[int]:
     """Standalone function to start Prometheus server"""
@@ -24,33 +25,44 @@ def start_prometheus_server(port: int = 8000) -> Optional[int]:
         logging.error(f"Failed to start Prometheus server: {str(e)}")
         raise
 
+
 class PrometheusMetrics:
     def __init__(self, namespace="tradingbot", subsystem="agent", registry=None):
         self.namespace = namespace
         self.subsystem = subsystem
         self.registry = registry or REGISTRY
-        
+
         # Counters
-        self.error_counter = self.create_counter("errors_total", "Total number of errors")
-        self.cache_hits = self.create_counter("cache_hits_total", "Total number of cache hits")
-        self.cache_misses = self.create_counter("cache_misses_total", "Total number of cache misses")
-        
+        self.error_counter = self.create_counter(
+            "errors_total", "Total number of errors"
+        )
+        self.cache_hits = self.create_counter(
+            "cache_hits_total", "Total number of cache hits"
+        )
+        self.cache_misses = self.create_counter(
+            "cache_misses_total", "Total number of cache misses"
+        )
+
         # Gauges
-        self.memory_gauge = self.create_gauge("memory_usage_bytes", "Memory usage in bytes")
+        self.memory_gauge = self.create_gauge(
+            "memory_usage_bytes", "Memory usage in bytes"
+        )
         self.batch_size_gauge = self.create_gauge("batch_size", "Current batch size")
-        self.system_memory = self.create_gauge("system_memory_bytes", "System memory usage in bytes")
-        self.system_cpu = self.create_gauge("system_cpu_percent", "System CPU usage percentage")
-        
+        self.system_memory = self.create_gauge(
+            "system_memory_bytes", "System memory usage in bytes"
+        )
+        self.system_cpu = self.create_gauge(
+            "system_cpu_percent", "System CPU usage percentage"
+        )
+
         # Histograms
         self.latency_histogram = self.create_histogram(
             "operation_latency_seconds",
             "Operation latency in seconds",
-            buckets=[0.1, 0.5, 1.0, 2.0, 5.0]
+            buckets=[0.1, 0.5, 1.0, 2.0, 5.0],
         )
         self.batch_size_histogram = self.create_histogram(
-            "batch_size_total",
-            "Batch size distribution",
-            buckets=[1, 2, 4, 8, 16, 32]
+            "batch_size_total", "Batch size distribution", buckets=[1, 2, 4, 8, 16, 32]
         )
 
     def create_counter(self, name: str, description: str) -> Counter:
@@ -59,7 +71,7 @@ class PrometheusMetrics:
             description,
             namespace=self.namespace,
             subsystem=self.subsystem,
-            registry=self.registry
+            registry=self.registry,
         )
 
     def create_gauge(self, name: str, description: str) -> Gauge:
@@ -68,7 +80,7 @@ class PrometheusMetrics:
             description,
             namespace=self.namespace,
             subsystem=self.subsystem,
-            registry=self.registry
+            registry=self.registry,
         )
 
     def create_histogram(self, name: str, description: str, buckets=None) -> Histogram:
@@ -78,7 +90,7 @@ class PrometheusMetrics:
             namespace=self.namespace,
             subsystem=self.subsystem,
             buckets=buckets,
-            registry=self.registry
+            registry=self.registry,
         )
 
     @contextmanager
@@ -91,7 +103,7 @@ class PrometheusMetrics:
             histogram = self.create_histogram(
                 f"{operation}_latency_seconds",
                 f"Latency of {operation} operation in seconds",
-                buckets=[0.1, 0.5, 1.0, 2.0, 5.0]
+                buckets=[0.1, 0.5, 1.0, 2.0, 5.0],
             )
             histogram.observe(duration)
 
@@ -128,11 +140,13 @@ class PrometheusMetrics:
             start_http_server(port)
             metrics_count = len(list(REGISTRY.collect()))
             self.collect_system_metrics()
-            
+
             loop = asyncio.get_running_loop()
             loop.create_task(self._collect_metrics_periodically())
-            
-            logging.info(f"Started Prometheus metrics server on port {port} with {metrics_count} metrics")
+
+            logging.info(
+                f"Started Prometheus metrics server on port {port} with {metrics_count} metrics"
+            )
             return port
         except OSError as e:
             if "Address already in use" in str(e):

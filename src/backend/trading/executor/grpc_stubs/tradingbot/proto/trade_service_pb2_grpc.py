@@ -3,25 +3,30 @@
 import grpc
 import warnings
 
-from tradingbot.proto import trade_service_pb2 as tradingbot_dot_proto_dot_trade__service__pb2
+from tradingbot.proto import (
+    trade_service_pb2 as tradingbot_dot_proto_dot_trade__service__pb2,
+)
 
-GRPC_GENERATED_VERSION = '1.70.0'
+GRPC_GENERATED_VERSION = "1.70.0"
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
 try:
     from grpc._utilities import first_version_is_lower
-    _version_not_supported = first_version_is_lower(GRPC_VERSION, GRPC_GENERATED_VERSION)
+
+    _version_not_supported = first_version_is_lower(
+        GRPC_VERSION, GRPC_GENERATED_VERSION
+    )
 except ImportError:
     _version_not_supported = True
 
 if _version_not_supported:
     raise RuntimeError(
-        f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in tradingbot/proto/trade_service_pb2_grpc.py depends on'
-        + f' grpcio>={GRPC_GENERATED_VERSION}.'
-        + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
-        + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
+        f"The grpc package installed is at version {GRPC_VERSION},"
+        + f" but the generated code in tradingbot/proto/trade_service_pb2_grpc.py depends on"
+        + f" grpcio>={GRPC_GENERATED_VERSION}."
+        + f" Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}"
+        + f" or downgrade your generated code using grpcio-tools<={GRPC_VERSION}."
     )
 
 
@@ -35,25 +40,29 @@ class TradeServiceStub(object):
             channel: A grpc.Channel.
         """
         self.GetMarketData = channel.unary_unary(
-                '/tradingbot.TradeService/GetMarketData',
-                request_serializer=tradingbot_dot_proto_dot_trade__service__pb2.MarketDataRequest.SerializeToString,
-                response_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.MarketDataReply.FromString,
-                _registered_method=True)
+            "/tradingbot.TradeService/GetMarketData",
+            request_serializer=tradingbot_dot_proto_dot_trade__service__pb2.MarketDataRequest.SerializeToString,
+            response_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.MarketDataReply.FromString,
+            _registered_method=True,
+        )
         self.ExecuteTrade = channel.unary_unary(
-                '/tradingbot.TradeService/ExecuteTrade',
-                request_serializer=tradingbot_dot_proto_dot_trade__service__pb2.TradeRequest.SerializeToString,
-                response_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.TradeReply.FromString,
-                _registered_method=True)
+            "/tradingbot.TradeService/ExecuteTrade",
+            request_serializer=tradingbot_dot_proto_dot_trade__service__pb2.TradeRequest.SerializeToString,
+            response_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.TradeReply.FromString,
+            _registered_method=True,
+        )
         self.GetOrderStatus = channel.unary_unary(
-                '/tradingbot.TradeService/GetOrderStatus',
-                request_serializer=tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusRequest.SerializeToString,
-                response_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusReply.FromString,
-                _registered_method=True)
+            "/tradingbot.TradeService/GetOrderStatus",
+            request_serializer=tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusRequest.SerializeToString,
+            response_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusReply.FromString,
+            _registered_method=True,
+        )
         self.SubscribePriceUpdates = channel.unary_stream(
-                '/tradingbot.TradeService/SubscribePriceUpdates',
-                request_serializer=tradingbot_dot_proto_dot_trade__service__pb2.PriceSubscriptionRequest.SerializeToString,
-                response_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.PriceUpdateReply.FromString,
-                _registered_method=True)
+            "/tradingbot.TradeService/SubscribePriceUpdates",
+            request_serializer=tradingbot_dot_proto_dot_trade__service__pb2.PriceSubscriptionRequest.SerializeToString,
+            response_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.PriceUpdateReply.FromString,
+            _registered_method=True,
+        )
 
 
 class TradeServiceServicer(object):
@@ -62,76 +71,81 @@ class TradeServiceServicer(object):
     def GetMarketData(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def ExecuteTrade(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def GetOrderStatus(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def SubscribePriceUpdates(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
 
 def add_TradeServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'GetMarketData': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetMarketData,
-                    request_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.MarketDataRequest.FromString,
-                    response_serializer=tradingbot_dot_proto_dot_trade__service__pb2.MarketDataReply.SerializeToString,
-            ),
-            'ExecuteTrade': grpc.unary_unary_rpc_method_handler(
-                    servicer.ExecuteTrade,
-                    request_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.TradeRequest.FromString,
-                    response_serializer=tradingbot_dot_proto_dot_trade__service__pb2.TradeReply.SerializeToString,
-            ),
-            'GetOrderStatus': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetOrderStatus,
-                    request_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusRequest.FromString,
-                    response_serializer=tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusReply.SerializeToString,
-            ),
-            'SubscribePriceUpdates': grpc.unary_stream_rpc_method_handler(
-                    servicer.SubscribePriceUpdates,
-                    request_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.PriceSubscriptionRequest.FromString,
-                    response_serializer=tradingbot_dot_proto_dot_trade__service__pb2.PriceUpdateReply.SerializeToString,
-            ),
+        "GetMarketData": grpc.unary_unary_rpc_method_handler(
+            servicer.GetMarketData,
+            request_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.MarketDataRequest.FromString,
+            response_serializer=tradingbot_dot_proto_dot_trade__service__pb2.MarketDataReply.SerializeToString,
+        ),
+        "ExecuteTrade": grpc.unary_unary_rpc_method_handler(
+            servicer.ExecuteTrade,
+            request_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.TradeRequest.FromString,
+            response_serializer=tradingbot_dot_proto_dot_trade__service__pb2.TradeReply.SerializeToString,
+        ),
+        "GetOrderStatus": grpc.unary_unary_rpc_method_handler(
+            servicer.GetOrderStatus,
+            request_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusRequest.FromString,
+            response_serializer=tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusReply.SerializeToString,
+        ),
+        "SubscribePriceUpdates": grpc.unary_stream_rpc_method_handler(
+            servicer.SubscribePriceUpdates,
+            request_deserializer=tradingbot_dot_proto_dot_trade__service__pb2.PriceSubscriptionRequest.FromString,
+            response_serializer=tradingbot_dot_proto_dot_trade__service__pb2.PriceUpdateReply.SerializeToString,
+        ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'tradingbot.TradeService', rpc_method_handlers)
+        "tradingbot.TradeService", rpc_method_handlers
+    )
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('tradingbot.TradeService', rpc_method_handlers)
+    server.add_registered_method_handlers(
+        "tradingbot.TradeService", rpc_method_handlers
+    )
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class TradeService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def GetMarketData(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def GetMarketData(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/tradingbot.TradeService/GetMarketData',
+            "/tradingbot.TradeService/GetMarketData",
             tradingbot_dot_proto_dot_trade__service__pb2.MarketDataRequest.SerializeToString,
             tradingbot_dot_proto_dot_trade__service__pb2.MarketDataReply.FromString,
             options,
@@ -142,23 +156,26 @@ class TradeService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )
 
     @staticmethod
-    def ExecuteTrade(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def ExecuteTrade(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/tradingbot.TradeService/ExecuteTrade',
+            "/tradingbot.TradeService/ExecuteTrade",
             tradingbot_dot_proto_dot_trade__service__pb2.TradeRequest.SerializeToString,
             tradingbot_dot_proto_dot_trade__service__pb2.TradeReply.FromString,
             options,
@@ -169,23 +186,26 @@ class TradeService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )
 
     @staticmethod
-    def GetOrderStatus(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def GetOrderStatus(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/tradingbot.TradeService/GetOrderStatus',
+            "/tradingbot.TradeService/GetOrderStatus",
             tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusRequest.SerializeToString,
             tradingbot_dot_proto_dot_trade__service__pb2.OrderStatusReply.FromString,
             options,
@@ -196,23 +216,26 @@ class TradeService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )
 
     @staticmethod
-    def SubscribePriceUpdates(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def SubscribePriceUpdates(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_stream(
             request,
             target,
-            '/tradingbot.TradeService/SubscribePriceUpdates',
+            "/tradingbot.TradeService/SubscribePriceUpdates",
             tradingbot_dot_proto_dot_trade__service__pb2.PriceSubscriptionRequest.SerializeToString,
             tradingbot_dot_proto_dot_trade__service__pb2.PriceUpdateReply.FromString,
             options,
@@ -223,4 +246,5 @@ class TradeService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )

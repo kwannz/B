@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
+
 @dataclass
 class StrategyConfig:
     """Configuration for trading strategies."""
+
     strategy_type: str
     parameters: Dict[str, Any]
     name: str = ""
@@ -18,9 +20,11 @@ class StrategyConfig:
         if not isinstance(self.parameters, dict):
             raise ValueError("parameters must be a dictionary")
 
+
 @dataclass
 class TenantConfig:
     """Configuration for trading tenant."""
+
     tenant_id: str
     name: str
     api_key: str

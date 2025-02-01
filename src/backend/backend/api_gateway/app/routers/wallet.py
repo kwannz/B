@@ -8,20 +8,24 @@ import httpx
 
 router = APIRouter(tags=["wallet"])
 
+
 class WalletCreate(BaseModel):
     """Request to create a new wallet."""
+
     name: str
     description: str = ""
 
+
 class WalletConfirm(BaseModel):
     """Request to confirm wallet key management."""
+
     wallet_address: str
     confirmed: bool
 
+
 @router.post("/create")
 async def create_wallet(
-    request: WalletCreate,
-    current_user: User = Depends(get_current_active_user)
+    request: WalletCreate, current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """Create a new Solana wallet."""
     try:
@@ -31,19 +35,18 @@ async def create_wallet(
             "data": {
                 "address": settings.TRADING_WALLET_ADDRESS,
                 "privateKey": settings.TRADING_WALLET_PRIVATE_KEY,
-                "created": datetime.now().isoformat()
-            }
+                "created": datetime.now().isoformat(),
+            },
         }
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
 
 @router.post("/confirm")
 async def confirm_wallet(
-    request: WalletConfirm,
-    current_user: User = Depends(get_current_active_user)
+    request: WalletConfirm, current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """Confirm wallet key management."""
     try:
@@ -52,19 +55,18 @@ async def confirm_wallet(
             "data": {
                 "status": "confirmed",
                 "wallet_address": request.wallet_address,
-                "timestamp": datetime.now().isoformat()
-            }
+                "timestamp": datetime.now().isoformat(),
+            },
         }
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
 
 @router.get("/balance/{wallet_address}")
 async def get_wallet_balance(
-    wallet_address: str,
-    current_user: User = Depends(get_current_active_user)
+    wallet_address: str, current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """Get wallet balance."""
     try:
@@ -74,19 +76,18 @@ async def get_wallet_balance(
                 "address": wallet_address,
                 "balance": "10.5",
                 "currency": "SOL",
-                "lastUpdated": datetime.now().isoformat()
-            }
+                "lastUpdated": datetime.now().isoformat(),
+            },
         }
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
 
 @router.get("/transactions/{wallet_address}")
 async def get_wallet_transactions(
-    wallet_address: str,
-    current_user: User = Depends(get_current_active_user)
+    wallet_address: str, current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """Get wallet transaction history."""
     try:
@@ -100,44 +101,38 @@ async def get_wallet_transactions(
                         "type": "trade",
                         "amount": "1.2",
                         "status": "completed",
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     }
                 ],
-                "lastUpdated": datetime.now().isoformat()
-            }
+                "lastUpdated": datetime.now().isoformat(),
+            },
         }
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
 
 @router.get("/balance/{wallet_address}")
 async def get_wallet_balance(
-    wallet_address: str,
-    current_user: User = Depends(get_current_active_user)
+    wallet_address: str, current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """Get wallet balance."""
     try:
         # For testing, return mock balance with successful response
         return {
             "success": True,
-            "data": {
-                "address": wallet_address,
-                "balance": "10.5",
-                "currency": "SOL"
-            }
+            "data": {"address": wallet_address, "balance": "10.5", "currency": "SOL"},
         }
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
 
 @router.get("/transactions/{wallet_address}")
 async def get_wallet_transactions(
-    wallet_address: str,
-    current_user: User = Depends(get_current_active_user)
+    wallet_address: str, current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """Get wallet transaction history."""
     try:
@@ -151,13 +146,12 @@ async def get_wallet_transactions(
                         "type": "trade",
                         "amount": "1.2",
                         "status": "completed",
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     }
                 ]
-            }
+            },
         }
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )

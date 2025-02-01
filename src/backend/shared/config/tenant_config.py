@@ -7,6 +7,7 @@ from dataclasses import dataclass
 @dataclass
 class StrategyConfig:
     """Strategy configuration model."""
+
     strategy_type: str
     parameters: Dict[str, Any]
 
@@ -21,6 +22,7 @@ class StrategyConfig:
 @dataclass
 class TenantConfig:
     """Tenant configuration model."""
+
     tenant_id: str
     name: str
     api_key: str

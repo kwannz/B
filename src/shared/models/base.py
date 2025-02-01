@@ -5,9 +5,10 @@ from datetime import datetime
 
 Base = declarative_base()
 
+
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, nullable=False)
     api_key = Column(String, unique=True)
@@ -15,9 +16,10 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     strategies = relationship("Strategy", back_populates="user")
 
+
 class Strategy(Base):
     __tablename__ = "strategies"
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     name = Column(String, nullable=False)
@@ -28,9 +30,10 @@ class Strategy(Base):
     user = relationship("User", back_populates="strategies")
     trades = relationship("Trade", back_populates="strategy")
 
+
 class Trade(Base):
     __tablename__ = "trades"
-    
+
     id = Column(Integer, primary_key=True)
     strategy_id = Column(Integer, ForeignKey("strategies.id"))
     symbol = Column(String, nullable=False)

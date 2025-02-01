@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Dict, Any
 from dataclasses import dataclass
 
+
 class AlertType(Enum):
     VOLUME_SURGE = "volume_surge"
     PRICE_SPIKE = "price_spike"
@@ -9,11 +10,13 @@ class AlertType(Enum):
     SENTIMENT_CHANGE = "sentiment_change"
     MARKET_CAP_THRESHOLD = "market_cap_threshold"
 
+
 class AlertSeverity(Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
 
 @dataclass
 class Alert:

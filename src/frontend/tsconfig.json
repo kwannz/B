@@ -1,14 +1,21 @@
 {
-  "extends": "../../src/frontend/tsconfig.json",
   "compilerOptions": {
-    "types": ["jest", "@testing-library/jest-dom"],
-    "jsx": "react-jsx"
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "composite": true
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx"
-  ],
-  "references": [
-    { "path": "../../src/frontend" }
-  ]
+  "include": ["src"]
 }

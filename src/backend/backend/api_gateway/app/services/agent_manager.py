@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from app.models.agent_models import AgentCreate, AgentUpdate, AgentResponse
 
+
 class AgentManager:
     def __init__(self):
         self.agents: Dict[str, Dict] = {}
@@ -16,7 +17,7 @@ class AgentManager:
             "description": agent_data.description,
             "status": "initialized",
             "created_at": datetime.utcnow(),
-            "last_update": datetime.utcnow()
+            "last_update": datetime.utcnow(),
         }
         self.agents[agent_id] = agent
         return AgentResponse(**agent)
@@ -30,17 +31,19 @@ class AgentManager:
     async def list_agents(self) -> List[AgentResponse]:
         return [AgentResponse(**agent) for agent in self.agents.values()]
 
-    async def update_agent(self, agent_id: str, update_data: AgentUpdate) -> Optional[AgentResponse]:
+    async def update_agent(
+        self, agent_id: str, update_data: AgentUpdate
+    ) -> Optional[AgentResponse]:
         if agent_id not in self.agents:
             return None
-        
+
         agent = self.agents[agent_id]
         update_dict = update_data.dict(exclude_unset=True)
-        
+
         for key, value in update_dict.items():
             if value is not None:
                 agent[key] = value
-        
+
         agent["last_update"] = datetime.utcnow()
         return AgentResponse(**agent)
 
@@ -53,7 +56,7 @@ class AgentManager:
     async def start_agent(self, agent_id: str) -> Optional[AgentResponse]:
         if agent_id not in self.agents:
             return None
-        
+
         self.agents[agent_id]["status"] = "active"
         self.agents[agent_id]["last_update"] = datetime.utcnow()
         return AgentResponse(**self.agents[agent_id])
@@ -61,7 +64,7 @@ class AgentManager:
     async def stop_agent(self, agent_id: str) -> Optional[AgentResponse]:
         if agent_id not in self.agents:
             return None
-        
+
         self.agents[agent_id]["status"] = "stopped"
         self.agents[agent_id]["last_update"] = datetime.utcnow()
         return AgentResponse(**self.agents[agent_id])

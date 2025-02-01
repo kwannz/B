@@ -9,17 +9,24 @@ from sqlalchemy import create_engine, MetaData
 from tradingbot.shared.ai_analyzer import AIAnalyzer
 from tradingbot.shared.models.sentiment import Base, SentimentAnalysis
 
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
     """Create test database tables."""
-    engine = create_engine(os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/test_db"))
+    engine = create_engine(
+        os.getenv(
+            "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/test_db"
+        )
+    )
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     yield engine
     Base.metadata.drop_all(engine)
 
+
 # Enable nested event loops for testing
 nest_asyncio.apply()
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -27,6 +34,7 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
 
 MOCK_RESPONSE = {
     "sentiment_score": 0.8,
@@ -53,14 +61,14 @@ MOCK_RESPONSE = {
             "name": "market_crash",
             "price_change": -0.3,
             "impact": -0.3,
-            "affected_assets": ["BTC"]
+            "affected_assets": ["BTC"],
         },
         {
             "name": "high_volatility",
             "volatility": 0.5,
             "impact": -0.2,
-            "affected_assets": ["BTC", "ETH"]
-        }
+            "affected_assets": ["BTC", "ETH"],
+        },
     ],
     "parameters": {"lookback": 20, "entry_price": 45000},
     "risk_assessment": {"risk_score": 0.35, "max_loss": 2000.0},
@@ -71,25 +79,25 @@ MOCK_RESPONSE = {
     "optimized_parameters": {
         "lookback": 25,
         "entry_threshold": 0.02,
-        "exit_threshold": 0.01
+        "exit_threshold": 0.01,
     },
     "expected_improvement": {
         "sharpe_ratio": 0.2,
         "max_drawdown": -0.05,
-        "returns": 0.1
+        "returns": 0.1,
     },
     "parameters": {
         "lookback": 20,
         "entry_price": 45000,
         "stop_loss": 43000,
         "take_profit": 48000,
-        "position_size": 0.1
+        "position_size": 0.1,
     },
     "signals": ["MACD golden cross", "RSI oversold"],
     "indicators": {
         "macd": {"value": 0.5, "signal": 0.2},
         "rsi": {"value": 30, "signal": "oversold"},
-        "bollinger_bands": {"upper": 46000, "middle": 45000, "lower": 44000}
+        "bollinger_bands": {"upper": 46000, "middle": 45000, "lower": 44000},
     },
     "performance_metrics": {
         "sharpe": 1.5,
@@ -99,61 +107,63 @@ MOCK_RESPONSE = {
         "returns": 0.25,
         "win_rate": 0.7,
         "profit_factor": 1.8,
-        "avg_trade_return": 0.015
+        "avg_trade_return": 0.015,
     },
     "risk_metrics": {
         "max_drawdown": 0.1,
         "var": 50000,
         "expected_shortfall": 55000,
-        "beta": 1.2
+        "beta": 1.2,
     },
     "risk_assessment": {
         "risk_score": 0.35,
         "max_loss": 2000,
-        "position_sizing_recommendation": "Reduce position size by 10%"
+        "position_sizing_recommendation": "Reduce position size by 10%",
     },
     "weights": [
         {"name": "momentum", "parameters": {"lookback": 20}, "weight": 0.6},
-        {"name": "mean_reversion", "parameters": {"window": 10}, "weight": 0.4}
+        {"name": "mean_reversion", "parameters": {"window": 10}, "weight": 0.4},
     ],
     "expected_performance": {
         "return": 0.15,
         "sharpe_ratio": 1.8,
         "max_drawdown": 0.12,
-        "win_rate": 0.65
+        "win_rate": 0.65,
     },
     "optimization_suggestions": [
-        {"parameter": "lookback", "current": 20, "suggested": 25, "reason": "Improved Sharpe ratio"},
-        {"parameter": "stop_loss", "current": 43000, "suggested": 43500, "reason": "Better risk-reward"}
+        {
+            "parameter": "lookback",
+            "current": 20,
+            "suggested": 25,
+            "reason": "Improved Sharpe ratio",
+        },
+        {
+            "parameter": "stop_loss",
+            "current": 43000,
+            "suggested": 43500,
+            "reason": "Better risk-reward",
+        },
     ],
     "validation_results": {
         "strategy_consistency": 0.85,
         "market_fit": 0.75,
-        "robustness_score": 0.8
+        "robustness_score": 0.8,
     },
-    "market_risk": {
-        "volatility": "medium",
-        "liquidity": "high",
-        "trend_strength": 0.7
-    },
-    "position_risk": {
-        "size_risk": 0.3,
-        "exposure_risk": 0.4,
-        "correlation_risk": 0.2
-    },
+    "market_risk": {"volatility": "medium", "liquidity": "high", "trend_strength": 0.7},
+    "position_risk": {"size_risk": 0.3, "exposure_risk": 0.4, "correlation_risk": 0.2},
     "worst_case_loss": 5000,
     "risk_tolerance_breach": False,
     "stress_metrics": {
         "stress_var": 60000,
         "stress_sharpe": 1.2,
-        "max_drawdown_stress": 0.15
+        "max_drawdown_stress": 0.15,
     },
     "scenario_results": [
         {
             "scenario": "high_volatility",
             "impact": -0.2,
             "affected_assets": ["BTC", "ETH"],
-            "impact_score": 0.7
+            "impact_score": 0.7,
         }
     ],
     "overall_sentiment": 0.8,
@@ -206,27 +216,27 @@ MOCK_RESPONSE = {
     "adaptation_reason": "increased volatility",
     "confidence_score": 0.85,
     "overall_risk_score": 0.4,
-    "risk_score": 0.35
+    "risk_score": 0.35,
 }
+
 
 @pytest.fixture(scope="function")
 def mock_deepseek_api():
     """Mock DeepSeek API responses."""
     mock = AsyncMock()
     mock.return_value = {
-        "choices": [{
-            "message": {
-                "content": json.dumps(MOCK_RESPONSE)
-            }
-        }]
+        "choices": [{"message": {"content": json.dumps(MOCK_RESPONSE)}}]
     }
     return mock
+
 
 @pytest.fixture(scope="function")
 def ai_analyzer(mock_deepseek_api):
     """Fixture for AI Analyzer instance."""
+
     async def _init():
         analyzer = AIAnalyzer(api_key="test_key", mock_api=mock_deepseek_api)
         await analyzer.start()
         return analyzer
+
     return asyncio.run(_init())

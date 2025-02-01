@@ -3,6 +3,7 @@ from solana.rpc.async_api import AsyncClient
 from solders.keypair import Keypair
 from base58 import b58encode, b58decode
 
+
 class WalletManager:
     def __init__(self):
         self.client = AsyncClient("https://api.testnet.solana.com")
@@ -18,9 +19,9 @@ class WalletManager:
             self._keypair = Keypair.from_secret_key(private_key_bytes)
         else:
             self._keypair = Keypair()
-        
+
         self._public_key = str(self._keypair.public_key)
-        self._private_key = b58encode(self._keypair.secret_key).decode('utf-8')
+        self._private_key = b58encode(self._keypair.secret_key).decode("utf-8")
 
     def get_public_key(self) -> Optional[str]:
         """Get wallet public key"""
@@ -34,7 +35,7 @@ class WalletManager:
         """Get wallet balance in SOL"""
         if not self._keypair:
             return 0.0
-        
+
         try:
             response = await self.client.get_balance(self._keypair.public_key)
             if response.value is None:

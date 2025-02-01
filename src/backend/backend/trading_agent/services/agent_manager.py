@@ -1,15 +1,18 @@
 from typing import Dict, List, Optional
 from ..agents.trading_agent import TradingAgent
 
+
 class AgentManager:
     def __init__(self):
         self.agents: Dict[str, TradingAgent] = {}
 
-    async def create_agent(self, agent_id: str, name: str, config: Dict) -> TradingAgent:
+    async def create_agent(
+        self, agent_id: str, name: str, config: Dict
+    ) -> TradingAgent:
         """Create a new trading agent"""
         if agent_id in self.agents:
             raise ValueError(f"Agent with ID {agent_id} already exists")
-        
+
         agent = TradingAgent(agent_id, name, config)
         self.agents[agent_id] = agent
         return agent

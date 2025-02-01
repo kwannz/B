@@ -8,6 +8,7 @@ from decimal import Decimal
 
 class TradeStatus(str, Enum):
     """Trade status enum."""
+
     PENDING = "pending"
     OPEN = "open"
     CLOSED = "closed"
@@ -17,6 +18,7 @@ class TradeStatus(str, Enum):
 
 class StrategyType(str, Enum):
     """Strategy type enum."""
+
     TECHNICAL_ANALYSIS = "technical_analysis"
     MEAN_REVERSION = "mean_reversion"
     MOMENTUM = "momentum"

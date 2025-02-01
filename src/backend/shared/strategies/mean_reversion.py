@@ -13,33 +13,28 @@ class MeanReversionStrategy:
     def __init__(self, config: StrategyConfig):
         """Initialize strategy with configuration parameters."""
         params = config.parameters
-        
+
         # Validate lookback period
         self.lookback_period = self._validate_positive_int(
-            params.get("lookback_period", 20),
-            "lookback_period"
+            params.get("lookback_period", 20), "lookback_period"
         )
-        
+
         # Validate standard deviation threshold
         self.std_threshold = self._validate_positive_float(
-            params.get("std_threshold", 2.0),
-            "std_threshold"
+            params.get("std_threshold", 2.0), "std_threshold"
         )
-        
+
         # Validate minimum volume
         self.min_volume = self._validate_positive_float(
-            params.get("min_volume", 1000),
-            "min_volume"
+            params.get("min_volume", 1000), "min_volume"
         )
-        
+
         # Validate profit target and stop loss
         self.profit_target = self._validate_positive_float(
-            params.get("profit_target", 0.02),
-            "profit_target"
+            params.get("profit_target", 0.02), "profit_target"
         )
         self.stop_loss = self._validate_positive_float(
-            params.get("stop_loss", 0.02),
-            "stop_loss"
+            params.get("stop_loss", 0.02), "stop_loss"
         )
 
     def _validate_positive_int(self, value: int, param_name: str) -> int:
@@ -66,24 +61,20 @@ class MeanReversionStrategy:
         """Calculate z-score for latest price."""
         if len(prices) < self.lookback_period:
             return None
-            
-        window = prices[-self.lookback_period:]
+
+        window = prices[-self.lookback_period :]
         mean = np.mean(window)
         std = np.std(window)
-        
+
         if std == 0:
             return 0.0
-            
+
         return (prices[-1] - mean) / std
 
     async def calculate_signals(self, market_data: List[Dict]) -> Dict[str, Any]:
         """Calculate trading signals based on mean reversion."""
         if not market_data:
-            return {
-                "signal": "neutral",
-                "confidence": 0.0,
-                "reason": "no_data"
-            }
+            return {"signal": "neutral", "confidence": 0.0, "reason": "no_data"}
 
         try:
             # Check volume
@@ -91,18 +82,18 @@ class MeanReversionStrategy:
                 return {
                     "signal": "neutral",
                     "confidence": 0.0,
-                    "reason": "insufficient_volume"
+                    "reason": "insufficient_volume",
                 }
 
             # Calculate z-score
             prices = [d["price"] for d in market_data]
             zscore = self._calculate_zscore(prices)
-            
+
             if zscore is None:
                 return {
                     "signal": "neutral",
                     "confidence": 0.0,
-                    "reason": "insufficient_data"
+                    "reason": "insufficient_data",
                 }
 
             # Generate signals based on z-score
@@ -121,22 +112,18 @@ class MeanReversionStrategy:
                 "confidence": confidence,
                 "zscore": zscore,
                 "price": market_data[-1]["price"],
-                "volume": market_data[-1]["volume"]
+                "volume": market_data[-1]["volume"],
             }
 
         except Exception as e:
             return {
                 "signal": "neutral",
                 "confidence": 0.0,
-                "reason": f"error: {str(e)}"
+                "reason": f"error: {str(e)}",
             }
 
     async def execute_trade(
-        self,
-        tenant_id: str,
-        wallet: Dict,
-        market_data: Dict,
-        signal: Dict
+        self, tenant_id: str, wallet: Dict, market_data: Dict, signal: Dict
     ) -> Optional[Dict]:
         """Execute trade based on signal."""
         if signal["signal"] == "neutral":
@@ -154,17 +141,25 @@ class MeanReversionStrategy:
                 "zscore": signal["zscore"],
                 "confidence": signal["confidence"],
                 "entry_price": market_data["price"],
-                "profit_target": market_data["price"] * (1 + self.profit_target if signal["signal"] == "buy" else 1 - self.profit_target),
-                "stop_loss": market_data["price"] * (1 - self.stop_loss if signal["signal"] == "buy" else 1 + self.stop_loss)
-            }
+                "profit_target": market_data["price"]
+                * (
+                    1 + self.profit_target
+                    if signal["signal"] == "buy"
+                    else 1 - self.profit_target
+                ),
+                "stop_loss": market_data["price"]
+                * (
+                    1 - self.stop_loss
+                    if signal["signal"] == "buy"
+                    else 1 + self.stop_loss
+                ),
+            },
         }
 
         return trade
 
     async def update_positions(
-        self,
-        tenant_id: str,
-        market_data: Optional[Dict]
+        self, tenant_id: str, market_data: Optional[Dict]
     ) -> Optional[Dict]:
         """Update existing positions based on new market data."""
         if market_data is None:
@@ -176,8 +171,8 @@ class MeanReversionStrategy:
             "trade_metadata": {
                 "current_price": current_price,
                 "profit_target": 0,
-                "stop_loss": 0
-            }
+                "stop_loss": 0,
+            },
         }
 
         return result

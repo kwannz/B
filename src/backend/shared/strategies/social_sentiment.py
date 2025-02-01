@@ -13,35 +13,29 @@ class SocialSentimentStrategy:
     def __init__(self, config: StrategyConfig):
         """Initialize strategy with configuration parameters."""
         params = config.parameters
-        
+
         # Validate sentiment thresholds
         self.bullish_threshold = self._validate_sentiment_threshold(
-            params.get("bullish_threshold", 0.7),
-            "bullish_threshold"
+            params.get("bullish_threshold", 0.7), "bullish_threshold"
         )
         self.bearish_threshold = self._validate_sentiment_threshold(
-            params.get("bearish_threshold", -0.7),
-            "bearish_threshold"
+            params.get("bearish_threshold", -0.7), "bearish_threshold"
         )
-        
+
         # Validate minimum volume and mentions
         self.min_volume = self._validate_positive_float(
-            params.get("min_volume", 1000),
-            "min_volume"
+            params.get("min_volume", 1000), "min_volume"
         )
         self.min_mentions = self._validate_positive_int(
-            params.get("min_mentions", 10),
-            "min_mentions"
+            params.get("min_mentions", 10), "min_mentions"
         )
-        
+
         # Validate time windows
         self.sentiment_window = self._validate_positive_int(
-            params.get("sentiment_window", 24),
-            "sentiment_window"
+            params.get("sentiment_window", 24), "sentiment_window"
         )  # hours
         self.position_timeout = self._validate_positive_int(
-            params.get("position_timeout", 48),
-            "position_timeout"
+            params.get("position_timeout", 48), "position_timeout"
         )  # hours
 
     def _validate_sentiment_threshold(self, value: float, param_name: str) -> float:
@@ -78,29 +72,25 @@ class SocialSentimentStrategy:
         """Calculate weighted sentiment score from sentiment data."""
         if not sentiment_data:
             return None
-            
+
         total_weight = 0
         weighted_sum = 0
-        
+
         for data in sentiment_data:
             weight = data.get("mentions", 1)
             sentiment = data.get("sentiment", 0)
             weighted_sum += sentiment * weight
             total_weight += weight
-            
+
         if total_weight == 0:
             return 0.0
-            
+
         return weighted_sum / total_weight
 
     async def calculate_signals(self, market_data: List[Dict]) -> Dict[str, Any]:
         """Calculate trading signals based on social sentiment."""
         if not market_data:
-            return {
-                "signal": "neutral",
-                "confidence": 0.0,
-                "reason": "no_data"
-            }
+            return {"signal": "neutral", "confidence": 0.0, "reason": "no_data"}
 
         try:
             # Check volume
@@ -108,7 +98,7 @@ class SocialSentimentStrategy:
                 return {
                     "signal": "neutral",
                     "confidence": 0.0,
-                    "reason": "insufficient_volume"
+                    "reason": "insufficient_volume",
                 }
 
             # Get sentiment data from market data
@@ -117,7 +107,7 @@ class SocialSentimentStrategy:
                 return {
                     "signal": "neutral",
                     "confidence": 0.0,
-                    "reason": "no_sentiment_data"
+                    "reason": "no_sentiment_data",
                 }
 
             # Calculate sentiment score
@@ -126,7 +116,7 @@ class SocialSentimentStrategy:
                 return {
                     "signal": "neutral",
                     "confidence": 0.0,
-                    "reason": "insufficient_sentiment_data"
+                    "reason": "insufficient_sentiment_data",
                 }
 
             # Generate signals based on sentiment score
@@ -144,22 +134,18 @@ class SocialSentimentStrategy:
                 "sentiment_score": sentiment_score,
                 "price": market_data[-1]["price"],
                 "volume": market_data[-1]["volume"],
-                "mentions": sum(d.get("mentions", 0) for d in sentiment_data)
+                "mentions": sum(d.get("mentions", 0) for d in sentiment_data),
             }
 
         except Exception as e:
             return {
                 "signal": "neutral",
                 "confidence": 0.0,
-                "reason": f"error: {str(e)}"
+                "reason": f"error: {str(e)}",
             }
 
     async def execute_trade(
-        self,
-        tenant_id: str,
-        wallet: Dict,
-        market_data: Dict,
-        signal: Dict
+        self, tenant_id: str, wallet: Dict, market_data: Dict, signal: Dict
     ) -> Optional[Dict]:
         """Execute trade based on signal."""
         if signal["signal"] == "neutral":
@@ -178,16 +164,16 @@ class SocialSentimentStrategy:
                 "confidence": signal["confidence"],
                 "mentions": signal["mentions"],
                 "entry_time": datetime.utcnow().isoformat(),
-                "timeout_time": (datetime.utcnow() + timedelta(hours=self.position_timeout)).isoformat()
-            }
+                "timeout_time": (
+                    datetime.utcnow() + timedelta(hours=self.position_timeout)
+                ).isoformat(),
+            },
         }
 
         return trade
 
     async def update_positions(
-        self,
-        tenant_id: str,
-        market_data: Optional[Dict]
+        self, tenant_id: str, market_data: Optional[Dict]
     ) -> Optional[Dict]:
         """Update existing positions based on new market data."""
         if market_data is None:
@@ -195,17 +181,19 @@ class SocialSentimentStrategy:
 
         current_price = market_data["price"]
         current_time = datetime.utcnow()
-        
+
         result = {
             "status": TradeStatus.OPEN,
             "trade_metadata": {
                 "current_price": current_price,
-                "current_time": current_time.isoformat()
-            }
+                "current_time": current_time.isoformat(),
+            },
         }
 
         # Check position timeout
-        timeout_time = datetime.fromisoformat(result["trade_metadata"].get("timeout_time", ""))
+        timeout_time = datetime.fromisoformat(
+            result["trade_metadata"].get("timeout_time", "")
+        )
         if current_time >= timeout_time:
             result["status"] = TradeStatus.CLOSED
             result["trade_metadata"]["exit_reason"] = "timeout"

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 
+
 class BaseAgent(ABC):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
         self.agent_id = agent_id
@@ -31,5 +32,5 @@ class BaseAgent(ABC):
             "name": self.name,
             "status": self.status,
             "last_update": self.last_update,
-            "config": self.config
+            "config": self.config,
         }

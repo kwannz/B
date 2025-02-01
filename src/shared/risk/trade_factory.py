@@ -1,6 +1,7 @@
 from typing import Dict, Any, List, Optional, Union
 from decimal import Decimal
 
+
 def create_trade_dict(
     symbol: str = "BTC/USD",
     side: str = "buy",
@@ -12,7 +13,7 @@ def create_trade_dict(
     spread: Union[float, str] = 0.001,
     volume: Union[float, str, int] = 15000.0,
     existing_positions: Optional[List[Dict[str, Any]]] = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     if amount is None or price is None:
         raise ValueError("Amount and price cannot be None")
@@ -20,18 +21,22 @@ def create_trade_dict(
         raise ValueError("Symbol must be a non-empty string")
     if not side or not isinstance(side, str):
         raise ValueError("Side must be a non-empty string")
-    
+
     try:
         float_amount = float(amount)
         float_price = float(price)
-        
+
         base_trade = {
             "symbol": str(symbol),
             "side": str(side).lower(),
             "amount": float_amount,
             "price": float_price,
             "is_valid": float_amount > 0 and float_price > 0,
-            "error": None if float_amount > 0 and float_price > 0 else "Invalid amount or price",
+            "error": (
+                None
+                if float_amount > 0 and float_price > 0
+                else "Invalid amount or price"
+            ),
             "symbol": str(symbol),
             "side": str(side).lower(),
             "amount": float_amount,
@@ -41,7 +46,7 @@ def create_trade_dict(
             "liquidity": float(liquidity),
             "spread": float(spread),
             "volume": float(volume),
-            "existing_positions": existing_positions or []
+            "existing_positions": existing_positions or [],
         }
         base_trade.update(kwargs)
         return base_trade

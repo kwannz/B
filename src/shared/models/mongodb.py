@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
+
 class RawNewsArticle(BaseModel):
     source: str
     title: str
@@ -11,11 +12,9 @@ class RawNewsArticle(BaseModel):
     published_at: datetime
     analysis_metadata: Dict[str, Any] = Field(default_factory=dict)
     meta_info: Dict[str, Any] = Field(default_factory=dict)
-    
-    model_config = {
-        "arbitrary_types_allowed": True,
-        "protected_namespaces": ()
-    }
+
+    model_config = {"arbitrary_types_allowed": True, "protected_namespaces": ()}
+
 
 class RawSocialMediaPost(BaseModel):
     platform: str
@@ -25,11 +24,9 @@ class RawSocialMediaPost(BaseModel):
     posted_at: datetime
     engagement_metrics: Dict[str, int] = Field(default_factory=dict)
     meta_info: Dict[str, Any] = Field(default_factory=dict)
-    
-    model_config = {
-        "arbitrary_types_allowed": True,
-        "protected_namespaces": ()
-    }
+
+    model_config = {"arbitrary_types_allowed": True, "protected_namespaces": ()}
+
 
 class MarketDataSnapshot(BaseModel):
     symbol: str
@@ -40,11 +37,9 @@ class MarketDataSnapshot(BaseModel):
     timeframe: Optional[str] = None
     raw_data: Dict[str, Any] = Field(default_factory=dict)
     meta_info: Dict[str, Any] = Field(default_factory=dict)
-    
-    model_config = {
-        "arbitrary_types_allowed": True,
-        "protected_namespaces": ()
-    }
+
+    model_config = {"arbitrary_types_allowed": True, "protected_namespaces": ()}
+
 
 class UnstructuredAnalysis(BaseModel):
     source_type: str
@@ -54,11 +49,9 @@ class UnstructuredAnalysis(BaseModel):
     timestamp: datetime
     model_output: Dict[str, Any] = Field(default_factory=dict)
     meta_info: Dict[str, Any] = Field(default_factory=dict)
-    
-    model_config = {
-        "arbitrary_types_allowed": True,
-        "protected_namespaces": ()
-    }
+
+    model_config = {"arbitrary_types_allowed": True, "protected_namespaces": ()}
+
 
 class AgentAnalysisResult(BaseModel):
     agent_id: str
@@ -68,8 +61,5 @@ class AgentAnalysisResult(BaseModel):
     signals: Dict[str, float] = Field(default_factory=dict)
     timestamp: datetime
     meta_info: Dict[str, Any] = Field(default_factory=dict)
-    
-    model_config = {
-        "arbitrary_types_allowed": True,
-        "protected_namespaces": ()
-    }
+
+    model_config = {"arbitrary_types_allowed": True, "protected_namespaces": ()}

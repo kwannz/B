@@ -4,8 +4,9 @@ from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
+
 class Tenant(Base):
-    __tablename__ = 'tenants'
+    __tablename__ = "tenants"
 
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)

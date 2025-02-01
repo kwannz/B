@@ -2,6 +2,7 @@
 
 import pytest
 from unittest import mock
+
 pytestmark = pytest.mark.asyncio
 from datetime import datetime, timedelta
 import numpy as np
@@ -38,12 +39,14 @@ def market_data():
     # Generate data points from oldest to newest
     for i in range(50):
         timestamp = base_time + timedelta(minutes=30 * i)  # Increment by 30 minutes
-        data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": price,
-            "volume": 2000,
-            "pair": "TEST/USDT",
-        })
+        data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": price,
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
         price *= 1 + np.random.normal(0, 0.02)  # 2% standard deviation
 
     return data  # Ordered from oldest to newest
@@ -55,16 +58,18 @@ def minimal_market_data():
     base_time = datetime(2025, 1, 1, 0, 0, 0)  # Fixed time
     data = []
     price = 100.0
-    
+
     # Generate enough data points for indicators
     for i in range(30):  # Enough data points for indicators
         timestamp = base_time + timedelta(minutes=30 * i)
-        data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": price,
-            "volume": 500,  # Below min_volume
-            "pair": "TEST/USDT",
-        })
+        data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": price,
+                "volume": 500,  # Below min_volume
+                "pair": "TEST/USDT",
+            }
+        )
         price *= 1 + np.random.normal(0, 0.02)  # Add some price movement
     return data
 
@@ -95,15 +100,12 @@ async def test_strategy_initialization_invalid_config():
             "min_volume": -100,  # Invalid
         },
     )
-    
+
     with pytest.raises(ValueError):
         TechnicalAnalysisStrategy(invalid_config)
 
     # Test with missing parameters
-    empty_config = StrategyConfig(
-        strategy_type="technical_analysis",
-        parameters={}
-    )
+    empty_config = StrategyConfig(strategy_type="technical_analysis", parameters={})
     strategy = TechnicalAnalysisStrategy(empty_config)
     assert strategy.rsi_period == 14  # Default value
 
@@ -132,7 +134,7 @@ async def test_strategy_initialization_invalid_config():
     # Test with equal MA periods
     equal_ma_config = StrategyConfig(
         strategy_type="technical_analysis",
-        parameters={"ma_short_period": 10, "ma_long_period": 10}
+        parameters={"ma_short_period": 10, "ma_long_period": 10},
     )
     TechnicalAnalysisStrategy(equal_ma_config)  # Should not raise error
 
@@ -221,7 +223,7 @@ async def test_signal_generation(strategy_config, market_data):
 async def test_signal_generation_edge_cases(strategy_config, minimal_market_data):
     """Test signal generation with edge cases."""
     strategy = TechnicalAnalysisStrategy(strategy_config)
-    
+
     # Test with insufficient volume
     signal = await strategy.calculate_signals(minimal_market_data)
     assert signal["signal"] == "neutral"
@@ -246,12 +248,14 @@ async def test_signal_generation_edge_cases(strategy_config, minimal_market_data
     signal = await strategy.calculate_signals([None])
     assert signal["signal"] == "neutral"
     assert "error:" in signal.get("reason")
-    
+
     # Test with invalid price type
-    invalid_price_data = [{
-        "timestamp": datetime(2025, 1, 1).isoformat(),
-        "price": "not_a_number",
-    }]
+    invalid_price_data = [
+        {
+            "timestamp": datetime(2025, 1, 1).isoformat(),
+            "price": "not_a_number",
+        }
+    ]
     signal = await strategy.calculate_signals(invalid_price_data)
     assert "error:" in signal.get("reason")
 
@@ -266,12 +270,14 @@ async def test_timeframe_filtering(strategy_config):
     # Create data points with wrong interval but enough data
     for i in range(30):  # Enough data points for indicators
         timestamp = base_time + timedelta(minutes=15 * i)  # Wrong interval
-        data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": price,
-            "volume": 2000,
-            "pair": "TEST/USDT",
-        })
+        data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": price,
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
         price *= 1 + np.random.normal(0, 0.02)  # Add some price movement
 
     signal = await strategy.calculate_signals(data)
@@ -288,37 +294,39 @@ async def test_timeframe_filtering(strategy_config):
 async def test_error_handling(strategy_config):
     """Test error handling scenarios."""
     strategy = TechnicalAnalysisStrategy(strategy_config)
-    
+
     # Test with invalid market data format
     invalid_data = [{"invalid": "data"}]
     signal = await strategy.calculate_signals(invalid_data)
     assert signal["signal"] == "neutral"
     assert "error:" in signal.get("reason")
-    
+
     # Test with None in market data
     signal = await strategy.calculate_signals(None)
     assert signal["signal"] == "neutral"
     assert "error: invalid data" in signal.get("reason")
-    
+
     # Test with invalid timestamp format
-    invalid_timestamp_data = [{
-        "timestamp": "invalid_time",
-        "price": 100.0,
-        "volume": 2000,
-        "pair": "TEST/USDT"
-    }]
+    invalid_timestamp_data = [
+        {
+            "timestamp": "invalid_time",
+            "price": 100.0,
+            "volume": 2000,
+            "pair": "TEST/USDT",
+        }
+    ]
     signal = await strategy.calculate_signals(invalid_timestamp_data)
     assert signal["signal"] == "neutral"
     assert "error:" in signal.get("reason")
-    
+
     # Test timeframe validation with invalid data
     assert not strategy._is_valid_timeframe([{"invalid": "data"}])
     assert not strategy._is_valid_timeframe([])
-    
+
     # Test divergence detection with insufficient data
     assert strategy._check_divergence([1.0, 2.0], [50.0]) is None
     assert strategy._check_divergence([], []) is None
-    
+
     # Test position management with invalid price
     with pytest.raises(ValueError, match="Market data cannot be None"):
         await strategy.update_positions("test_tenant", None)
@@ -330,20 +338,18 @@ async def test_error_handling(strategy_config):
         await strategy.update_positions("test_tenant", {})
 
     # Test with invalid timeframe data
-    invalid_timeframe_data = [{
-        "timestamp": "invalid_format"
-    }]
+    invalid_timeframe_data = [{"timestamp": "invalid_format"}]
     assert not strategy._is_valid_timeframe(invalid_timeframe_data)
 
     # Test timeframe conversion
     strategy.timeframe = "1m"
     assert strategy._timeframe_to_minutes() == 1
     assert strategy._get_timeframe_delta() == timedelta(minutes=1)
-    
+
     strategy.timeframe = "1h"
     assert strategy._timeframe_to_minutes() == 60
     assert strategy._get_timeframe_delta() == timedelta(hours=1)
-    
+
     strategy.timeframe = "1d"
     assert strategy._timeframe_to_minutes() == 1440
     assert strategy._get_timeframe_delta() == timedelta(days=1)
@@ -356,7 +362,7 @@ async def test_error_handling(strategy_config):
 async def test_trade_execution(strategy_config, market_data):
     """Test trade execution."""
     strategy = TechnicalAnalysisStrategy(strategy_config)
-    
+
     # Test buy signal
     buy_signal = {
         "signal": "buy",
@@ -430,48 +436,43 @@ async def test_position_management(strategy_config, market_data):
     # Test strong uptrend
     market_data[-1]["price"] = 120.0
     await strategy.update_positions(
-        tenant_id="test_tenant",
-        market_data=market_data[-1]
+        tenant_id="test_tenant", market_data=market_data[-1]
     )
 
     # Test strong downtrend
     market_data[-1]["price"] = 80.0
     await strategy.update_positions(
-        tenant_id="test_tenant",
-        market_data=market_data[-1]
+        tenant_id="test_tenant", market_data=market_data[-1]
     )
 
     # Test with invalid market data
     with pytest.raises(ValueError):
-        await strategy.update_positions(
-            tenant_id="test_tenant",
-            market_data=None
-        )
+        await strategy.update_positions(tenant_id="test_tenant", market_data=None)
 
 
 async def test_signal_combination_scenarios(strategy_config):
     """Test all possible signal combination scenarios."""
     strategy = TechnicalAnalysisStrategy(strategy_config)
-    
+
     # RSI oversold + MA bullish cross
     prices = [100.0 * (0.99**i) for i in range(30)]  # Downtrend for RSI
     prices.extend([100.0 * (1.01**i) for i in range(10)])  # Recent uptrend for MA
-    
+
     rsi = strategy._calculate_rsi(prices)
     ma_short = strategy._calculate_ma(prices[-15:], strategy.ma_short_period)
     ma_long = strategy._calculate_ma(prices, strategy.ma_long_period)
-    
+
     assert rsi < strategy.rsi_oversold
     assert ma_short > ma_long
 
     # RSI overbought + MA bearish cross
     prices = [100.0 * (1.01**i) for i in range(30)]  # Uptrend for RSI
     prices.extend([100.0 * (0.99**i) for i in range(10)])  # Recent downtrend for MA
-    
+
     rsi = strategy._calculate_rsi(prices)
     ma_short = strategy._calculate_ma(prices[-15:], strategy.ma_short_period)
     ma_long = strategy._calculate_ma(prices, strategy.ma_long_period)
-    
+
     assert rsi > strategy.rsi_overbought
     assert ma_short < ma_long
 
@@ -479,7 +480,7 @@ async def test_signal_combination_scenarios(strategy_config):
     base_time = datetime(2025, 1, 1, 0, 0, 0)
     data = []
     price = 100.0
-    
+
     # Create price pattern for oversold conditions
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
@@ -487,16 +488,18 @@ async def test_signal_combination_scenarios(strategy_config):
             price *= 0.99  # Strong downtrend to create oversold condition
         else:
             price *= 1.02  # Recent uptrend for bullish MA cross
-        data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": price,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": price,
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
 
     # Test signal generation
     signal = await strategy.calculate_signals(data)
-    
+
     # Verify signal properties
     assert "signal" in signal
     assert signal["signal"] in ["buy", "sell", "neutral"]
@@ -511,19 +514,21 @@ async def test_signal_combination_scenarios(strategy_config):
     invalid_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=15 * i)  # Wrong interval
-        invalid_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
-    
+        invalid_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": 100.0,
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
+
     # Test with invalid timeframe
     strategy.timeframe = "1x"  # Invalid unit
     signal = await strategy.calculate_signals(invalid_data)
     assert signal["signal"] == "neutral"
     assert "error:" in signal.get("reason")
-    
+
     # Test with missing price
     invalid_data[0]["price"] = None
     signal = await strategy.calculate_signals(invalid_data)
@@ -538,18 +543,20 @@ async def test_signal_combination_scenarios(strategy_config):
             price *= 0.98  # Strong downtrend to create oversold condition
         else:
             price *= 1.03  # Recent uptrend for bullish MA cross
-        buy_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": price,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        buy_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": price,
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
 
     strategy.timeframe = "30m"  # Reset timeframe
     signal = await strategy.calculate_signals(buy_data)
     assert signal["signal"] == "buy"
     assert signal["confidence"] > 0.8
-    
+
     # Test sell signal conditions
     sell_data = []
     price = 100.0
@@ -559,12 +566,14 @@ async def test_signal_combination_scenarios(strategy_config):
             price *= 1.02  # Strong uptrend to create overbought condition
         else:
             price *= 0.98  # Recent downtrend for bearish MA cross
-        sell_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": price,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        sell_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": price,
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(sell_data)
     assert signal["signal"] == "sell"
 
@@ -573,35 +582,36 @@ async def test_signal_combination_scenarios(strategy_config):
         strategy_type="technical_analysis",
         parameters={
             "ma_short_period": 20,
-            "ma_long_period": 10  # Invalid: shorter than short period
-        }
+            "ma_long_period": 10,  # Invalid: shorter than short period
+        },
     )
-    with pytest.raises(ValueError, match="Short MA period must be less than long MA period"):
+    with pytest.raises(
+        ValueError, match="Short MA period must be less than long MA period"
+    ):
         TechnicalAnalysisStrategy(invalid_config)
 
     # Test with invalid timeframe
     invalid_config = StrategyConfig(
-        strategy_type="technical_analysis",
-        parameters={"timeframe": "invalid"}
+        strategy_type="technical_analysis", parameters={"timeframe": "invalid"}
     )
     with pytest.raises(ValueError, match="Invalid timeframe"):
         TechnicalAnalysisStrategy(invalid_config)
 
     # Test divergence detection
     strategy = TechnicalAnalysisStrategy(strategy_config)
-    
+
     # Test bullish divergence
     prices = [100.0, 98.0, 99.0, 97.0]  # Lower lows in price
     rsi_values = [30.0, 25.0, 28.0, 29.0]  # Higher lows in RSI
     divergence = strategy._check_divergence(prices, rsi_values)
     assert divergence == "bullish"
-    
+
     # Test bearish divergence
     prices = [100.0, 102.0, 101.0, 103.0]  # Higher highs in price
     rsi_values = [70.0, 75.0, 72.0, 71.0]  # Lower highs in RSI
     divergence = strategy._check_divergence(prices, rsi_values)
     assert divergence == "bearish"
-    
+
     # Test no divergence
     prices = [100.0, 101.0, 102.0, 103.0]
     rsi_values = [50.0, 55.0, 60.0, 65.0]
@@ -612,12 +622,14 @@ async def test_signal_combination_scenarios(strategy_config):
     insufficient_data = []
     for i in range(5):  # Less than required periods
         timestamp = base_time + timedelta(minutes=30 * i)
-        insufficient_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        insufficient_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": 100.0,
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(insufficient_data)
     assert signal["signal"] == "neutral"
     assert "error: insufficient data" in signal.get("reason")
@@ -627,12 +639,14 @@ async def test_signal_combination_scenarios(strategy_config):
     assert "error:" in signal.get("reason")
 
     # Test with invalid data that raises exception
-    invalid_data = [{
-        "timestamp": datetime(2025, 1, 1).isoformat(),
-        "price": float('inf'),  # This will cause numpy calculations to fail
-        "volume": 2000,
-        "pair": "TEST/USDT"
-    }]
+    invalid_data = [
+        {
+            "timestamp": datetime(2025, 1, 1).isoformat(),
+            "price": float("inf"),  # This will cause numpy calculations to fail
+            "volume": 2000,
+            "pair": "TEST/USDT",
+        }
+    ]
     signal = await strategy.calculate_signals(invalid_data)
     assert signal["signal"] == "neutral"
     assert "error:" in signal.get("reason")
@@ -641,12 +655,16 @@ async def test_signal_combination_scenarios(strategy_config):
     rsi_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        rsi_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('nan') if i == 15 else 100.0,  # Insert NaN to cause RSI calculation error
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        rsi_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("nan") if i == 15 else 100.0
+                ),  # Insert NaN to cause RSI calculation error
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(rsi_error_data)
     assert signal["signal"] == "neutral"
 
@@ -654,12 +672,16 @@ async def test_signal_combination_scenarios(strategy_config):
     ma_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        ma_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('inf') if i == 25 else 100.0,  # Insert inf to cause MA calculation error
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        ma_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("inf") if i == 25 else 100.0
+                ),  # Insert inf to cause MA calculation error
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(ma_error_data)
     assert signal["signal"] == "neutral"
 
@@ -667,12 +689,16 @@ async def test_signal_combination_scenarios(strategy_config):
     error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": complex(1, 1) if i == 25 else 100.0,  # Insert complex number to cause unexpected error
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    complex(1, 1) if i == 25 else 100.0
+                ),  # Insert complex number to cause unexpected error
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(error_data)
     assert signal["signal"] == "neutral"
 
@@ -680,12 +706,16 @@ async def test_signal_combination_scenarios(strategy_config):
     type_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        type_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": "invalid" if i == 25 else 100.0,  # Insert string to cause TypeError
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        type_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    "invalid" if i == 25 else 100.0
+                ),  # Insert string to cause TypeError
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(type_error_data)
     assert signal["signal"] == "neutral"
 
@@ -693,12 +723,16 @@ async def test_signal_combination_scenarios(strategy_config):
     runtime_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        runtime_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('inf') if i == 15 else float('-inf') if i == 25 else 100.0,  # Insert inf values to cause RuntimeError
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        runtime_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("inf") if i == 15 else float("-inf") if i == 25 else 100.0
+                ),  # Insert inf values to cause RuntimeError
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(runtime_error_data)
     assert signal["signal"] == "neutral"
 
@@ -706,12 +740,14 @@ async def test_signal_combination_scenarios(strategy_config):
     value_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        value_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": None if i == 25 else 100.0,  # Insert None to cause ValueError
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        value_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": None if i == 25 else 100.0,  # Insert None to cause ValueError
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(value_error_data)
     assert signal["signal"] == "neutral"
 
@@ -719,12 +755,20 @@ async def test_signal_combination_scenarios(strategy_config):
     exception_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        exception_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('inf') if i == 15 else float('-inf') if i == 20 else float('nan') if i == 25 else 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        exception_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("inf")
+                    if i == 15
+                    else (
+                        float("-inf") if i == 20 else float("nan") if i == 25 else 100.0
+                    )
+                ),
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(exception_data)
     assert signal["signal"] == "neutral"
 
@@ -732,12 +776,20 @@ async def test_signal_combination_scenarios(strategy_config):
     divergence_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        divergence_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('inf') if i == 25 else float('-inf') if i == 26 else float('nan') if i == 27 else 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        divergence_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("inf")
+                    if i == 25
+                    else (
+                        float("-inf") if i == 26 else float("nan") if i == 27 else 100.0
+                    )
+                ),
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(divergence_error_data)
     assert signal["signal"] == "neutral"
 
@@ -745,12 +797,18 @@ async def test_signal_combination_scenarios(strategy_config):
     error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": None if i == 15 else float('inf') if i == 25 else float('nan') if i == 27 else 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    None
+                    if i == 15
+                    else float("inf") if i == 25 else float("nan") if i == 27 else 100.0
+                ),
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(error_data)
     assert signal["signal"] == "neutral"
 
@@ -758,12 +816,20 @@ async def test_signal_combination_scenarios(strategy_config):
     custom_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        custom_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('inf') if i == 15 else float('-inf') if i == 20 else float('nan') if i == 25 else 100.0,
-            "volume": None,  # This will cause a TypeError when trying to compare with min_volume
-            "pair": "TEST/USDT"
-        })
+        custom_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("inf")
+                    if i == 15
+                    else (
+                        float("-inf") if i == 20 else float("nan") if i == 25 else 100.0
+                    )
+                ),
+                "volume": None,  # This will cause a TypeError when trying to compare with min_volume
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(custom_error_data)
     assert signal["signal"] == "neutral"
 
@@ -771,12 +837,20 @@ async def test_signal_combination_scenarios(strategy_config):
     rsi_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        rsi_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('inf') if i == 15 else float('-inf') if i == 16 else float('nan') if i == 17 else 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        rsi_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("inf")
+                    if i == 15
+                    else (
+                        float("-inf") if i == 16 else float("nan") if i == 17 else 100.0
+                    )
+                ),
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(rsi_error_data)
     assert signal["signal"] == "neutral"
 
@@ -784,12 +858,22 @@ async def test_signal_combination_scenarios(strategy_config):
     ma_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        ma_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('inf') if i == 15 else float('-inf') if i == 16 else float('nan') if i == 17 else None if i == 18 else 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        ma_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("inf")
+                    if i == 15
+                    else (
+                        float("-inf")
+                        if i == 16
+                        else float("nan") if i == 17 else None if i == 18 else 100.0
+                    )
+                ),
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(ma_error_data)
     assert signal["signal"] == "neutral"
 
@@ -797,12 +881,14 @@ async def test_signal_combination_scenarios(strategy_config):
     empty_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        empty_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": None if i < 20 else 100.0,  # First 20 points are None
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        empty_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": None if i < 20 else 100.0,  # First 20 points are None
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(empty_data)
     assert signal["signal"] == "neutral"
 
@@ -810,12 +896,18 @@ async def test_signal_combination_scenarios(strategy_config):
     invalid_ma_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        invalid_ma_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('inf') if i < 15 else float('-inf') if i < 25 else float('nan'),  # All invalid data
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        invalid_ma_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("inf")
+                    if i < 15
+                    else float("-inf") if i < 25 else float("nan")
+                ),  # All invalid data
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(invalid_ma_data)
     assert signal["signal"] == "neutral"
 
@@ -823,12 +915,14 @@ async def test_signal_combination_scenarios(strategy_config):
     zero_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        zero_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": 0.0,  # All zero values will cause division by zero in MA calculation
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        zero_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": 0.0,  # All zero values will cause division by zero in MA calculation
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(zero_data)
     assert signal["signal"] == "neutral"
 
@@ -836,12 +930,26 @@ async def test_signal_combination_scenarios(strategy_config):
     mixed_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        mixed_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": float('inf') if i == 15 else float('-inf') if i == 16 else float('nan') if i == 17 else 0.0 if i == 18 else None if i == 19 else 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        mixed_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    float("inf")
+                    if i == 15
+                    else (
+                        float("-inf")
+                        if i == 16
+                        else (
+                            float("nan")
+                            if i == 17
+                            else 0.0 if i == 18 else None if i == 19 else 100.0
+                        )
+                    )
+                ),
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(mixed_data)
     assert signal["signal"] == "neutral"
 
@@ -849,12 +957,14 @@ async def test_signal_combination_scenarios(strategy_config):
     invalid_time_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        invalid_time_data.append({
-            "timestamp": "invalid" if i == 15 else timestamp.isoformat(),
-            "price": 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        invalid_time_data.append(
+            {
+                "timestamp": "invalid" if i == 15 else timestamp.isoformat(),
+                "price": 100.0,
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(invalid_time_data)
     assert signal["signal"] == "neutral"
 
@@ -862,12 +972,14 @@ async def test_signal_combination_scenarios(strategy_config):
     missing_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        missing_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": None if i < 29 else 100.0,  # All but last point are None
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        missing_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": None if i < 29 else 100.0,  # All but last point are None
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(missing_data)
     assert signal["signal"] == "neutral"
 
@@ -875,12 +987,14 @@ async def test_signal_combination_scenarios(strategy_config):
     empty_list_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        empty_list_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": [] if i == 15 else 100.0,  # Invalid price type
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        empty_list_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": [] if i == 15 else 100.0,  # Invalid price type
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(empty_list_data)
     assert signal["signal"] == "neutral"
 
@@ -888,12 +1002,16 @@ async def test_signal_combination_scenarios(strategy_config):
     invalid_price_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        invalid_price_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": {"value": 100.0} if i == 15 else 100.0,  # Invalid price type (dict)
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        invalid_price_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    {"value": 100.0} if i == 15 else 100.0
+                ),  # Invalid price type (dict)
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(invalid_price_data)
     assert signal["signal"] == "neutral"
 
@@ -901,12 +1019,16 @@ async def test_signal_combination_scenarios(strategy_config):
     recursive_error_data = []
     for i in range(30):
         timestamp = base_time + timedelta(minutes=30 * i)
-        recursive_error_data.append({
-            "timestamp": timestamp.isoformat(),
-            "price": recursive_error_data if i == 15 else 100.0,  # Recursive reference to cause error
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        })
+        recursive_error_data.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "price": (
+                    recursive_error_data if i == 15 else 100.0
+                ),  # Recursive reference to cause error
+                "volume": 2000,
+                "pair": "TEST/USDT",
+            }
+        )
     signal = await strategy.calculate_signals(recursive_error_data)
     assert signal["signal"] == "neutral"
 
@@ -918,41 +1040,53 @@ async def test_signal_combination_scenarios(strategy_config):
         raise CustomError("Test error")
 
     # Mock the numpy.mean function to raise our custom error
-    with mock.patch('numpy.mean', side_effect=raise_error):
+    with mock.patch("numpy.mean", side_effect=raise_error):
         signal = await strategy.calculate_signals(data)
         assert signal["signal"] == "neutral"
         assert "error:" in signal.get("reason", "")
 
     # Test exception handling
     # Mock numpy.mean to raise an error during divergence check
-    with mock.patch('numpy.mean', side_effect=lambda x: float('inf')):
-        signal = await strategy.calculate_signals([{
-            "timestamp": datetime(2025, 1, 1).isoformat(),
-            "price": 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        }])
+    with mock.patch("numpy.mean", side_effect=lambda x: float("inf")):
+        signal = await strategy.calculate_signals(
+            [
+                {
+                    "timestamp": datetime(2025, 1, 1).isoformat(),
+                    "price": 100.0,
+                    "volume": 2000,
+                    "pair": "TEST/USDT",
+                }
+            ]
+        )
         assert signal["signal"] == "neutral"
         assert "error:" in signal.get("reason", "")
 
     # Mock numpy.mean to raise an error during RSI calculation
-    with mock.patch('numpy.mean', side_effect=lambda x: x[0] if len(x) > 0 else 0):
-        signal = await strategy.calculate_signals([{
-            "timestamp": datetime(2025, 1, 1).isoformat(),
-            "price": float('inf'),  # This will cause RSI calculation to fail
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        }])
+    with mock.patch("numpy.mean", side_effect=lambda x: x[0] if len(x) > 0 else 0):
+        signal = await strategy.calculate_signals(
+            [
+                {
+                    "timestamp": datetime(2025, 1, 1).isoformat(),
+                    "price": float("inf"),  # This will cause RSI calculation to fail
+                    "volume": 2000,
+                    "pair": "TEST/USDT",
+                }
+            ]
+        )
         assert signal["signal"] == "neutral"
         assert "error:" in signal.get("reason", "")
 
     # Test general exception handling
-    with mock.patch('numpy.mean', side_effect=Exception("Unexpected error")):
-        signal = await strategy.calculate_signals([{
-            "timestamp": datetime(2025, 1, 1).isoformat(),
-            "price": 100.0,
-            "volume": 2000,
-            "pair": "TEST/USDT"
-        }])
+    with mock.patch("numpy.mean", side_effect=Exception("Unexpected error")):
+        signal = await strategy.calculate_signals(
+            [
+                {
+                    "timestamp": datetime(2025, 1, 1).isoformat(),
+                    "price": 100.0,
+                    "volume": 2000,
+                    "pair": "TEST/USDT",
+                }
+            ]
+        )
         assert signal["signal"] == "neutral"
         assert "error:" in signal.get("reason", "")

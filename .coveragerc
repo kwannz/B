@@ -1,5 +1,22 @@
 [run]
-source_pkgs = tradingbot
+source = src
 parallel = true
-platform = darwin
-python_version = 3.11.11-final-0
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    raise ImportError
+    except ImportError:
+    if TYPE_CHECKING:
+
+fail_under = 95
+show_missing = true
+skip_covered = true
+
+[html]
+directory = coverage/html
+title = Trading Bot Test Coverage Report

@@ -2,27 +2,35 @@ import pytest
 import pytest_asyncio
 from src.backend.trading_agent.services.agent_manager import AgentManager
 
+
 @pytest_asyncio.fixture
 async def agent_manager():
     return AgentManager()
 
+
 @pytest.mark.asyncio
 async def test_create_specialized_agents(agent_manager):
     agent_types = [
-        "market_data", "valuation", "sentiment", "fundamentals",
-        "technical", "risk", "portfolio"
+        "market_data",
+        "valuation",
+        "sentiment",
+        "fundamentals",
+        "technical",
+        "risk",
+        "portfolio",
     ]
-    
+
     for agent_type in agent_types:
         agent = await agent_manager.create_specialized_agent(
             agent_type=agent_type,
             agent_id=f"test_{agent_type}",
             name=f"Test {agent_type.title()} Agent",
-            config={"test": True}
+            config={"test": True},
         )
         assert agent.agent_id == f"test_{agent_type}"
         assert agent.name == f"Test {agent_type.title()} Agent"
         assert agent.status == "inactive"
+
 
 @pytest.mark.asyncio
 async def test_agent_lifecycle(agent_manager):
@@ -30,14 +38,15 @@ async def test_agent_lifecycle(agent_manager):
         agent_type="market_data",
         agent_id="test_lifecycle",
         name="Test Lifecycle",
-        config={"test": True}
+        config={"test": True},
     )
-    
+
     assert agent.status == "inactive"
     await agent_manager.start_agent("test_lifecycle")
     assert agent.status == "active"
     await agent_manager.stop_agent("test_lifecycle")
     assert agent.status == "inactive"
+
 
 @pytest.mark.asyncio
 async def test_invalid_agent_type(agent_manager):
@@ -46,5 +55,5 @@ async def test_invalid_agent_type(agent_manager):
             agent_type="invalid",
             agent_id="test_invalid",
             name="Test Invalid",
-            config={}
+            config={},
         )

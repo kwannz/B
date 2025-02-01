@@ -4,6 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
+
 class Tenant(Base):
     __tablename__ = "tenants"
 
@@ -23,14 +24,11 @@ class Tenant(Base):
         if tenant_id == "test_tenant_id":
             return cls(
                 name="Test Tenant",
-                api_key=f"test_api_key_{datetime.utcnow().isoformat()}"
+                api_key=f"test_api_key_{datetime.utcnow().isoformat()}",
             )
         return None
 
     @classmethod
     def create(cls, tenant_data: dict):
         """Mock implementation for tenant creation."""
-        return cls(
-            name=tenant_data["name"],
-            api_key=tenant_data.get("api_key")
-        )
+        return cls(name=tenant_data["name"], api_key=tenant_data.get("api_key"))

@@ -3,15 +3,18 @@ from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 
+
 class OrderType(str, Enum):
     MARKET = "market"
     LIMIT = "limit"
     STOP = "stop"
     STOP_LIMIT = "stop_limit"
 
+
 class OrderSide(str, Enum):
     BUY = "buy"
     SELL = "sell"
+
 
 class OrderStatus(str, Enum):
     PENDING = "pending"
@@ -19,6 +22,7 @@ class OrderStatus(str, Enum):
     PARTIALLY_FILLED = "partially_filled"
     CANCELLED = "cancelled"
     REJECTED = "rejected"
+
 
 class BaseOrder(BaseModel):
     symbol: str
@@ -31,6 +35,7 @@ class BaseOrder(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class Position(BaseModel):
     symbol: str
     quantity: float
@@ -41,6 +46,7 @@ class Position(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class Strategy(BaseModel):
     name: str
     description: str
@@ -49,10 +55,11 @@ class Strategy(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class RiskMetrics(BaseModel):
     max_drawdown: float
     sharpe_ratio: float
     volatility: float
     win_rate: float
     profit_factor: float
-    updated_at: datetime = Field(default_factory=datetime.utcnow) 
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

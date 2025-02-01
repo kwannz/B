@@ -1,2 +1,3 @@
 import ssl
-print('SSL Version:', ssl.OPENSSL_VERSION)
+
+print("SSL Version:", ssl.OPENSSL_VERSION)

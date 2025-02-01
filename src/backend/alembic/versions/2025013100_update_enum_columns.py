@@ -1,18 +1,21 @@
 """Update enum columns to use integer values."""
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '2025013100'
-down_revision = '2025012200'
+revision = "2025013100"
+down_revision = "2025012200"
 branch_labels = None
 depends_on = None
+
 
 def upgrade():
     """Upgrade database schema."""
     # Convert strategy_type to integer
-    op.execute("""
+    op.execute(
+        """
         ALTER TABLE strategies 
         ALTER COLUMN strategy_type TYPE integer 
         USING (
@@ -33,10 +36,12 @@ def upgrade():
                 WHEN 'stop_loss_take_profit' THEN 14
                 ELSE 1  -- Default to momentum
             END
-        )""")
-    
+        )"""
+    )
+
     # Convert trade status to integer
-    op.execute("""
+    op.execute(
+        """
         ALTER TABLE trades 
         ALTER COLUMN status TYPE integer 
         USING (
@@ -49,12 +54,15 @@ def upgrade():
                 ELSE 1  -- Default to pending
             END
         )
-    """)
+    """
+    )
+
 
 def downgrade():
     """Downgrade database schema."""
     # Convert strategy_type back to enum
-    op.execute("""
+    op.execute(
+        """
         ALTER TABLE strategies 
         ALTER COLUMN strategy_type TYPE text 
         USING (
@@ -75,10 +83,12 @@ def downgrade():
                 WHEN 14 THEN 'stop_loss_take_profit'
             END::text
         )
-    """)
-    
+    """
+    )
+
     # Convert trade status back to enum
-    op.execute("""
+    op.execute(
+        """
         ALTER TABLE trades 
         ALTER COLUMN status TYPE text 
         USING (
@@ -90,4 +100,5 @@ def downgrade():
                 WHEN 5 THEN 'failed'
             END::text
         )
-    """)
+    """
+    )

@@ -32,9 +32,12 @@ MAX_RETRIES = int(os.getenv("DEEPSEEK_MAX_RETRIES", "3"))
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))
 RETRY_DELAY = float(os.getenv("DEEPSEEK_RETRY_DELAY", "2.0"))
 
+
 @dataclass
 class DeepSeekModelConfig:
-    MODEL_NAME: str = LOCAL_MODEL_NAME if AI_MODEL_MODE == "LOCAL" else REMOTE_MODEL_NAME
+    MODEL_NAME: str = (
+        LOCAL_MODEL_NAME if AI_MODEL_MODE == "LOCAL" else REMOTE_MODEL_NAME
+    )
     QUANTIZATION: str = "4bit"
     BATCH_SIZE: int = 16
     MAX_SEQ_LEN: int = 2048
@@ -49,5 +52,6 @@ class DeepSeekModelConfig:
     @property
     def is_quantized(self) -> bool:
         return self.QUANTIZATION == "4bit"
+
 
 MODEL_CONFIG = DeepSeekModelConfig()

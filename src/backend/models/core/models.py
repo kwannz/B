@@ -6,11 +6,12 @@ Base = declarative_base()
 
 # Association table for user roles
 user_roles = Table(
-    'user_roles',
+    "user_roles",
     Base.metadata,
-    Column('user_id', String, ForeignKey('users.id')),
-    Column('role_id', String, ForeignKey('roles.id'))
+    Column("user_id", String, ForeignKey("users.id")),
+    Column("role_id", String, ForeignKey("roles.id")),
 )
+
 
 class DBUser(Base):
     __tablename__ = "users"
@@ -22,6 +23,7 @@ class DBUser(Base):
     disabled = Column(Boolean, default=False)
     request_context = Column(JSON)
     roles = relationship("DBRole", secondary=user_roles, back_populates="users")
+
 
 class DBRole(Base):
     __tablename__ = "roles"

@@ -3,12 +3,19 @@ import logging
 from typing import TypeVar, Generic, Any, Optional, List
 from src.shared.monitor.metrics import track_model_fallback, track_fallback_rate
 
-T = TypeVar('T')
-R = TypeVar('R')
+T = TypeVar("T")
+R = TypeVar("R")
+
 
 class FallbackManager(Generic[T, R]):
-    def __init__(self, new_system: Any, legacy_system: Any, timeout: float = None, 
-                 handled_exceptions: tuple = None, max_retries: int = 0):
+    def __init__(
+        self,
+        new_system: Any,
+        legacy_system: Any,
+        timeout: float = None,
+        handled_exceptions: tuple = None,
+        max_retries: int = 0,
+    ):
         self.new = new_system
         self.old = legacy_system
         self.timeout = timeout
@@ -17,9 +24,9 @@ class FallbackManager(Generic[T, R]):
         self._lock = asyncio.Lock()
 
     async def _try_process(self, system: Any, request: T) -> Optional[R]:
-        if hasattr(system, 'process'):
+        if hasattr(system, "process"):
             return await system.process(request)
-        elif hasattr(system, 'generate'):
+        elif hasattr(system, "generate"):
             return await system.generate(request)
         raise AttributeError("System has no process/generate method")
 
@@ -28,47 +35,58 @@ class FallbackManager(Generic[T, R]):
             for retry in range(self.max_retries + 1):
                 try:
                     if self.timeout:
-                        result = await asyncio.wait_for(self._try_process(self.new, request), self.timeout)
+                        result = await asyncio.wait_for(
+                            self._try_process(self.new, request), self.timeout
+                        )
                     else:
                         result = await self._try_process(self.new, request)
-                        
+
                     if result is None:
                         if retry == self.max_retries:
                             track_fallback_rate(success=False)
                             break
                         continue
-                        
+
                     track_fallback_rate(success=True)
                     return result
-                    
+
                 except asyncio.TimeoutError:
-                    logging.warning(f"Primary system timed out (attempt {retry + 1}/{self.max_retries + 1})")
+                    logging.warning(
+                        f"Primary system timed out (attempt {retry + 1}/{self.max_retries + 1})"
+                    )
                     if retry == self.max_retries:
                         track_fallback_rate(success=False)
                         break
                     continue
                 except Exception as e:
-                    if not isinstance(e, self.handled_exceptions) or retry == self.max_retries:
+                    if (
+                        not isinstance(e, self.handled_exceptions)
+                        or retry == self.max_retries
+                    ):
                         track_fallback_rate(success=False)
                         break
-                    logging.warning(f"Primary system failed (attempt {retry + 1}/{self.max_retries + 1}): {str(e)}")
+                    logging.warning(
+                        f"Primary system failed (attempt {retry + 1}/{self.max_retries + 1}): {str(e)}"
+                    )
                     continue
-                    
+
             logging.warning("Switching to legacy system")
             track_model_fallback()
-            
+
             try:
                 if self.timeout:
-                    result = await asyncio.wait_for(self._try_process(self.old, request), self.timeout)
+                    result = await asyncio.wait_for(
+                        self._try_process(self.old, request), self.timeout
+                    )
                 else:
                     result = await self._try_process(self.old, request)
-                    
+
                 if result is None:
                     track_fallback_rate(success=False)
                     raise ValueError("Invalid result from legacy system")
                 track_fallback_rate(success=True)
                 return result
-                
+
             except Exception as e:
                 track_fallback_rate(success=False)
                 logging.error(f"Both systems failed: {str(e)}")
@@ -77,7 +95,7 @@ class FallbackManager(Generic[T, R]):
     async def execute_batch(self, requests: List[T]) -> List[Optional[R]]:
         async with self._lock:
             try:
-                if hasattr(self.new, 'generate_batch'):
+                if hasattr(self.new, "generate_batch"):
                     try:
                         results = await self.new.generate_batch(requests)
                         if results and len(results) == len(requests):
@@ -86,8 +104,8 @@ class FallbackManager(Generic[T, R]):
                     except Exception as e:
                         logging.warning(f"Batch generation failed: {str(e)}")
                         track_fallback_rate(success=False)
-                
-                if hasattr(self.new, 'process'):
+
+                if hasattr(self.new, "process"):
                     try:
                         result = await self.new.process(requests)
                         if isinstance(result, list) and len(result) == len(requests):
@@ -99,7 +117,7 @@ class FallbackManager(Generic[T, R]):
                     except Exception as e:
                         logging.warning(f"Batch processing failed: {str(e)}")
                         track_fallback_rate(success=False)
-                
+
                 results = []
                 success_count = 0
                 for request in requests:
@@ -111,15 +129,15 @@ class FallbackManager(Generic[T, R]):
                     except Exception as e:
                         logging.warning(f"Individual request failed: {str(e)}")
                         results.append(None)
-                
+
                 if success_count > 0:
                     track_fallback_rate(success=True)
                     return results
-                
+
                 logging.warning("Switching to legacy system for batch")
                 track_model_fallback()
-                
-                if hasattr(self.old, 'process'):
+
+                if hasattr(self.old, "process"):
                     try:
                         results = await self.old.process(requests)
                         if results and len(results) == len(requests):
@@ -128,7 +146,7 @@ class FallbackManager(Generic[T, R]):
                     except Exception as e:
                         logging.warning(f"Legacy batch processing failed: {str(e)}")
                         track_fallback_rate(success=False)
-                
+
                 results = []
                 success_count = 0
                 for request in requests:
@@ -140,10 +158,10 @@ class FallbackManager(Generic[T, R]):
                     except Exception as e:
                         logging.warning(f"Legacy individual request failed: {str(e)}")
                         results.append(None)
-                
+
                 track_fallback_rate(success=success_count > 0)
                 return results
-                
+
             except Exception as e:
                 logging.error(f"Complete batch processing failure: {str(e)}")
                 track_fallback_rate(success=False)

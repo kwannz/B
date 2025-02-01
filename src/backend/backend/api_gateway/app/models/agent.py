@@ -2,20 +2,24 @@ from pydantic import BaseModel
 from typing import Dict, Optional
 from datetime import datetime
 
+
 class AgentConfig(BaseModel):
     strategy_type: str
     parameters: Dict[str, any]
     description: Optional[str] = None
     promotionWords: Optional[str] = None
 
+
 class AgentCreate(BaseModel):
     agent_id: str
     name: str
     config: AgentConfig
 
+
 class AgentUpdate(BaseModel):
     name: Optional[str] = None
     config: AgentConfig
+
 
 class AgentResponse(BaseModel):
     id: str

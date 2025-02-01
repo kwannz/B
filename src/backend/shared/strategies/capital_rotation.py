@@ -14,37 +14,31 @@ class CapitalRotationStrategy:
     def __init__(self, config: StrategyConfig):
         """Initialize strategy with configuration parameters."""
         params = config.parameters
-        
+
         # Validate performance window
         self.performance_window = self._validate_positive_int(
-            params.get("performance_window", 30),  # 30 days
-            "performance_window"
+            params.get("performance_window", 30), "performance_window"  # 30 days
         )
-        
+
         # Validate rotation parameters
         self.rotation_interval = self._validate_positive_int(
-            params.get("rotation_interval", 7),  # 7 days
-            "rotation_interval"
+            params.get("rotation_interval", 7), "rotation_interval"  # 7 days
         )
         self.num_top_assets = self._validate_positive_int(
-            params.get("num_top_assets", 3),
-            "num_top_assets"
+            params.get("num_top_assets", 3), "num_top_assets"
         )
-        
+
         # Validate minimum volume and momentum
         self.min_volume = self._validate_positive_float(
-            params.get("min_volume", 1000),
-            "min_volume"
+            params.get("min_volume", 1000), "min_volume"
         )
         self.min_momentum = self._validate_positive_float(
-            params.get("min_momentum", 0.01),  # 1% minimum momentum
-            "min_momentum"
+            params.get("min_momentum", 0.01), "min_momentum"  # 1% minimum momentum
         )
-        
+
         # Validate position sizing
         self.position_size = self._validate_positive_float(
-            params.get("position_size", 0.1),  # 10% per position
-            "position_size"
+            params.get("position_size", 0.1), "position_size"  # 10% per position
         )
         if self.position_size * self.num_top_assets > 1:
             raise ValueError("Total position size cannot exceed 100%")
@@ -73,78 +67,73 @@ class CapitalRotationStrategy:
         """Calculate price momentum."""
         if len(prices) < 2:
             return None
-            
+
         returns = np.diff(np.log(prices))
         return np.mean(returns)
 
     def _calculate_relative_strength(self, asset_data: List[Dict]) -> List[Dict]:
         """Calculate relative strength of assets."""
         strengths = []
-        
+
         for data in asset_data:
             prices = [p["price"] for p in data.get("history", [])]
             momentum = self._calculate_momentum(prices)
-            
+
             if momentum is not None and momentum > self.min_momentum:
-                strengths.append({
-                    "pair": data["pair"],
-                    "momentum": momentum,
-                    "price": prices[-1],
-                    "volume": data.get("volume", 0)
-                })
-        
+                strengths.append(
+                    {
+                        "pair": data["pair"],
+                        "momentum": momentum,
+                        "price": prices[-1],
+                        "volume": data.get("volume", 0),
+                    }
+                )
+
         return sorted(strengths, key=lambda x: x["momentum"], reverse=True)
 
     async def calculate_signals(self, market_data: List[Dict]) -> Dict[str, Any]:
         """Calculate trading signals based on relative strength."""
         if not market_data:
-            return {
-                "signal": "neutral",
-                "confidence": 0.0,
-                "reason": "no_data"
-            }
+            return {"signal": "neutral", "confidence": 0.0, "reason": "no_data"}
 
         try:
             # Calculate relative strength
             strengths = self._calculate_relative_strength(market_data)
-            
+
             # Filter by volume
             valid_assets = [
-                asset for asset in strengths
-                if asset["volume"] >= self.min_volume
+                asset for asset in strengths if asset["volume"] >= self.min_volume
             ]
 
             if not valid_assets:
                 return {
                     "signal": "neutral",
                     "confidence": 0.0,
-                    "reason": "no_valid_assets"
+                    "reason": "no_valid_assets",
                 }
 
             # Select top assets
-            top_assets = valid_assets[:self.num_top_assets]
-            
+            top_assets = valid_assets[: self.num_top_assets]
+
             return {
                 "signal": "rotate",
                 "confidence": 1.0,
                 "assets": top_assets,
                 "position_size": self.position_size,
-                "next_rotation": (datetime.utcnow() + timedelta(days=self.rotation_interval)).isoformat()
+                "next_rotation": (
+                    datetime.utcnow() + timedelta(days=self.rotation_interval)
+                ).isoformat(),
             }
 
         except Exception as e:
             return {
                 "signal": "neutral",
                 "confidence": 0.0,
-                "reason": f"error: {str(e)}"
+                "reason": f"error: {str(e)}",
             }
 
     async def execute_trade(
-        self,
-        tenant_id: str,
-        wallet: Dict,
-        market_data: Dict,
-        signal: Dict
+        self, tenant_id: str, wallet: Dict, market_data: Dict, signal: Dict
     ) -> Optional[Dict]:
         """Execute rotation trades."""
         if signal["signal"] != "rotate":
@@ -163,8 +152,8 @@ class CapitalRotationStrategy:
                 "trade_metadata": {
                     "momentum": asset["momentum"],
                     "confidence": signal["confidence"],
-                    "next_rotation": signal["next_rotation"]
-                }
+                    "next_rotation": signal["next_rotation"],
+                },
             }
             trades.append(trade)
 
@@ -174,28 +163,28 @@ class CapitalRotationStrategy:
             "trades": trades,
             "trade_metadata": {
                 "rotation_interval": self.rotation_interval,
-                "next_rotation": signal["next_rotation"]
-            }
+                "next_rotation": signal["next_rotation"],
+            },
         }
 
     async def update_positions(
-        self,
-        tenant_id: str,
-        market_data: Optional[Dict]
+        self, tenant_id: str, market_data: Optional[Dict]
     ) -> Optional[Dict]:
         """Update existing positions based on new market data."""
         if market_data is None:
             raise ValueError("Market data cannot be None")
 
         current_time = datetime.utcnow()
-        next_rotation = datetime.fromisoformat(market_data["trade_metadata"]["next_rotation"])
-        
+        next_rotation = datetime.fromisoformat(
+            market_data["trade_metadata"]["next_rotation"]
+        )
+
         result = {
             "status": TradeStatus.OPEN,
             "trade_metadata": {
                 "current_time": current_time.isoformat(),
-                "next_rotation": next_rotation.isoformat()
-            }
+                "next_rotation": next_rotation.isoformat(),
+            },
         }
 
         # Check if rotation is needed

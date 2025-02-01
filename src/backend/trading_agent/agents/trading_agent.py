@@ -10,12 +10,13 @@ from src.shared.sentiment.sentiment_analyzer import analyze_text
 
 logger = logging.getLogger(__name__)
 
+
 class TradingAgent(BaseAgent):
     def __init__(self, agent_id: str, name: str, config: Dict[str, Any]):
         super().__init__(agent_id, name, config)
-        self.strategy_type = config.get('strategy_type', 'default')
-        self.risk_level = config.get('parameters', {}).get('riskLevel', 'low')
-        self.trade_size = config.get('parameters', {}).get('tradeSize', 1)
+        self.strategy_type = config.get("strategy_type", "default")
+        self.risk_level = config.get("parameters", {}).get("riskLevel", "low")
+        self.trade_size = config.get("parameters", {}).get("tradeSize", 1)
         self.wallet = WalletManager()
         self.api_key = os.getenv("DEEPSEEK_API_KEY", "")
         self.model = os.getenv("DEEPSEEK_MODEL", "deepseek-v3")
@@ -26,33 +27,41 @@ class TradingAgent(BaseAgent):
         """Analyze market conditions using sentiment analysis."""
         try:
             # Analyze market sentiment from various sources
-            market_text = f"Market sentiment for {symbol}"  # TODO: Get real market sentiment text
+            market_text = (
+                f"Market sentiment for {symbol}"  # TODO: Get real market sentiment text
+            )
             sentiment = await self.analyze_text(market_text)
-            
+
             # Analyze news sentiment
             news_text = f"News about {symbol}"  # TODO: Get real news text
             news = await self.analyze_text(news_text)
-            
+
             # Analyze social media sentiment
-            social_text = f"Social media posts about {symbol}"  # TODO: Get real social media text
+            social_text = (
+                f"Social media posts about {symbol}"  # TODO: Get real social media text
+            )
             social = await self.analyze_text(social_text)
-            
+
             return {
                 "market_sentiment": sentiment,
                 "news_analysis": news,
                 "social_analysis": social,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
         except Exception as e:
             logger.error(f"Market analysis failed: {str(e)}")
             return {}
 
-    async def _generate_strategy(self, market_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _generate_strategy(
+        self, market_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Generate trading strategy using DeepSeek R1."""
         # Get market analysis
-        symbol = market_data.get("symbol", "").split("/")[0]  # Extract base symbol (e.g., "SOL" from "SOL/USDT")
+        symbol = market_data.get("symbol", "").split("/")[
+            0
+        ]  # Extract base symbol (e.g., "SOL" from "SOL/USDT")
         market_analysis = await self._analyze_market_conditions(symbol)
-        
+
         prompt = f"""根据以下市场数据和分析生成交易策略：
 
 市场数据：
@@ -81,24 +90,28 @@ class TradingAgent(BaseAgent):
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
         data = {
             "model": self.model,
             "prompt": prompt,
             "max_tokens": 1500,
-            "temperature": 0.7
+            "temperature": 0.7,
         }
-        
+
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(self.api_url, headers=headers, json=data) as response:
+                async with session.post(
+                    self.api_url, headers=headers, json=data
+                ) as response:
                     if response.status != 200:
                         logger.error(f"DeepSeek API error: {response.status}")
                         return None
                     result = await response.json()
                     strategy = json.loads(result["choices"][0]["text"])
-                    logger.info(f"Generated strategy for {symbol}: {json.dumps(strategy, ensure_ascii=False)}")
+                    logger.info(
+                        f"Generated strategy for {symbol}: {json.dumps(strategy, ensure_ascii=False)}"
+                    )
                     return strategy
         except Exception as e:
             logger.error(f"Strategy generation failed: {str(e)}")
@@ -113,20 +126,22 @@ class TradingAgent(BaseAgent):
                 self.status = "error"
                 self.last_update = datetime.now().isoformat()
                 return False
-            
+
             # Generate initial strategy
             market_data = {
                 "symbol": self.config.get("symbol", "SOL/USDT"),
                 "price": 0.0,  # TODO: Get real-time price
                 "volume_24h": 0.0,  # TODO: Get real volume
                 "market_cap": 0.0,  # TODO: Get market cap
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
             strategy = await self._generate_strategy(market_data)
             if strategy:
-                logger.info(f"Generated strategy: {json.dumps(strategy, ensure_ascii=False)}")
-            
+                logger.info(
+                    f"Generated strategy: {json.dumps(strategy, ensure_ascii=False)}"
+                )
+
             self.status = "active"
             self.last_update = datetime.now().isoformat()
         except Exception as e:
@@ -143,9 +158,13 @@ class TradingAgent(BaseAgent):
     async def update_config(self, new_config: Dict[str, Any]):
         """Update trading configuration"""
         self.config = new_config
-        self.strategy_type = new_config.get('strategy_type', self.strategy_type)
-        self.risk_level = new_config.get('parameters', {}).get('riskLevel', self.risk_level)
-        self.trade_size = new_config.get('parameters', {}).get('tradeSize', self.trade_size)
+        self.strategy_type = new_config.get("strategy_type", self.strategy_type)
+        self.risk_level = new_config.get("parameters", {}).get(
+            "riskLevel", self.risk_level
+        )
+        self.trade_size = new_config.get("parameters", {}).get(
+            "tradeSize", self.trade_size
+        )
         self.last_update = datetime.now().isoformat()
 
     async def get_wallet_balance(self) -> float:
@@ -158,10 +177,12 @@ class TradingAgent(BaseAgent):
     def get_status(self) -> Dict[str, Any]:
         """Get detailed trading status"""
         status = super().get_status()
-        status.update({
-            "strategy_type": self.strategy_type,
-            "risk_level": self.risk_level,
-            "trade_size": self.trade_size,
-            "wallet_address": self.wallet.get_public_key()
-        })
+        status.update(
+            {
+                "strategy_type": self.strategy_type,
+                "risk_level": self.risk_level,
+                "trade_size": self.trade_size,
+                "wallet_address": self.wallet.get_public_key(),
+            }
+        )
         return status

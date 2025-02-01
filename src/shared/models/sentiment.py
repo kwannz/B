@@ -4,9 +4,10 @@ from datetime import datetime
 
 Base = declarative_base()
 
+
 class SentimentAnalysis(Base):
     __tablename__ = "sentiment_analysis"
-    
+
     id = Column(Integer, primary_key=True)
     source_id = Column(String, unique=True, nullable=False)
     score = Column(Float, nullable=False)
@@ -14,11 +15,14 @@ class SentimentAnalysis(Base):
     language = Column(String(2), nullable=False)
     raw_text = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
 
 class AgentSentimentSignal(Base):
     __tablename__ = "agent_sentiment_signals"
-    
+
     id = Column(Integer, primary_key=True)
     agent_id = Column(String, nullable=False)
     symbol = Column(String, nullable=False)
@@ -27,11 +31,14 @@ class AgentSentimentSignal(Base):
     signal_strength = Column(Float, nullable=False)
     meta_info = Column(JSON, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
 
 class CombinedMarketSentiment(Base):
     __tablename__ = "combined_market_sentiment"
-    
+
     id = Column(Integer, primary_key=True)
     symbol = Column(String, nullable=False)
     news_sentiment = Column(Float, nullable=False)
@@ -40,4 +47,6 @@ class CombinedMarketSentiment(Base):
     combined_score = Column(Float, nullable=False)
     source_signals = Column(JSON, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )

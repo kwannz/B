@@ -2,6 +2,7 @@ from typing import Dict, Any
 import aiohttp
 from datetime import datetime
 
+
 async def analyze_text(text: str, language: str = "en") -> Dict[str, Any]:
     """Analyze sentiment of text using DeepSeek API."""
     # Mock implementation for testing

@@ -14,17 +14,21 @@ class BatchPositionStrategy:
     def __init__(self, config: StrategyConfig):
         """Initialize strategy with configuration parameters."""
         params = config.parameters
-        
+
         # Validate batch targets
         self.batch_targets = params.get("batch_targets", [])
         total_percentage = sum(target["percentage"] for target in self.batch_targets)
         if total_percentage > 1.0:
             raise ValueError("Total batch target percentages cannot exceed 100%")
-        
+
         # Validate stop loss and trailing stop
-        self.stop_loss = params.get("stop_loss", Decimal("0.5"))  # Default 50% stop loss
-        self.trailing_stop_pct = params.get("trailing_stop_pct", Decimal("0.2"))  # Default 20% trailing stop
-        
+        self.stop_loss = params.get(
+            "stop_loss", Decimal("0.5")
+        )  # Default 50% stop loss
+        self.trailing_stop_pct = params.get(
+            "trailing_stop_pct", Decimal("0.2")
+        )  # Default 20% trailing stop
+
         if not Decimal("0") < self.stop_loss < Decimal("1"):
             raise ValueError("Stop loss must be between 0 and 1")
         if not Decimal("0") < self.trailing_stop_pct < Decimal("1"):
@@ -41,7 +45,7 @@ class BatchPositionStrategy:
             return {
                 "signal": "neutral",
                 "confidence": Decimal("0.0"),
-                "reason": "no_data"
+                "reason": "no_data",
             }
 
         try:
@@ -52,21 +56,17 @@ class BatchPositionStrategy:
                 "signal": "neutral",
                 "confidence": Decimal("0.5"),
                 "price": current_price,
-                "volume": volume
+                "volume": volume,
             }
         except Exception as e:
             return {
                 "signal": "neutral",
                 "confidence": Decimal("0.0"),
-                "reason": f"error: {str(e)}"
+                "reason": f"error: {str(e)}",
             }
 
     async def execute_trade(
-        self,
-        tenant_id: str,
-        wallet: Dict,
-        market_data: Dict,
-        signal: Dict
+        self, tenant_id: str, wallet: Dict, market_data: Dict, signal: Dict
     ) -> Optional[Dict]:
         """Execute trade based on signal."""
         if signal["signal"] == "neutral":
@@ -85,23 +85,21 @@ class BatchPositionStrategy:
                     {
                         "multiplier": target["multiplier"],
                         "percentage": target["percentage"],
-                        "status": TradeStatus.PENDING
+                        "status": TradeStatus.PENDING,
                     }
                     for target in self.batch_targets
                 ],
                 "filled_targets": [],
                 "remaining_amount": market_data["amount"],
                 "entry_price": market_data["price"],
-                "highest_price": market_data["price"]
-            }
+                "highest_price": market_data["price"],
+            },
         }
 
         return trade
 
     async def update_positions(
-        self,
-        tenant_id: str,
-        market_data: Optional[Dict]
+        self, tenant_id: str, market_data: Optional[Dict]
     ) -> Optional[Dict]:
         """Update existing positions based on new market data."""
         if market_data is None:
@@ -119,8 +117,8 @@ class BatchPositionStrategy:
                 "filled_targets": trade_metadata["filled_targets"],
                 "remaining_amount": trade_metadata["remaining_amount"],
                 "entry_price": entry_price,
-                "highest_price": highest_price
-            }
+                "highest_price": highest_price,
+            },
         }
 
         # Check stop loss

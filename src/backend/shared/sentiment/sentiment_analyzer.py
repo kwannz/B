@@ -20,64 +20,58 @@ class SentimentAnalyzer:
             "confidence": 0.8,
             "timestamp": datetime.utcnow().isoformat(),
             "entities": [],
-            "keywords": []
+            "keywords": [],
         }
 
     async def analyze_social_media(
-        self,
-        platform: str,
-        query: str,
-        limit: int = 100
+        self, platform: str, query: str, limit: int = 100
     ) -> List[Dict[str, Any]]:
         """Analyze social media sentiment."""
         # This is a mock implementation
         current_time = datetime.utcnow()
         results = []
-        
+
         for _ in range(limit):
-            results.append({
-                "platform": platform,
-                "query": query,
-                "sentiment": 0.5,
-                "confidence": 0.8,
-                "mentions": 10,
-                "timestamp": current_time.isoformat()
-            })
-        
+            results.append(
+                {
+                    "platform": platform,
+                    "query": query,
+                    "sentiment": 0.5,
+                    "confidence": 0.8,
+                    "mentions": 10,
+                    "timestamp": current_time.isoformat(),
+                }
+            )
+
         self.last_update = current_time
         return results
 
-    async def analyze_news(
-        self,
-        symbol: str,
-        days: int = 1
-    ) -> List[Dict[str, Any]]:
+    async def analyze_news(self, symbol: str, days: int = 1) -> List[Dict[str, Any]]:
         """Analyze news sentiment."""
         # This is a mock implementation
         current_time = datetime.utcnow()
         results = []
-        
+
         for _ in range(10):  # Mock 10 news articles
-            results.append({
-                "symbol": symbol,
-                "sentiment": 0.5,
-                "confidence": 0.8,
-                "impact": "medium",
-                "source": "mock_news",
-                "timestamp": current_time.isoformat()
-            })
-        
+            results.append(
+                {
+                    "symbol": symbol,
+                    "sentiment": 0.5,
+                    "confidence": 0.8,
+                    "impact": "medium",
+                    "source": "mock_news",
+                    "timestamp": current_time.isoformat(),
+                }
+            )
+
         self.last_update = current_time
         return results
 
-    async def get_market_sentiment(
-        self,
-        symbol: str
-    ) -> Dict[str, Any]:
+    async def get_market_sentiment(self, symbol: str) -> Dict[str, Any]:
         """Get aggregated market sentiment."""
         # This is a mock implementation
         current_time = datetime.utcnow()
-        
+
         return {
             "symbol": symbol,
             "timestamp": current_time.isoformat(),
@@ -85,7 +79,7 @@ class SentimentAnalyzer:
             "social_sentiment": 0.6,
             "news_sentiment": 0.4,
             "mentions_24h": 1000,
-            "news_count_24h": 50
+            "news_count_24h": 50,
         }
 
 

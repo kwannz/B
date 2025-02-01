@@ -1,7 +1,13 @@
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import (
+    ClassVar as _ClassVar,
+    Iterable as _Iterable,
+    Mapping as _Mapping,
+    Optional as _Optional,
+    Union as _Union,
+)
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -13,13 +19,20 @@ class MarketDataRequest(_message.Message):
     symbol: str
     timeframe: str
     limit: int
-    def __init__(self, symbol: _Optional[str] = ..., timeframe: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        symbol: _Optional[str] = ...,
+        timeframe: _Optional[str] = ...,
+        limit: _Optional[int] = ...,
+    ) -> None: ...
 
 class MarketDataReply(_message.Message):
     __slots__ = ("candles",)
     CANDLES_FIELD_NUMBER: _ClassVar[int]
     candles: _containers.RepeatedCompositeFieldContainer[Candle]
-    def __init__(self, candles: _Optional[_Iterable[_Union[Candle, _Mapping]]] = ...) -> None: ...
+    def __init__(
+        self, candles: _Optional[_Iterable[_Union[Candle, _Mapping]]] = ...
+    ) -> None: ...
 
 class Candle(_message.Message):
     __slots__ = ("open", "high", "low", "close", "volume", "timestamp")
@@ -35,7 +48,15 @@ class Candle(_message.Message):
     close: float
     volume: float
     timestamp: int
-    def __init__(self, open: _Optional[float] = ..., high: _Optional[float] = ..., low: _Optional[float] = ..., close: _Optional[float] = ..., volume: _Optional[float] = ..., timestamp: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        open: _Optional[float] = ...,
+        high: _Optional[float] = ...,
+        low: _Optional[float] = ...,
+        close: _Optional[float] = ...,
+        volume: _Optional[float] = ...,
+        timestamp: _Optional[int] = ...,
+    ) -> None: ...
 
 class TradeRequest(_message.Message):
     __slots__ = ("symbol", "side", "amount", "price", "order_type", "slippage")
@@ -51,7 +72,15 @@ class TradeRequest(_message.Message):
     price: float
     order_type: str
     slippage: float
-    def __init__(self, symbol: _Optional[str] = ..., side: _Optional[str] = ..., amount: _Optional[float] = ..., price: _Optional[float] = ..., order_type: _Optional[str] = ..., slippage: _Optional[float] = ...) -> None: ...
+    def __init__(
+        self,
+        symbol: _Optional[str] = ...,
+        side: _Optional[str] = ...,
+        amount: _Optional[float] = ...,
+        price: _Optional[float] = ...,
+        order_type: _Optional[str] = ...,
+        slippage: _Optional[float] = ...,
+    ) -> None: ...
 
 class TradeReply(_message.Message):
     __slots__ = ("order_id", "status", "executed_price", "executed_amount", "timestamp")
@@ -65,7 +94,14 @@ class TradeReply(_message.Message):
     executed_price: float
     executed_amount: float
     timestamp: int
-    def __init__(self, order_id: _Optional[str] = ..., status: _Optional[str] = ..., executed_price: _Optional[float] = ..., executed_amount: _Optional[float] = ..., timestamp: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        order_id: _Optional[str] = ...,
+        status: _Optional[str] = ...,
+        executed_price: _Optional[float] = ...,
+        executed_amount: _Optional[float] = ...,
+        timestamp: _Optional[int] = ...,
+    ) -> None: ...
 
 class OrderStatusRequest(_message.Message):
     __slots__ = ("order_id",)
@@ -74,7 +110,13 @@ class OrderStatusRequest(_message.Message):
     def __init__(self, order_id: _Optional[str] = ...) -> None: ...
 
 class OrderStatusReply(_message.Message):
-    __slots__ = ("order_id", "status", "filled_amount", "average_price", "error_message")
+    __slots__ = (
+        "order_id",
+        "status",
+        "filled_amount",
+        "average_price",
+        "error_message",
+    )
     ORDER_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FILLED_AMOUNT_FIELD_NUMBER: _ClassVar[int]
@@ -85,7 +127,14 @@ class OrderStatusReply(_message.Message):
     filled_amount: float
     average_price: float
     error_message: str
-    def __init__(self, order_id: _Optional[str] = ..., status: _Optional[str] = ..., filled_amount: _Optional[float] = ..., average_price: _Optional[float] = ..., error_message: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self,
+        order_id: _Optional[str] = ...,
+        status: _Optional[str] = ...,
+        filled_amount: _Optional[float] = ...,
+        average_price: _Optional[float] = ...,
+        error_message: _Optional[str] = ...,
+    ) -> None: ...
 
 class PriceSubscriptionRequest(_message.Message):
     __slots__ = ("symbols", "update_interval_ms")
@@ -93,7 +142,11 @@ class PriceSubscriptionRequest(_message.Message):
     UPDATE_INTERVAL_MS_FIELD_NUMBER: _ClassVar[int]
     symbols: _containers.RepeatedScalarFieldContainer[str]
     update_interval_ms: int
-    def __init__(self, symbols: _Optional[_Iterable[str]] = ..., update_interval_ms: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        symbols: _Optional[_Iterable[str]] = ...,
+        update_interval_ms: _Optional[int] = ...,
+    ) -> None: ...
 
 class PriceUpdateReply(_message.Message):
     __slots__ = ("symbol", "price", "volume", "timestamp", "bid", "ask")
@@ -109,4 +162,12 @@ class PriceUpdateReply(_message.Message):
     timestamp: int
     bid: float
     ask: float
-    def __init__(self, symbol: _Optional[str] = ..., price: _Optional[float] = ..., volume: _Optional[float] = ..., timestamp: _Optional[int] = ..., bid: _Optional[float] = ..., ask: _Optional[float] = ...) -> None: ...
+    def __init__(
+        self,
+        symbol: _Optional[str] = ...,
+        price: _Optional[float] = ...,
+        volume: _Optional[float] = ...,
+        timestamp: _Optional[int] = ...,
+        bid: _Optional[float] = ...,
+        ask: _Optional[float] = ...,
+    ) -> None: ...

@@ -2,6 +2,7 @@ from typing import Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
+
 class StrategyCreate(BaseModel):
     name: str
     description: str
@@ -10,9 +11,10 @@ class StrategyCreate(BaseModel):
     timeframe: str = "1h"
     risk_level: str = "medium"
 
+
 class StrategyResponse(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     id: str
     name: str
     type: str

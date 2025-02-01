@@ -3,10 +3,12 @@ from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
+
 class SentimentAnalysis(Base):
     """Sentiment analysis results model."""
+
     __tablename__ = "sentiment_analysis"
-    
+
     id = Column(Integer, primary_key=True)
     source_id = Column(String, unique=True, nullable=False)
     score = Column(Float, nullable=False)

@@ -44,10 +44,12 @@ class MarketDataAggregator:
             "liquidity": await self.get_token_liquidity(token_address),
             "market_cap": await self.get_market_cap(token_address),
             "token_address": token_address,
-            "pair": f"{token_address}/USDT"
+            "pair": f"{token_address}/USDT",
         }
 
-    async def get_historical_data(self, token_address: str, days: int = 30) -> List[Dict[str, Any]]:
+    async def get_historical_data(
+        self, token_address: str, days: int = 30
+    ) -> List[Dict[str, Any]]:
         """Get historical market data for a token."""
         current_data = await self.get_market_data(token_address)
         return [current_data] * (days * 24)  # Mock 1-hour intervals

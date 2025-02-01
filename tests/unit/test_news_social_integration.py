@@ -43,7 +43,9 @@ sys.modules["src.shared.keyword_extractor"] = mock_keyword_extractor
 
 # Import required modules
 from tradingbot.shared.news_collector.collector import NewsCollector
-from tradingbot.shared.social_media_analyzer.social_collector import SocialMediaCollector
+from tradingbot.shared.social_media_analyzer.social_collector import (
+    SocialMediaCollector,
+)
 from tradingbot.shared.retention_manager import retention_manager
 from tradingbot.shared.sentiment.sentiment_analyzer import sentiment_analyzer
 from tradingbot.shared.models.mongodb import RawNewsArticle, RawSocialMediaPost
@@ -458,11 +460,14 @@ async def test_social_media_collection(setup_components):
                 assert "upvotes" in post.engagement, "Missing upvotes in engagement"
 
             # Sentiment analysis
-            with patch(
-                "src.shared.sentiment.sentiment_analyzer.NewsSentimentAnalyzer._initialize_finbert"
-            ), patch.object(
-                sentiment_analyzer, "analyze_text", new_callable=AsyncMock
-            ) as mock_analyze:
+            with (
+                patch(
+                    "src.shared.sentiment.sentiment_analyzer.NewsSentimentAnalyzer._initialize_finbert"
+                ),
+                patch.object(
+                    sentiment_analyzer, "analyze_text", new_callable=AsyncMock
+                ) as mock_analyze,
+            ):
                 mock_analyze.return_value = {
                     "sentiment": "positive",
                     "score": 0.75,
