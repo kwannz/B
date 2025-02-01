@@ -91,7 +91,7 @@ async def test_base_agent_start_prometheus_once(base_agent):
         
         # Second start
         mock_start.reset_mock()
-        await base_agent.start()
+    await base_agent.start()
         mock_start.assert_not_called()
 
 @pytest.mark.asyncio
@@ -877,7 +877,7 @@ async def test_base_agent_cache_operations_advanced():
     # Test cache miss tracking
     result = await agent._process_request({"cache_key": "nonexistent"})
     assert result == {}
-    
+
     # Test cache clearing
     agent.cache.clear()
     for key, _ in test_data:
@@ -907,7 +907,7 @@ async def test_base_agent_metrics_detailed():
     for key, value, expected_hit in cache_scenarios:
         if isinstance(value, Exception):
             with patch.object(agent.cache, 'get', side_effect=value):
-                with pytest.raises(Exception):
+    with pytest.raises(Exception):
                     await agent._process_request({"cache_key": key})
         else:
             with patch.object(agent.cache, 'get', return_value=value):
