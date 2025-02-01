@@ -19,11 +19,13 @@
       }
     ],
     "paths": {
-      "@/*": ["./app/*"],
-      "@/components/*": ["./app/components/*"],
-      "@/hooks/*": ["./app/hooks/*"],
-      "@/stores/*": ["./app/stores/*"],
-      "@/types/*": ["./app/types/*"]
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/app/components/*"],
+      "@/hooks/*": ["./src/app/hooks/*"],
+      "@/stores/*": ["./src/app/stores/*"],
+      "@/types/*": ["./src/app/types/*"],
+      "@/utils/*": ["./src/app/utils/*"],
+      "@/services/*": ["./src/app/services/*"]
     },
     "baseUrl": "."
   },

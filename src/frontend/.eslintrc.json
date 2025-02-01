@@ -11,7 +11,8 @@
     "@typescript-eslint",
     "react",
     "react-hooks",
-    "jest"
+    "jest",
+    "testing-library"
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
@@ -54,6 +55,10 @@
     "jest/no-focused-tests": "error",
     "jest/valid-expect": "warn",
     "jest/no-conditional-expect": "off",
-    "jest/no-standalone-expect": "off"
+    "jest/no-standalone-expect": "off",
+    "testing-library/await-async-queries": "error",
+    "testing-library/no-await-sync-queries": "error",
+    "testing-library/no-debugging-utils": "warn",
+    "testing-library/prefer-screen-queries": "error"
   }
 }
