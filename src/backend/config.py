@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+
 class Settings(BaseSettings):
     # Database settings
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "tradingbot")
@@ -26,10 +27,14 @@ class Settings(BaseSettings):
     # JWT settings
     JWT_SECRET: str = os.getenv("JWT_SECRET", "your-secret-key-here")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
+        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+    )
 
     # CORS settings
-    ALLOWED_ORIGINS: List[str] = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+    ALLOWED_ORIGINS: List[str] = os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"
+    ).split(",")
 
     # WebSocket settings
     WS_PING_INTERVAL: int = int(os.getenv("WS_PING_INTERVAL", "30000"))
@@ -38,6 +43,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+
 
 # Create global settings instance
 settings = Settings()

@@ -4,6 +4,7 @@ import json
 import asyncio
 from datetime import datetime
 
+
 class ConnectionManager:
     def __init__(self):
         # Store active connections by type (trades, performance, etc.)
@@ -11,7 +12,7 @@ class ConnectionManager:
             "trades": set(),
             "signals": set(),
             "performance": set(),
-            "agent_status": set()
+            "agent_status": set(),
         }
 
     async def connect(self, websocket: WebSocket, connection_type: str):
@@ -26,21 +27,28 @@ class ConnectionManager:
     async def broadcast_to_type(self, message: dict, connection_type: str):
         if connection_type not in self.active_connections:
             return
-        
+
         for connection in self.active_connections[connection_type]:
             try:
                 await connection.send_json(message)
-            except:
+            except WebSocketDisconnect:
                 # Remove dead connections
+                self.active_connections[connection_type].remove(connection)
+            except Exception as e:
+                print(f"Error sending message to client: {e}")
                 self.active_connections[connection_type].remove(connection)
 
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         try:
             await websocket.send_json(message)
-        except:
+        except WebSocketDisconnect:
             pass
+        except Exception as e:
+            print(f"Error sending personal message: {e}")
+
 
 manager = ConnectionManager()
+
 
 async def handle_websocket_connection(websocket: WebSocket, connection_type: str):
     await manager.connect(websocket, connection_type)
@@ -54,12 +62,13 @@ async def handle_websocket_connection(websocket: WebSocket, connection_type: str
                 if message.get("type") == "ping":
                     await manager.send_personal_message(
                         {"type": "pong", "timestamp": datetime.utcnow().isoformat()},
-                        websocket
+                        websocket,
                     )
             except json.JSONDecodeError:
                 continue
     except WebSocketDisconnect:
         manager.disconnect(websocket, connection_type)
+
 
 async def broadcast_trade_update(trade_data: dict):
     """Broadcast trade updates to all connected clients"""
@@ -67,10 +76,11 @@ async def broadcast_trade_update(trade_data: dict):
         {
             "type": "trade_update",
             "data": trade_data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         },
-        "trades"
+        "trades",
     )
+
 
 async def broadcast_signal(signal_data: dict):
     """Broadcast new signals to all connected clients"""
@@ -78,10 +88,11 @@ async def broadcast_signal(signal_data: dict):
         {
             "type": "new_signal",
             "data": signal_data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         },
-        "signals"
+        "signals",
     )
+
 
 async def broadcast_performance_update(performance_data: dict):
     """Broadcast performance updates to all connected clients"""
@@ -89,21 +100,19 @@ async def broadcast_performance_update(performance_data: dict):
         {
             "type": "performance_update",
             "data": performance_data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         },
-        "performance"
+        "performance",
     )
+
 
 async def broadcast_agent_status(agent_type: str, status: str):
     """Broadcast agent status updates to all connected clients"""
     await manager.broadcast_to_type(
         {
             "type": "agent_status",
-            "data": {
-                "agent_type": agent_type,
-                "status": status
-            },
-            "timestamp": datetime.utcnow().isoformat()
+            "data": {"agent_type": agent_type, "status": status},
+            "timestamp": datetime.utcnow().isoformat(),
         },
-        "agent_status"
+        "agent_status",
     )

@@ -1,4 +1,13 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON, Enum
+from sqlalchemy import (
+    create_engine,
+    Column,
+    Integer,
+    String,
+    Float,
+    DateTime,
+    JSON,
+    Enum,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -11,19 +20,23 @@ engine = create_engine(settings.DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+
 class TradeStatus(str, enum.Enum):
     OPEN = "open"
     CLOSED = "closed"
     CANCELLED = "cancelled"
 
+
 class StrategyStatus(str, enum.Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
+
 
 class AgentStatus(str, enum.Enum):
     RUNNING = "running"
     STOPPED = "stopped"
     ERROR = "error"
+
 
 class Signal(Base):
     __tablename__ = "signals"
@@ -42,8 +55,9 @@ class Signal(Base):
             "direction": self.direction,
             "confidence": self.confidence,
             "indicators": self.indicators,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
+
 
 class Trade(Base):
     __tablename__ = "trades"
@@ -72,8 +86,9 @@ class Trade(Base):
             "quantity": self.quantity,
             "status": self.status.value,
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "updated_at": self.updated_at.isoformat(),
         }
+
 
 class Strategy(Base):
     __tablename__ = "strategies"
@@ -94,8 +109,9 @@ class Strategy(Base):
             "parameters": self.parameters,
             "status": self.status.value,
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "updated_at": self.updated_at.isoformat(),
         }
+
 
 class Agent(Base):
     __tablename__ = "agents"
@@ -110,8 +126,9 @@ class Agent(Base):
             "id": self.id,
             "type": self.type,
             "status": self.status.value,
-            "last_updated": self.last_updated.isoformat()
+            "last_updated": self.last_updated.isoformat(),
         }
+
 
 # Database Dependency
 def get_db():
@@ -120,6 +137,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 # Create all tables
 def init_db():

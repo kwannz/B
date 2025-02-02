@@ -7,12 +7,25 @@ from datetime import datetime
 from database import get_db, Signal, Trade, Strategy, Agent, init_db
 from database import TradeStatus, StrategyStatus, AgentStatus
 from schemas import (
-    SignalCreate, SignalResponse, SignalListResponse,
-    TradeCreate, TradeResponse, TradeListResponse,
-    StrategyCreate, StrategyResponse, StrategyListResponse,
-    AgentResponse, PerformanceResponse
+    SignalCreate,
+    SignalResponse,
+    SignalListResponse,
+    TradeCreate,
+    TradeResponse,
+    TradeListResponse,
+    StrategyCreate,
+    StrategyResponse,
+    StrategyListResponse,
+    AgentResponse,
+    PerformanceResponse,
 )
-from websocket import handle_websocket_connection, broadcast_trade_update, broadcast_signal, broadcast_performance_update, broadcast_agent_status
+from websocket import (
+    handle_websocket_connection,
+    broadcast_trade_update,
+    broadcast_signal,
+    broadcast_performance_update,
+    broadcast_agent_status,
+)
 from config import settings
 
 app = FastAPI()
@@ -26,10 +39,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Initialize database
 @app.on_event("startup")
 async def startup_event():
     init_db()
+
 
 # Health check endpoint
 @app.get("/health")
@@ -42,36 +57,39 @@ async def health_check():
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
             "database": "connected",
-            "version": "1.0.0"
+            "version": "1.0.0",
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Service unhealthy: {str(e)}"
-        )
+        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
+
 
 # WebSocket endpoints
 @app.websocket("/ws/trades")
 async def websocket_trades(websocket: WebSocket):
     await handle_websocket_connection(websocket, "trades")
 
+
 @app.websocket("/ws/signals")
 async def websocket_signals(websocket: WebSocket):
     await handle_websocket_connection(websocket, "signals")
+
 
 @app.websocket("/ws/performance")
 async def websocket_performance(websocket: WebSocket):
     await handle_websocket_connection(websocket, "performance")
 
+
 @app.websocket("/ws/agent_status")
 async def websocket_agent_status(websocket: WebSocket):
     await handle_websocket_connection(websocket, "agent_status")
+
 
 # REST endpoints
 @app.get("/api/v1/strategies", response_model=StrategyListResponse)
 async def get_strategies(db: Session = Depends(get_db)):
     strategies = db.query(Strategy).all()
     return StrategyListResponse(strategies=strategies)
+
 
 @app.post("/api/v1/strategies", response_model=StrategyResponse)
 async def create_strategy(strategy: StrategyCreate, db: Session = Depends(get_db)):
@@ -80,6 +98,7 @@ async def create_strategy(strategy: StrategyCreate, db: Session = Depends(get_db
     db.commit()
     db.refresh(db_strategy)
     return db_strategy
+
 
 @app.get("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
 async def get_agent_status(agent_type: str, db: Session = Depends(get_db)):
@@ -91,6 +110,7 @@ async def get_agent_status(agent_type: str, db: Session = Depends(get_db)):
         db.refresh(agent)
     return agent
 
+
 @app.post("/api/v1/agents/{agent_type}/start", response_model=AgentResponse)
 async def start_agent(agent_type: str, db: Session = Depends(get_db)):
     agent = db.query(Agent).filter(Agent.type == agent_type).first()
@@ -101,10 +121,11 @@ async def start_agent(agent_type: str, db: Session = Depends(get_db)):
     agent.last_updated = datetime.utcnow()
     db.commit()
     db.refresh(agent)
-    
+
     # Broadcast agent status update
     await broadcast_agent_status(agent_type, "running")
     return agent
+
 
 @app.post("/api/v1/agents/{agent_type}/stop", response_model=AgentResponse)
 async def stop_agent(agent_type: str, db: Session = Depends(get_db)):
@@ -116,15 +137,17 @@ async def stop_agent(agent_type: str, db: Session = Depends(get_db)):
     agent.last_updated = datetime.utcnow()
     db.commit()
     db.refresh(agent)
-    
+
     # Broadcast agent status update
     await broadcast_agent_status(agent_type, "stopped")
     return agent
+
 
 @app.get("/api/v1/trades", response_model=TradeListResponse)
 async def get_trades(db: Session = Depends(get_db)):
     trades = db.query(Trade).all()
     return TradeListResponse(trades=trades)
+
 
 @app.post("/api/v1/trades", response_model=TradeResponse)
 async def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
@@ -132,15 +155,17 @@ async def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
     db.add(db_trade)
     db.commit()
     db.refresh(db_trade)
-    
+
     # Broadcast trade update
     await broadcast_trade_update(db_trade.model_dump())
     return db_trade
+
 
 @app.get("/api/v1/signals", response_model=SignalListResponse)
 async def get_signals(db: Session = Depends(get_db)):
     signals = db.query(Signal).all()
     return SignalListResponse(signals=signals)
+
 
 @app.post("/api/v1/signals", response_model=SignalResponse)
 async def create_signal(signal: SignalCreate, db: Session = Depends(get_db)):
@@ -148,10 +173,11 @@ async def create_signal(signal: SignalCreate, db: Session = Depends(get_db)):
     db.add(db_signal)
     db.commit()
     db.refresh(db_signal)
-    
+
     # Broadcast signal
     await broadcast_signal(db_signal.model_dump())
     return db_signal
+
 
 @app.get("/api/v1/performance", response_model=PerformanceResponse)
 async def get_performance(db: Session = Depends(get_db)):
@@ -166,7 +192,7 @@ async def get_performance(db: Session = Depends(get_db)):
                 "total_profit": 0,
                 "win_rate": 0,
                 "average_profit": 0,
-                "max_drawdown": 0
+                "max_drawdown": 0,
             }
             await broadcast_performance_update(performance_data)
             return PerformanceResponse(**performance_data)
@@ -182,7 +208,7 @@ async def get_performance(db: Session = Depends(get_db)):
                     profit = (trade.exit_price - trade.entry_price) * trade.quantity
                 else:  # short
                     profit = (trade.entry_price - trade.exit_price) * trade.quantity
-                
+
                 if profit > 0:
                     profitable_trades += 1
                 total_profit += profit
@@ -206,15 +232,17 @@ async def get_performance(db: Session = Depends(get_db)):
             "total_profit": total_profit,
             "win_rate": win_rate,
             "average_profit": average_profit,
-            "max_drawdown": max_drawdown
+            "max_drawdown": max_drawdown,
         }
-        
+
         # Broadcast performance update
         await broadcast_performance_update(performance_data)
         return PerformanceResponse(**performance_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host=settings.HOST, port=settings.PORT)

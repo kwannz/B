@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, Optional, List
 from datetime import datetime
 
+
 # Signal Schemas
 class SignalBase(BaseModel):
     timestamp: datetime
@@ -9,8 +10,10 @@ class SignalBase(BaseModel):
     confidence: float = Field(..., ge=0, le=1)
     indicators: Dict[str, float]
 
+
 class SignalCreate(SignalBase):
     pass
+
 
 class SignalResponse(SignalBase):
     id: int
@@ -18,6 +21,7 @@ class SignalResponse(SignalBase):
 
     class Config:
         from_attributes = True
+
 
 # Trade Schemas
 class TradeBase(BaseModel):
@@ -29,8 +33,10 @@ class TradeBase(BaseModel):
     exit_time: Optional[datetime] = None
     exit_price: Optional[float] = Field(None, gt=0)
 
+
 class TradeCreate(TradeBase):
     pass
+
 
 class TradeResponse(TradeBase):
     id: int
@@ -41,6 +47,7 @@ class TradeResponse(TradeBase):
     class Config:
         from_attributes = True
 
+
 # Strategy Schemas
 class StrategyBase(BaseModel):
     name: str
@@ -48,8 +55,10 @@ class StrategyBase(BaseModel):
     parameters: Dict[str, any]
     status: str = Field(..., regex="^(active|inactive)$")
 
+
 class StrategyCreate(StrategyBase):
     pass
+
 
 class StrategyResponse(StrategyBase):
     id: int
@@ -59,13 +68,16 @@ class StrategyResponse(StrategyBase):
     class Config:
         from_attributes = True
 
+
 # Agent Schemas
 class AgentBase(BaseModel):
     type: str
     status: str = Field(..., regex="^(running|stopped|error)$")
 
+
 class AgentCreate(AgentBase):
     pass
+
 
 class AgentResponse(AgentBase):
     id: int
@@ -73,6 +85,7 @@ class AgentResponse(AgentBase):
 
     class Config:
         from_attributes = True
+
 
 # Performance Schema
 class PerformanceResponse(BaseModel):
@@ -83,15 +96,19 @@ class PerformanceResponse(BaseModel):
     average_profit: float
     max_drawdown: float
 
+
 # List Response Schemas
 class SignalListResponse(BaseModel):
     signals: List[SignalResponse]
 
+
 class TradeListResponse(BaseModel):
     trades: List[TradeResponse]
 
+
 class StrategyListResponse(BaseModel):
     strategies: List[StrategyResponse]
+
 
 # Error Response Schema
 class ErrorResponse(BaseModel):
