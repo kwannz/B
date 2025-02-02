@@ -1,20 +1,21 @@
-from sqlalchemy import (
-    create_engine,
-    Column,
-    Integer,
-    String,
-    Float,
-    DateTime,
-    JSON,
-    Enum,
-)
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import enum
 from typing import Generator
 
-from sqlalchemy.orm import Session
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import MongoClient
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    Integer,
+    JSON,
+    String,
+    create_engine,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
 
 from config import settings
 
@@ -22,10 +23,6 @@ from config import settings
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-# Initialize MongoDB clients
-from pymongo import MongoClient
-from motor.motor_asyncio import AsyncIOMotorClient
 
 mongodb_client = MongoClient(settings.MONGODB_URL)
 mongodb = mongodb_client.get_database()
