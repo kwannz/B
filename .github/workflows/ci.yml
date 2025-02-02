@@ -13,8 +13,8 @@ jobs:
       - uses: actions/checkout@v3
       - name: Verify Project Structure
         run: |
-          chmod +x scripts/verify_structure.sh
-          ./scripts/verify_structure.sh
+          chmod +x scripts/verification/verify_structure.sh
+          ./scripts/verification/verify_structure.sh
 
   test-backend:
     needs: verify-structure
