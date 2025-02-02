@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
-from pydantic import BaseModel, Field, root_validator, validator
+from pydantic import BaseModel, Field, model_validator, validator
 
 from .base import PyObjectId
 from .trading import Order, Position
@@ -123,21 +123,18 @@ class RiskLimit(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    @root_validator
-    def validate_trading_hours(cls, values):
+    @model_validator(mode='after')
+    def validate_trading_hours(self) -> 'RiskLimit':
         """Validate trading hours."""
-        start = values.get("trading_hours_start")
-        end = values.get("trading_hours_end")
-        if start is not None and end is not None:
-            if start >= end:
-                raise ValueError("Trading hours start must be before end")
-        return values
+        if self.trading_hours_start >= self.trading_hours_end:
+            raise ValueError("Trading hours start must be before end")
+        return self
 
-    class Config:
-        """Pydantic config."""
+    model_config = {
 
-        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat(), Decimal: str}
-        allow_population_by_field_name = True
+        "json_encoders": {ObjectId: str, datetime: lambda v: v.isoformat(), Decimal: str},
+        "populate_by_name": True
+    }
 
 
 class RiskProfile(BaseModel):
@@ -167,11 +164,10 @@ class RiskProfile(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        """Pydantic config."""
-
-        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat()}
-        allow_population_by_field_name = True
+    model_config = {
+        "json_encoders": {ObjectId: str, datetime: lambda v: v.isoformat()},
+        "populate_by_name": True
+    }
 
 
 class RiskAssessment(BaseModel):
@@ -204,8 +200,7 @@ class RiskAssessment(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        """Pydantic config."""
-
-        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat(), Decimal: str}
-        allow_population_by_field_name = True
+    model_config = {
+        "json_encoders": {ObjectId: str, datetime: lambda v: v.isoformat(), Decimal: str},
+        "populate_by_name": True
+    }

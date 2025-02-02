@@ -5,12 +5,12 @@ Dependency injection module for the Trading Bot API
 from datetime import datetime
 from typing import AsyncGenerator, Optional
 
-import aioredis
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from prometheus_client import Counter, Histogram
+from redis import asyncio as aioredis
 
 from ..models.user import User
 from .config import Settings
@@ -51,15 +51,16 @@ async def get_database() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
 async def get_redis() -> AsyncGenerator[aioredis.Redis, None]:
     """Get Redis connection."""
     try:
-        redis = await aioredis.create_redis_pool(
-            settings.REDIS_URL, minsize=1, maxsize=settings.REDIS_POOL_SIZE
+        redis = aioredis.Redis.from_url(
+            settings.REDIS_URL,
+            max_connections=settings.REDIS_POOL_SIZE,
+            decode_responses=True
         )
         yield redis
     except Exception as e:
         raise CacheError(f"Failed to connect to Redis: {str(e)}")
     finally:
-        redis.close()
-        await redis.wait_closed()
+        await redis.close()
 
 
 # User authentication

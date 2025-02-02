@@ -119,3 +119,14 @@ class CacheError(TradingBotException):
 
     def __init__(self, detail: str = "Cache operation failed"):
         super().__init__(status_code=500, detail=detail, internal_code="CACHE_ERROR")
+
+
+class MarketDataError(TradingBotException):
+    """Raised when market data operations fail"""
+
+    def __init__(self, detail: str = "Market data operation failed"):
+        super().__init__(
+            status_code=503,
+            detail=detail,
+            internal_code="MARKET_DATA_ERROR"
+        )
