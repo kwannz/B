@@ -193,9 +193,7 @@ class TechnicalAnalystAgent(BaseAgent):
         signal = (
             "buy"
             if buy_strength > sell_strength
-            else "sell"
-            if sell_strength > buy_strength
-            else "hold"
+            else "sell" if sell_strength > buy_strength else "hold"
         )
 
         return {
