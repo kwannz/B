@@ -1,6 +1,7 @@
 import os
 from typing import List
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -13,7 +14,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
-    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
+    POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", "5432"))
 
     @property
     def DATABASE_URL(self) -> str:
@@ -32,17 +33,23 @@ class Settings(BaseSettings):
     )
 
     # CORS settings
-    ALLOWED_ORIGINS: List[str] = os.getenv(
-        "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"
-    ).split(",")
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://deploy-trading-app-tunnel-edift3yc.devinapps.com",
+        "https://deploy-trading-app-tunnel-uv6t2aou.devinapps.com"
+    ]
 
     # WebSocket settings
     WS_PING_INTERVAL: int = int(os.getenv("WS_PING_INTERVAL", "30000"))
     WS_HEARTBEAT_TIMEOUT: int = int(os.getenv("WS_HEARTBEAT_TIMEOUT", "60000"))
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "env_prefix": "",
+        "extra": "allow"
+    }
 
 
 # Create global settings instance
