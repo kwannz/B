@@ -1,8 +1,13 @@
 import sys
+import os
 import asyncio
 import redis
 from motor.motor_asyncio import AsyncIOMotorClient
 from sqlalchemy import create_engine, text
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv("config/.env")
 
 async def test_mongodb():
     try:
@@ -22,7 +27,7 @@ def test_redis():
 
 def test_postgres():
     try:
-        engine = create_engine('postgresql://admin:secret@localhost:5432/tradingbot')
+        engine = create_engine(f'postgresql://{os.getenv("POSTGRES_USER")}:{os.getenv("POSTGRES_PASSWORD")}@{os.getenv("POSTGRES_HOST")}:{os.getenv("POSTGRES_PORT")}/{os.getenv("POSTGRES_DB")}')
         with engine.connect() as conn:
             conn.execute(text('SELECT 1'))
         print('PostgreSQL connection: OK')
