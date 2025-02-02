@@ -5,8 +5,18 @@ from typing import List
 from datetime import datetime
 
 from database import (
-    get_db, Signal, Trade, Strategy, Agent, init_db, init_mongodb,
-    TradeStatus, StrategyStatus, AgentStatus, mongodb, async_mongodb
+    get_db,
+    Signal,
+    Trade,
+    Strategy,
+    Agent,
+    init_db,
+    init_mongodb,
+    TradeStatus,
+    StrategyStatus,
+    AgentStatus,
+    mongodb,
+    async_mongodb,
 )
 from schemas import MarketData
 from tradingbot.shared.models.ollama import OllamaModel
@@ -34,6 +44,7 @@ from websocket import (
     broadcast_performance_update,
     broadcast_agent_status,
 )
+
 app = FastAPI()
 
 # Enable CORS
@@ -63,7 +74,7 @@ async def analyze_market(market_data: MarketData):
             "symbol": market_data.symbol,
             "price": market_data.price,
             "volume": market_data.volume,
-            "indicators": market_data.metadata.get("indicators", {})
+            "indicators": market_data.metadata.get("indicators", {}),
         }
         logger.info(f"Sending analysis request: {analysis_request}")
         analysis = await model.analyze_market(analysis_request)
@@ -71,7 +82,7 @@ async def analyze_market(market_data: MarketData):
         return {
             "status": "success",
             "data": analysis,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         # Initialize and verify Ollama model
@@ -81,27 +92,26 @@ async def analyze_market(market_data: MarketData):
                 "symbol": market_data.symbol,
                 "price": market_data.price,
                 "volume": market_data.volume,
-                "indicators": market_data.metadata.get("indicators", {})
+                "indicators": market_data.metadata.get("indicators", {}),
             }
             print(f"Sending analysis request: {analysis_request}")
             analysis = await model.analyze_market(analysis_request)
             print(f"Received analysis response: {analysis}")
         except Exception as model_err:
             print(f"Model error: {model_err}")
-            raise HTTPException(
-                status_code=500,
-                detail="Model analysis failed"
-            )
+            raise HTTPException(status_code=500, detail="Model analysis failed")
 
         # Store data in MongoDB
         try:
             await async_mongodb.market_snapshots.insert_one(market_data.dict())
-            await async_mongodb.technical_analysis.insert_one({
-                "symbol": market_data.symbol,
-                "timestamp": datetime.utcnow(),
-                "analysis": analysis,
-                "market_data": market_data.dict()
-            })
+            await async_mongodb.technical_analysis.insert_one(
+                {
+                    "symbol": market_data.symbol,
+                    "timestamp": datetime.utcnow(),
+                    "analysis": analysis,
+                    "market_data": market_data.dict(),
+                }
+            )
         except Exception as store_err:
             print(f"Storage error: {store_err}")
             # Continue even if storage fails
@@ -114,12 +124,14 @@ async def analyze_market(market_data: MarketData):
         print(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
 # Health check endpoint
 @app.get("/api/v1/health")
 async def health_check():
     try:
         # Test database connection
         from sqlalchemy import text
+
         db = next(get_db())
         db.execute(text("SELECT 1"))
         return {

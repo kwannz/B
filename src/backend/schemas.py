@@ -12,6 +12,7 @@ class MarketData(BaseModel):
     volume: float = Field(..., gt=0)
     metadata: Dict[str, Any]
 
+
 class SignalBase(BaseModel):
     timestamp: datetime
     direction: str = Field(..., pattern="^(long|short)$")

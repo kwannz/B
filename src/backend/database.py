@@ -12,6 +12,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import enum
+from typing import Generator
+
+from sqlalchemy.orm import Session
 
 from config import settings
 
@@ -30,13 +33,14 @@ mongodb = mongodb_client.get_database()
 async_mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
 async_mongodb = async_mongodb_client.get_database()
 
+
 def init_mongodb():
     try:
         if "market_snapshots" not in mongodb.list_collection_names():
             mongodb.create_collection("market_snapshots")
             mongodb.market_snapshots.create_index("symbol")
             mongodb.market_snapshots.create_index("timestamp")
-        
+
         if "technical_analysis" not in mongodb.list_collection_names():
             mongodb.create_collection("technical_analysis")
             mongodb.technical_analysis.create_index("symbol")
@@ -157,7 +161,7 @@ class Agent(Base):
 
 
 # Database Dependency
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db
