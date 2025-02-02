@@ -1,23 +1,21 @@
+import asyncio
 import json
+from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import aiohttp
 import pytest
 from prometheus_client import REGISTRY
-import asyncio
 
-from tradingbot.backend.trading_agent.agents.base_agent import BaseAgent, AgentResponse
+from tradingbot.backend.trading_agent.agents.base_agent import AgentResponse, BaseAgent
 from tradingbot.shared.models.errors import TradingError
-from typing import Any, Dict
 
 
 # Test implementation of BaseAgent since it's abstract
 class TestAgent(BaseAgent):
     def __init__(self):
         super().__init__(
-            name="test_agent",
-            agent_type="test",
-            config={"test_config": "value"}
+            name="test_agent", agent_type="test", config={"test_config": "value"}
         )
         self.cache_hit_count = 0
         self.cache_miss_count = 0
@@ -245,11 +243,11 @@ async def test_agent_response_dataclass():
 @pytest.mark.asyncio
 async def test_base_agent_request_validation():
     agent = TestAgent()
-    
+
     # Test empty request
     with pytest.raises(TradingError):
         await agent.process_request({})
-    
+
     # Test valid request
     request = {"test": "data"}
     response = await agent.process_request(request)
@@ -260,7 +258,7 @@ async def test_base_agent_request_validation():
 @pytest.mark.asyncio
 async def test_base_agent_cache_operations_advanced():
     agent = TestAgent()
-    
+
     # Test cache operations with different data types
     test_cases = [
         ("key1", "value1"),
@@ -268,11 +266,11 @@ async def test_base_agent_cache_operations_advanced():
         ("key3", {"nested": "data"}),
         ("key4", None),
     ]
-    
+
     for key, value in test_cases:
         # Test cache set
         await agent.set_cache(key, value)
-        
+
         # Test cache get
         result = await agent.get_cache(key)
         if value is None:
@@ -284,12 +282,12 @@ async def test_base_agent_cache_operations_advanced():
 @pytest.mark.asyncio
 async def test_base_agent_metrics_detailed():
     agent = TestAgent()
-    
+
     # Simulate mixed cache hits and misses
     await agent.set_cache("key1", "value1")
     await agent.get_cache("key1")  # Hit
     await agent.get_cache("key2")  # Miss
-    
+
     metrics = agent.get_metrics()
     assert metrics["cache_hit_count"] >= 1
     assert metrics["cache_miss_count"] >= 1
@@ -299,14 +297,14 @@ async def test_base_agent_metrics_detailed():
 @pytest.mark.asyncio
 async def test_base_agent_concurrent_cache_access():
     agent = TestAgent()
-    
+
     # Test concurrent cache operations
     await agent.set_cache("concurrent_key", "value")
-    
+
     # Simulate multiple concurrent reads
     results = await asyncio.gather(
         *[agent.get_cache("concurrent_key") for _ in range(5)]
     )
-    
+
     # Verify all reads return the same value
     assert all(result == "value" for result in results)

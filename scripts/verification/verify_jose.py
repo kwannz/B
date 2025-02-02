@@ -1,2 +1,3 @@
 import jose
-print('jose version:', jose.__version__)
+
+print("jose version:", jose.__version__)

@@ -5,11 +5,13 @@ Monitoring router for system metrics and performance tracking
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Path, Query, WebSocket
+import asyncio
+from fastapi import APIRouter, Depends, Path, Query, WebSocket, WebSocketDisconnect
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from ..core.deps import get_current_user, get_database
 from ..core.exceptions import NotFoundError, ValidationError
+from ..models.trading import OrderStatus, PositionStatus
 from ..models.monitoring import (
     Alert,
     AlertPriority,
@@ -74,10 +76,10 @@ async def get_trading_metrics(
 
     # Enrich with current positions and orders
     positions = await trading_service.get_positions(
-        user_id=current_user.id, status="OPEN"
+        user_id=current_user.id, status=PositionStatus.OPEN
     )
     orders = await trading_service.get_orders(
-        user_id=current_user.id, status=["PENDING", "OPEN"]
+        user_id=current_user.id, status=OrderStatus.PENDING | OrderStatus.OPEN
     )
 
     metrics.active_positions = len(positions)
@@ -172,8 +174,8 @@ async def websocket_metrics(
             # Send metrics update
             await websocket.send_json(
                 {
-                    "trading_metrics": trading_metrics.dict(),
-                    "performance_metrics": performance_metrics.dict(),
+                    "trading_metrics": trading_metrics.model_dump(),
+                    "performance_metrics": performance_metrics.model_dump(),
                     "timestamp": datetime.utcnow().isoformat(),
                 }
             )

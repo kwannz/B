@@ -32,6 +32,28 @@ class RiskManagementService:
         self.risk_profiles = db.risk_profiles
         self.risk_assessments = db.risk_assessments
 
+    async def _validate_risk_limits(self, limits: RiskLimit) -> None:
+        """Validate risk limits."""
+        if limits.max_position_size <= Decimal("0"):
+            raise ValidationError("Maximum position size must be positive")
+        if limits.max_leverage <= 0:
+            raise ValidationError("Maximum leverage must be positive")
+        if limits.max_drawdown <= 0:
+            raise ValidationError("Maximum drawdown must be positive")
+        if limits.max_daily_loss <= Decimal("0"):
+            raise ValidationError("Maximum daily loss must be positive")
+        if limits.trading_hours_start >= limits.trading_hours_end:
+            raise ValidationError("Trading hours start must be before end")
+
+    async def _validate_risk_profile(self, profile: RiskProfile) -> None:
+        """Validate risk profile."""
+        if profile.max_drawdown_tolerance <= 0:
+            raise ValidationError("Maximum drawdown tolerance must be positive")
+        if profile.target_annual_return <= 0:
+            raise ValidationError("Target annual return must be positive")
+        if profile.max_positions <= 0:
+            raise ValidationError("Maximum positions must be positive")
+
     async def get_risk_metrics(self, user_id: ObjectId) -> RiskMetrics:
         """Get current risk metrics for user."""
         metrics_data = await self.risk_metrics.find_one({"user_id": user_id})
@@ -178,7 +200,7 @@ class RiskManagementService:
 
         # Calculate margin used
         margin_used = sum(
-            p.amount * p.current_price / (p.leverage or 1)
+            p.amount * p.current_price / Decimal(str(p.leverage or 1))
             for p in positions
             if p.status == "OPEN"
         )
@@ -269,7 +291,7 @@ class RiskManagementService:
 
         # Calculate leverage ratio
         total_leverage = sum(
-            p.amount * p.current_price * (p.leverage or 1)
+            p.amount * p.current_price * Decimal(str(p.leverage or 1))
             for p in positions
             if p.status == "OPEN"
         )
@@ -278,10 +300,10 @@ class RiskManagementService:
         )
 
         return RiskMetrics(
-            var_95=Decimal(str(portfolio_value * 0.05)),  # Simplified VaR
-            var_99=Decimal(str(portfolio_value * 0.08)),
-            cvar_95=Decimal(str(portfolio_value * 0.07)),
-            expected_shortfall=Decimal(str(portfolio_value * 0.06)),
+            var_95=portfolio_value * Decimal("0.05"),  # Simplified VaR
+            var_99=portfolio_value * Decimal("0.08"),
+            cvar_95=portfolio_value * Decimal("0.07"),
+            expected_shortfall=portfolio_value * Decimal("0.06"),
             volatility=20.0,  # Example value
             beta=1.1,
             correlation=0.7,
@@ -478,7 +500,7 @@ class RiskManagementService:
         potential_gain = sum(
             p.amount * p.current_price * Decimal("0.2")  # 20% price increase
             for p in positions
-            if p.status == "OPEN" and p.side == PositionSide.LONG
+            if p.status == "OPEN" and p.side == "LONG"
         )
         return {
             "scenario": "BULL_MARKET",
@@ -492,7 +514,7 @@ class RiskManagementService:
         potential_loss = sum(
             p.amount * p.current_price * Decimal("0.2")  # 20% price decrease
             for p in positions
-            if p.status == "OPEN" and p.side == PositionSide.LONG
+            if p.status == "OPEN" and p.side == "LONG"
         )
         return {
             "scenario": "BEAR_MARKET",
