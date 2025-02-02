@@ -22,19 +22,30 @@ class BaseExecutor:
             )
 
         # Validate field types and values
-        if not isinstance(self.config["strategy_type"], str) or not self.config["strategy_type"]:
+        if (
+            not isinstance(self.config["strategy_type"], str)
+            or not self.config["strategy_type"]
+        ):
             raise TradingError("strategy_type must be a non-empty string")
 
-        if not isinstance(self.config["risk_level"], str) or not self.config["risk_level"]:
+        if (
+            not isinstance(self.config["risk_level"], str)
+            or not self.config["risk_level"]
+        ):
             raise TradingError("risk_level must be a non-empty string")
 
-        if not isinstance(self.config["trade_size"], (int, float)) or self.config["trade_size"] <= 0:
+        if (
+            not isinstance(self.config["trade_size"], (int, float))
+            or self.config["trade_size"] <= 0
+        ):
             raise TradingError("trade_size must be a positive number")
 
         # Additional validation for risk_level values
         valid_risk_levels = ["low", "medium", "high"]
         if self.config["risk_level"].lower() not in valid_risk_levels:
-            raise TradingError(f"risk_level must be one of: {', '.join(valid_risk_levels)}")
+            raise TradingError(
+                f"risk_level must be one of: {', '.join(valid_risk_levels)}"
+            )
 
     async def execute_trade(self, trade_params: Dict[str, Any]) -> Dict[str, Any]:
         raise NotImplementedError("Subclasses must implement execute_trade")

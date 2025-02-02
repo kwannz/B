@@ -4,7 +4,6 @@ from typing import Any, Dict, Optional
 
 from tradingbot.shared.cache.hybrid_cache import HybridCache
 from tradingbot.shared.models.errors import TradingError
-
 from tradingbot.shared.monitor.metrics import (
     get_cache_hit_rate,
     get_error_rate,
@@ -21,6 +20,7 @@ class AgentResponse:
         self.success = success
         self.data = data
         self.error = error
+
 
 class BaseAgent(ABC):
     def __init__(self, name: str, agent_type: str, config: Dict[str, Any]):
@@ -52,11 +52,11 @@ class BaseAgent(ABC):
         """Base method for processing requests with monitoring"""
         if not isinstance(request, dict):
             raise TypeError("Request must be a dictionary")
-            
+
         cache_key = request.get("cache_key")
         if not cache_key or not isinstance(cache_key, str) or not cache_key.strip():
             raise ValueError("cache_key is required")
-        
+
         try:
             cached = self.cache.get(cache_key)
             if cached is not None:
@@ -128,7 +128,7 @@ class BaseAgent(ABC):
         return {
             "cache_hit_count": self.cache_hit_count,
             "cache_miss_count": self.cache_miss_count,
-            "error_count": self.error_count
+            "error_count": self.error_count,
         }
 
     async def __aenter__(self):
