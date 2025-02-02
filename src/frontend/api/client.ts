@@ -35,17 +35,31 @@ export interface StrategyResponse {
   createdAt: string;
 }
 
-export interface WalletResponse {
-  address: string;
-  publicKey: string;
-  balance: string;
-  transactions: Array<{
-    hash: string;
-    type: string;
-    amount: string;
-    status: string;
-    timestamp: string;
-  }>;
+export interface TradeResponse {
+  symbol: string;
+  direction: string;
+  entryTime: string;
+  exitTime?: string;
+  entryPrice: number;
+  exitPrice?: number;
+  quantity: number;
+  status: string;
+}
+
+export interface SignalResponse {
+  timestamp: string;
+  direction: string;
+  confidence: number;
+  indicators: Record<string, number>;
+}
+
+export interface PerformanceResponse {
+  totalTrades: number;
+  profitableTrades: number;
+  totalProfit: number;
+  winRate: number;
+  averageProfit: number;
+  maxDrawdown: number;
 }
 
 const WALLET_ADDRESS_KEY = 'wallet_address';
@@ -86,6 +100,13 @@ class ApiClient {
     );
   }
 
+  private handleError(error: any): string {
+    if (axios.isAxiosError(error)) {
+      return error.response?.data?.message || error.message;
+    }
+    return 'An unexpected error occurred';
+  }
+
   // Wallet Authentication
   async getAuthMessage(publicKey: PublicKey): Promise<ApiResponse<string>> {
     try {
@@ -116,12 +137,6 @@ class ApiClient {
     }
   }
 
-  async disconnectWallet(): Promise<void> {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(WALLET_ADDRESS_KEY);
-    await this.client.post('/auth/disconnect');
-  }
-
   // Agent Management
   async getAgentStatus(agentType: string): Promise<ApiResponse<AgentResponse>> {
     try {
@@ -143,4 +158,80 @@ class ApiClient {
 
   async stopAgent(agentType: string): Promise<ApiResponse<void>> {
     try {
-      await this.client.post(`
+      await this.client.post(`/agents/${agentType}/stop`);
+      return { success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  // Strategy Management
+  async getStrategies(): Promise<ApiResponse<StrategyResponse[]>> {
+    try {
+      const response = await this.client.get('/strategies');
+      return { data: response.data, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  async createStrategy(strategy: Omit<StrategyResponse, 'id' | 'createdAt'>): Promise<ApiResponse<StrategyResponse>> {
+    try {
+      const response = await this.client.post('/strategies', strategy);
+      return { data: response.data, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  // Trade Management
+  async getTrades(): Promise<ApiResponse<TradeResponse[]>> {
+    try {
+      const response = await this.client.get('/trades');
+      return { data: response.data, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  async createTrade(trade: Omit<TradeResponse, 'status'>): Promise<ApiResponse<TradeResponse>> {
+    try {
+      const response = await this.client.post('/trades', trade);
+      return { data: response.data, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  // Signal Management
+  async getSignals(): Promise<ApiResponse<SignalResponse[]>> {
+    try {
+      const response = await this.client.get('/signals');
+      return { data: response.data, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  async createSignal(signal: SignalResponse): Promise<ApiResponse<SignalResponse>> {
+    try {
+      const response = await this.client.post('/signals', signal);
+      return { data: response.data, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  // Performance Metrics
+  async getPerformance(): Promise<ApiResponse<PerformanceResponse>> {
+    try {
+      const response = await this.client.get('/performance');
+      return { data: response.data, success: true };
+    } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+}
+
+export const apiClient = new ApiClient();
+export default apiClient;

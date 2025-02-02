@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/api/v1/price"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "symbol": "TEST/SOL",
+      "price": "1.234",
+      "volume": "100000",
+      "timestamp": "2024-02-02T12:00:00Z"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

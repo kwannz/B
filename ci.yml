@@ -32,9 +32,8 @@ jobs:
       - name: Run tests
         run: |
           cd src/deployment
-          docker-compose -f docker-compose.test.yml run api_gateway pytest
-          docker-compose -f docker-compose.test.yml run trading_agent pytest
-          docker-compose -f docker-compose.test.yml run defi_agent pytest
+          docker-compose -f docker-compose.test.yml run solana_tests pytest
+          docker-compose -f docker-compose.test.yml run pump_tests pytest
 
       - name: Generate coverage report
         run: |
@@ -100,32 +99,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push API Gateway
+      - name: Build and push Trading Bot
         uses: docker/build-push-action@v2
         with:
-          context: ./src/api_gateway
+          context: ./go-migration
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/api-gateway:latest
-
-      - name: Build and push Trading Agent
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/trading_agent
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/trading-agent:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/trading-agent:latest
-
-      - name: Build and push DeFi Agent
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/defi_agent
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/defi-agent:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/defi-agent:latest
+            ${{ env.REGISTRY }}/${{ github.repository }}/trading-bot:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/trading-bot:latest
 
   deploy-staging:
     needs: build

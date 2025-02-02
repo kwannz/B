@@ -1,21 +1,44 @@
 version: '3.8'
 
 services:
-  test:
+  solana_tests:
     build:
-      context: .
-      dockerfile: docker/test/Dockerfile.test
-    volumes:
-      - .:/app
-      - test-coverage:/app/coverage
+      context: ./go-migration
+      dockerfile: Dockerfile
+    command: go test ./internal/market/solana/... ./internal/trading/... -v
     environment:
-      - PYTHONPATH=/app
+      - SOLANA_RPC_URL=http://test-solana-node:8899
       - ENVIRONMENT=test
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-test_key}
-      - DEEPSEEK_API_URL=${DEEPSEEK_API_URL:-http://test-api.deepseek.com}
     depends_on:
       - test-db
       - test-redis
+      - test-solana-node
+
+  pump_tests:
+    build:
+      context: ./go-migration
+      dockerfile: Dockerfile
+    command: go test ./internal/market/pump/... ./internal/trading/... -v
+    environment:
+      - PUMP_API_URL=http://test-pump-api:8080
+      - ENVIRONMENT=test
+    depends_on:
+      - test-db
+      - test-redis
+      - test-pump-api
+
+  test-solana-node:
+    image: solanalabs/solana:stable
+    command: solana-test-validator
+    ports:
+      - "8899:8899"
+
+  test-pump-api:
+    image: wiremock/wiremock:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./mocks/pump:/home/wiremock/mappings
 
   test-db:
     image: postgres:13-alpine

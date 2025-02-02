@@ -1,0 +1,98 @@
+from pydantic import BaseModel, Field
+from typing import Dict, Optional, List
+from datetime import datetime
+
+# Signal Schemas
+class SignalBase(BaseModel):
+    timestamp: datetime
+    direction: str = Field(..., regex="^(long|short)$")
+    confidence: float = Field(..., ge=0, le=1)
+    indicators: Dict[str, float]
+
+class SignalCreate(SignalBase):
+    pass
+
+class SignalResponse(SignalBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Trade Schemas
+class TradeBase(BaseModel):
+    symbol: str
+    direction: str = Field(..., regex="^(long|short)$")
+    entry_time: datetime
+    entry_price: float = Field(..., gt=0)
+    quantity: float = Field(..., gt=0)
+    exit_time: Optional[datetime] = None
+    exit_price: Optional[float] = Field(None, gt=0)
+
+class TradeCreate(TradeBase):
+    pass
+
+class TradeResponse(TradeBase):
+    id: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Strategy Schemas
+class StrategyBase(BaseModel):
+    name: str
+    type: str
+    parameters: Dict[str, any]
+    status: str = Field(..., regex="^(active|inactive)$")
+
+class StrategyCreate(StrategyBase):
+    pass
+
+class StrategyResponse(StrategyBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Agent Schemas
+class AgentBase(BaseModel):
+    type: str
+    status: str = Field(..., regex="^(running|stopped|error)$")
+
+class AgentCreate(AgentBase):
+    pass
+
+class AgentResponse(AgentBase):
+    id: int
+    last_updated: datetime
+
+    class Config:
+        from_attributes = True
+
+# Performance Schema
+class PerformanceResponse(BaseModel):
+    total_trades: int
+    profitable_trades: int
+    total_profit: float
+    win_rate: float
+    average_profit: float
+    max_drawdown: float
+
+# List Response Schemas
+class SignalListResponse(BaseModel):
+    signals: List[SignalResponse]
+
+class TradeListResponse(BaseModel):
+    trades: List[TradeResponse]
+
+class StrategyListResponse(BaseModel):
+    strategies: List[StrategyResponse]
+
+# Error Response Schema
+class ErrorResponse(BaseModel):
+    detail: str

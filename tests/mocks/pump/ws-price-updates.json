@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPattern": "/ws/.*"
+  },
+  "response": {
+    "status": 101,
+    "headers": {
+      "Upgrade": "websocket",
+      "Connection": "Upgrade"
+    },
+    "body": "{\"type\":\"price\",\"data\":{\"symbol\":\"TEST/SOL\",\"price\":\"1.234\",\"volume\":\"100000\",\"timestamp\":\"2024-02-02T12:00:00Z\"}}"
+  }
+}

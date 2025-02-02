@@ -1,0 +1,355 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  VERSION: ${GITHUB_REF_NAME:-latest}
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+jobs:
+  lint-and-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black bandit safety
+        
+    - name: Run Python linting
+      run: |
+        cd src/backend
+        flake8 .
+        black --check .
+        
+    - name: Run security scan
+      run: |
+        cd src/backend
+        bandit -r .
+        safety check -r requirements.txt
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+        
+    - name: Run frontend linting
+      run: |
+        cd src/frontend
+        npm install
+        npm run lint
+        npm audit
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_DB: tradingbot_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        
+    - name: Install Python dependencies
+      run: |
+        cd src/backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run backend tests
+      env:
+        POSTGRES_DB: tradingbot_test
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_HOST: localhost
+        POSTGRES_PORT: 5432
+      run: |
+        cd src/backend
+        pytest -v --cov=. --cov-report=xml
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./src/backend/coverage.xml
+        flags: backend
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+        
+    - name: Install frontend dependencies
+      run: |
+        cd src/frontend
+        npm install
+        
+    - name: Run frontend tests
+      run: |
+        cd src/frontend
+        npm test
+
+  quality:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        with:
+          args: >
+            -Dsonar.projectKey=tradingbot
+            -Dsonar.sources=src
+            -Dsonar.python.coverage.reportPaths=src/backend/coverage.xml
+            -Dsonar.javascript.lcov.reportPaths=src/frontend/coverage/lcov.info
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+  performance:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up k6
+        run: |
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+      
+      - name: Run load tests
+        run: |
+          cd src/backend/tests/performance
+          k6 run load-test.js
+
+  build:
+    needs: [test, lint-and-scan, quality, performance]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set version tag
+      run: |
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        else
+          echo "VERSION=latest" >> $GITHUB_ENV
+        fi
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+        
+    - name: Build and push backend
+      uses: docker/build-push-action@v4
+      with:
+        context: ./src/backend
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_HUB_USERNAME }}/tradingbot-backend:${{ env.VERSION }}
+          ${{ secrets.DOCKER_HUB_USERNAME }}/tradingbot-backend:latest
+        cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/tradingbot-backend:buildcache
+        cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/tradingbot-backend:buildcache,mode=max
+        build-args: |
+          VERSION=${{ env.VERSION }}
+        
+    - name: Build and push frontend
+      uses: docker/build-push-action@v4
+      with:
+        context: ./src/frontend
+        push: true
+        tags: ${{ secrets.DOCKER_HUB_USERNAME }}/tradingbot-frontend:latest
+        cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/tradingbot-frontend:buildcache
+        cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/tradingbot-frontend:buildcache,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Save current deployment state
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        username: ${{ secrets.PROD_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          docker images -q > previous_images.txt
+          docker-compose config > previous_compose.yml
+
+    - name: Deploy to production server
+      id: deploy
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        username: ${{ secrets.PROD_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          # Pull latest images
+          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/tradingbot-backend:${{ env.VERSION }}
+          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/tradingbot-frontend:${{ env.VERSION }}
+          
+          # Update docker-compose.yml with new version
+          sed -i "s/:latest/:${{ env.VERSION }}/g" docker-compose.yml
+          
+          # Stop and remove existing containers
+          docker-compose down
+          
+          # Start new containers
+          docker-compose up -d
+          
+          # Wait for services to be healthy
+          timeout 60s bash -c 'until docker-compose ps | grep -q "(healthy)"; do sleep 5; done'
+          
+          # Run database migrations
+          docker-compose exec -T backend python init_database.py
+          
+          # Verify deployment
+          for i in {1..5}; do
+            if curl -f http://localhost:8000/health; then
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
+
+    - name: Rollback on failure
+      if: failure() && steps.deploy.outcome == 'failure'
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        username: ${{ secrets.PROD_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          # Restore previous docker-compose configuration
+          mv previous_compose.yml docker-compose.yml
+          
+          # Stop current deployment
+          docker-compose down
+          
+          # Remove new images
+          docker images | grep -v -f previous_images.txt | awk '{print $3}' | xargs -r docker rmi
+          
+          # Start previous version
+          docker-compose up -d
+          
+          echo "Deployment rolled back to previous version"
+
+    - name: Canary deployment
+      if: startsWith(github.ref, 'refs/tags/v')
+      id: canary
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        username: ${{ secrets.PROD_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          # Deploy to canary environment (10% traffic)
+          docker-compose -f docker-compose.canary.yml up -d
+          
+          # Monitor for 5 minutes
+          for i in {1..30}; do
+            # Check error rates and response times
+            if ! curl -f http://localhost:8000/metrics | grep -q 'error_rate{service="canary"} < 0.01'; then
+              echo "Error rate too high in canary deployment"
+              docker-compose -f docker-compose.canary.yml down
+              exit 1
+            fi
+            sleep 10
+          done
+          
+          # If successful, proceed with full deployment
+          docker-compose -f docker-compose.canary.yml down
+          exit 0
+
+  backup:
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+    
+    - name: Execute database backup
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        username: ${{ secrets.PROD_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          chmod +x scripts/backup_db.sh
+          ./scripts/backup_db.sh
+
+  notify:
+    needs: [deploy, backup]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      if: always()
+
+    - name: Update deployment status
+      if: always()
+      run: |
+        if [ "${{ needs.deploy.result }}" = "success" ]; then
+          echo "Deployment completed successfully"
+          # Add any additional status updates (e.g., update status page, send email)
+        else
+          echo "Deployment failed"
+          # Add any failure notifications or rollback procedures
+        fi

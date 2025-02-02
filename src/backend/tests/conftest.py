@@ -1,0 +1,141 @@
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from database import Base, get_db
+from main import app
+
+# Create in-memory SQLite database for testing
+@pytest.fixture(scope="session")
+def engine():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    Base.metadata.drop_all(bind=engine)
+
+@pytest.fixture(scope="function")
+def db_session(engine):
+    """Creates a new database session for each test function"""
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = sessionmaker(bind=connection)()
+    
+    yield session
+    
+    session.close()
+    transaction.rollback()
+    connection.close()
+
+@pytest.fixture(scope="function")
+def client(db_session):
+    """Creates a new FastAPI TestClient with the test database session"""
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+    
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
+
+@pytest.fixture(scope="function")
+def test_db(db_session):
+    """Provides a database session for tests that need direct database access"""
+    yield db_session
+
+# WebSocket test client
+@pytest.fixture(scope="function")
+def websocket_client(client):
+    """Creates a WebSocket test client"""
+    class WSTestClient:
+        def __init__(self, client):
+            self.client = client
+            self.websocket = None
+        
+        async def connect(self, url):
+            self.websocket = await self.client.websocket_connect(url)
+            return self.websocket
+        
+        async def send_json(self, data):
+            await self.websocket.send_json(data)
+        
+        async def receive_json(self):
+            return await self.websocket.receive_json()
+        
+        async def close(self):
+            await self.websocket.close()
+    
+    return WSTestClient(client)
+
+# Sample data fixtures
+@pytest.fixture
+def sample_trade_data():
+    return {
+        "symbol": "BTC/USD",
+        "direction": "long",
+        "entry_time": "2025-02-02T10:00:00",
+        "entry_price": 50000.0,
+        "quantity": 1.0
+    }
+
+@pytest.fixture
+def sample_signal_data():
+    return {
+        "timestamp": "2025-02-02T10:00:00",
+        "direction": "long",
+        "confidence": 0.85,
+        "indicators": {
+            "rsi": 70,
+            "macd": 1.5
+        }
+    }
+
+@pytest.fixture
+def sample_strategy_data():
+    return {
+        "name": "Test Strategy",
+        "type": "momentum",
+        "parameters": {
+            "rsi_period": 14,
+            "rsi_overbought": 70,
+            "rsi_oversold": 30
+        },
+        "status": "active"
+    }
+
+# Mock WebSocket connection manager
+@pytest.fixture
+def mock_connection_manager(mocker):
+    class MockConnectionManager:
+        async def connect(self, websocket, connection_type):
+            pass
+        
+        async def disconnect(self, websocket, connection_type):
+            pass
+        
+        async def broadcast_to_type(self, message, connection_type):
+            pass
+        
+        async def send_personal_message(self, message, websocket):
+            pass
+    
+    return MockConnectionManager()
+
+# Environment variables for testing
+@pytest.fixture(autouse=True)
+def env_setup(monkeypatch):
+    monkeypatch.setenv("TESTING", "true")
+    monkeypatch.setenv("DEBUG", "true")
+    monkeypatch.setenv("POSTGRES_DB", "tradingbot_test")
+    monkeypatch.setenv("POSTGRES_USER", "postgres")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "postgres")
+    monkeypatch.setenv("POSTGRES_HOST", "localhost")
+    monkeypatch.setenv("POSTGRES_PORT", "5432")
