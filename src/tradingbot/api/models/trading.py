@@ -77,7 +77,7 @@ class OrderBase(BaseModel):
     amount: Decimal = Field(..., gt=0)
     price: Optional[Decimal] = None
     stop_price: Optional[Decimal] = None
-    time_in_force: str = Field("GTC", regex="^(GTC|IOC|FOK)$")
+    time_in_force: str = Field("GTC", pattern="^(GTC|IOC|FOK)$")
     reduce_only: bool = False
     post_only: bool = False
     leverage: Optional[float] = Field(None, ge=1)

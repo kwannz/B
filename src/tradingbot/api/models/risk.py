@@ -148,7 +148,7 @@ class RiskProfile(BaseModel):
 
     # Risk tolerance settings
     risk_tolerance: RiskLevel
-    investment_horizon: str = Field(..., regex="^(SHORT|MEDIUM|LONG)_TERM$")
+    investment_horizon: str = Field(..., pattern="^(SHORT|MEDIUM|LONG)_TERM$")
     max_drawdown_tolerance: float = Field(..., ge=0, le=100)
     target_annual_return: float = Field(..., ge=0)
 
@@ -156,12 +156,12 @@ class RiskProfile(BaseModel):
     preferred_markets: List[str] = Field(default_factory=list)
     excluded_markets: List[str] = Field(default_factory=list)
     max_positions: int = Field(..., gt=0)
-    preferred_position_duration: str = Field(..., regex="^(INTRADAY|SWING|POSITION)$")
+    preferred_position_duration: str = Field(..., pattern="^(INTRADAY|SWING|POSITION)$")
 
     # Risk management preferences
-    stop_loss_type: str = Field(..., regex="^(FIXED|TRAILING|ATR)$")
-    take_profit_type: str = Field(..., regex="^(FIXED|TRAILING|RR_RATIO)$")
-    position_sizing_type: str = Field(..., regex="^(FIXED|RISK_BASED|KELLY)$")
+    stop_loss_type: str = Field(..., pattern="^(FIXED|TRAILING|ATR)$")
+    take_profit_type: str = Field(..., pattern="^(FIXED|TRAILING|RR_RATIO)$")
+    position_sizing_type: str = Field(..., pattern="^(FIXED|RISK_BASED|KELLY)$")
 
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
