@@ -4,8 +4,16 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 
-from database import get_db, Signal, Trade, Strategy, Agent, init_db
-from database import TradeStatus, StrategyStatus, AgentStatus
+from database import (
+    get_db, Signal, Trade, Strategy, Agent, init_db, init_mongodb,
+    TradeStatus, StrategyStatus, AgentStatus, mongodb, async_mongodb
+)
+from schemas import MarketData
+from tradingbot.shared.models.ollama import OllamaModel
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 from schemas import (
     SignalCreate,
     SignalResponse,
@@ -26,33 +34,94 @@ from websocket import (
     broadcast_performance_update,
     broadcast_agent_status,
 )
-from config import settings
-
 app = FastAPI()
 
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],  # Allow all origins in development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Initialize database
+# Initialize databases
 @app.on_event("startup")
 async def startup_event():
-    init_db()
+    init_db()  # Initialize PostgreSQL
+    init_mongodb()  # Initialize MongoDB collections
 
+
+# Market Analysis endpoint
+@app.post("/api/v1/analysis")
+async def analyze_market(market_data: MarketData):
+    try:
+        logger.info(f"Received market data for analysis: {market_data.symbol}")
+        model = OllamaModel()
+        analysis_request = {
+            "symbol": market_data.symbol,
+            "price": market_data.price,
+            "volume": market_data.volume,
+            "indicators": market_data.metadata.get("indicators", {})
+        }
+        logger.info(f"Sending analysis request: {analysis_request}")
+        analysis = await model.analyze_market(analysis_request)
+        logger.info(f"Analysis completed successfully")
+        return {
+            "status": "success",
+            "data": analysis,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        # Initialize and verify Ollama model
+        try:
+            model = OllamaModel()
+            analysis_request = {
+                "symbol": market_data.symbol,
+                "price": market_data.price,
+                "volume": market_data.volume,
+                "indicators": market_data.metadata.get("indicators", {})
+            }
+            print(f"Sending analysis request: {analysis_request}")
+            analysis = await model.analyze_market(analysis_request)
+            print(f"Received analysis response: {analysis}")
+        except Exception as model_err:
+            print(f"Model error: {model_err}")
+            raise HTTPException(
+                status_code=500,
+                detail="Model analysis failed"
+            )
+
+        # Store data in MongoDB
+        try:
+            await async_mongodb.market_snapshots.insert_one(market_data.dict())
+            await async_mongodb.technical_analysis.insert_one({
+                "symbol": market_data.symbol,
+                "timestamp": datetime.utcnow(),
+                "analysis": analysis,
+                "market_data": market_data.dict()
+            })
+        except Exception as store_err:
+            print(f"Storage error: {store_err}")
+            # Continue even if storage fails
+            pass
+
+        return analysis
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # Health check endpoint
-@app.get("/health")
+@app.get("/api/v1/health")
 async def health_check():
     try:
         # Test database connection
+        from sqlalchemy import text
         db = next(get_db())
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         return {
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
@@ -82,6 +151,11 @@ async def websocket_performance(websocket: WebSocket):
 @app.websocket("/ws/agent_status")
 async def websocket_agent_status(websocket: WebSocket):
     await handle_websocket_connection(websocket, "agent_status")
+
+
+@app.websocket("/ws/analysis")
+async def websocket_analysis(websocket: WebSocket):
+    await handle_websocket_connection(websocket, "analysis")
 
 
 # REST endpoints
@@ -245,4 +319,4 @@ async def get_performance(db: Session = Depends(get_db)):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host=settings.HOST, port=settings.PORT)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

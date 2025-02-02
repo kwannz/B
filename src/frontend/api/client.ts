@@ -62,6 +62,25 @@ export interface PerformanceResponse {
   maxDrawdown: number;
 }
 
+export interface AnalysisResponse {
+  symbol: string;
+  timestamp: string;
+  indicators: {
+    rsi?: number;
+    macd?: {
+      macd: number;
+      signal: number;
+      histogram: number;
+    };
+    bollinger?: {
+      middle: number;
+      upper: number;
+      lower: number;
+    };
+  };
+  status: string;
+}
+
 const WALLET_ADDRESS_KEY = 'wallet_address';
 const AUTH_TOKEN_KEY = 'auth_token';
 
@@ -70,7 +89,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${process.env.VITE_API_URL || 'http://localhost:8000'}/api/v1`,
+      baseURL: `${import.meta.env.VITE_API_URL || 'https://localhost:8000'}/api/v1`,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -228,6 +247,16 @@ class ApiClient {
       const response = await this.client.get('/performance');
       return { data: response.data, success: true };
     } catch (error) {
+      return { error: this.handleError(error), success: false };
+    }
+  }
+
+  async getMarketAnalysis(symbol: string): Promise<ApiResponse<AnalysisResponse>> {
+    try {
+      const response = await this.client.post('/analysis', { symbol });
+      return { data: response.data, success: true };
+    } catch (error) {
+      console.error('Error getting market analysis:', error);
       return { error: this.handleError(error), success: false };
     }
   }

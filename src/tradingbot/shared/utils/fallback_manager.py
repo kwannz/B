@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Any, Generic, List, Optional, TypeVar
 
-from src.shared.monitor.metrics import track_fallback_rate, track_model_fallback
+from tradingbot.shared.monitor.metrics import track_fallback_rate, track_model_fallback
 
 T = TypeVar("T")
 R = TypeVar("R")

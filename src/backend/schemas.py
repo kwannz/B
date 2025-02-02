@@ -1,12 +1,20 @@
 from pydantic import BaseModel, Field
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 from datetime import datetime
 
 
 # Signal Schemas
+class MarketData(BaseModel):
+    symbol: str
+    exchange: str
+    timestamp: datetime
+    price: float = Field(..., gt=0)
+    volume: float = Field(..., gt=0)
+    metadata: Dict[str, Any]
+
 class SignalBase(BaseModel):
     timestamp: datetime
-    direction: str = Field(..., regex="^(long|short)$")
+    direction: str = Field(..., pattern="^(long|short)$")
     confidence: float = Field(..., ge=0, le=1)
     indicators: Dict[str, float]
 
@@ -26,7 +34,7 @@ class SignalResponse(SignalBase):
 # Trade Schemas
 class TradeBase(BaseModel):
     symbol: str
-    direction: str = Field(..., regex="^(long|short)$")
+    direction: str = Field(..., pattern="^(long|short)$")
     entry_time: datetime
     entry_price: float = Field(..., gt=0)
     quantity: float = Field(..., gt=0)
@@ -52,8 +60,8 @@ class TradeResponse(TradeBase):
 class StrategyBase(BaseModel):
     name: str
     type: str
-    parameters: Dict[str, any]
-    status: str = Field(..., regex="^(active|inactive)$")
+    parameters: Dict[str, Any]
+    status: str = Field(..., pattern="^(active|inactive)$")
 
 
 class StrategyCreate(StrategyBase):
@@ -72,7 +80,7 @@ class StrategyResponse(StrategyBase):
 # Agent Schemas
 class AgentBase(BaseModel):
     type: str
-    status: str = Field(..., regex="^(running|stopped|error)$")
+    status: str = Field(..., pattern="^(running|stopped|error)$")
 
 
 class AgentCreate(AgentBase):

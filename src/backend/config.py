@@ -11,10 +11,11 @@ load_dotenv()
 class Settings(BaseSettings):
     # Database settings
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "tradingbot")
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD")
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
     POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", "5432"))
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017/tradingbot")
 
     @property
     def DATABASE_URL(self) -> str:
@@ -39,6 +40,10 @@ class Settings(BaseSettings):
         "https://deploy-trading-app-tunnel-edift3yc.devinapps.com",
         "https://deploy-trading-app-tunnel-uv6t2aou.devinapps.com"
     ]
+
+    @property
+    def get_allowed_origins(self) -> List[str]:
+        return self.ALLOWED_ORIGINS
 
     # WebSocket settings
     WS_PING_INTERVAL: int = int(os.getenv("WS_PING_INTERVAL", "30000"))

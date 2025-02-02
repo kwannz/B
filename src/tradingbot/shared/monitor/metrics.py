@@ -8,6 +8,8 @@ _errors = 0
 _total_requests = 0
 _total_inference_time = 0
 _total_inferences = 0
+_fallback_count = 0
+_total_fallbacks = 0
 
 
 def track_cache_hit():
@@ -62,12 +64,26 @@ def get_inference_latency():
     return _total_inference_time / _total_inferences if _total_inferences > 0 else 0
 
 
+def track_fallback_rate(success: bool = True):
+    """Track fallback rate"""
+    global _fallback_count, _total_fallbacks
+    if success:
+        _fallback_count += 1
+    _total_fallbacks += 1
+
+def track_model_fallback():
+    """Track model fallback"""
+    global _total_fallbacks
+    _total_fallbacks += 1
+
 def reset_metrics():
     """Reset all metrics"""
-    global _cache_hits, _cache_misses, _errors, _total_requests, _total_inference_time, _total_inferences
+    global _cache_hits, _cache_misses, _errors, _total_requests, _total_inference_time, _total_inferences, _fallback_count, _total_fallbacks
     _cache_hits = 0
     _cache_misses = 0
     _errors = 0
     _total_requests = 0
     _total_inference_time = 0
     _total_inferences = 0
+    _fallback_count = 0
+    _total_fallbacks = 0

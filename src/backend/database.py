@@ -15,10 +15,36 @@ import enum
 
 from config import settings
 
-# Create SQLAlchemy engine with the configured DATABASE_URL
-engine = create_engine(settings.DATABASE_URL)
+# Create SQLAlchemy engine with configured DATABASE_URL
+engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Initialize MongoDB clients
+from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
+
+mongodb_client = MongoClient(settings.MONGODB_URL)
+mongodb = mongodb_client.get_database()
+
+async_mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
+async_mongodb = async_mongodb_client.get_database()
+
+def init_mongodb():
+    try:
+        if "market_snapshots" not in mongodb.list_collection_names():
+            mongodb.create_collection("market_snapshots")
+            mongodb.market_snapshots.create_index("symbol")
+            mongodb.market_snapshots.create_index("timestamp")
+        
+        if "technical_analysis" not in mongodb.list_collection_names():
+            mongodb.create_collection("technical_analysis")
+            mongodb.technical_analysis.create_index("symbol")
+            mongodb.technical_analysis.create_index("timestamp")
+        return True
+    except Exception as e:
+        print(f"Error initializing MongoDB: {e}")
+        return False
 
 
 class TradeStatus(str, enum.Enum):

@@ -4,10 +4,10 @@ from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 
-from src.shared.db.database_manager import DatabaseManager
-from src.shared.models.deepseek import DeepSeek1_5B
-from src.shared.models.market_data import MarketData, TradingSignal
-from src.shared.utils.fallback_manager import FallbackManager
+from tradingbot.shared.db.database_manager import DatabaseManager
+from tradingbot.shared.models.market_data import MarketData, TradingSignal
+from tradingbot.shared.models.ollama import OllamaModel
+from tradingbot.shared.utils.fallback_manager import FallbackManager
 
 from .base_agent import BaseAgent
 
@@ -26,7 +26,7 @@ class TechnicalAnalystAgent(BaseAgent):
         self.indicators = config.get("indicators", ["rsi", "macd", "bollinger"])
         self.timeframes = config.get("timeframes", ["1h", "4h", "1d"])
         self.symbols = config.get("symbols", ["BTC/USDT", "ETH/USDT", "SOL/USDT"])
-        self.model = DeepSeek1_5B(quantized=True)
+        self.model = OllamaModel()
 
         class LegacyTechnicalSystem:
             async def process(self, request: str) -> Dict[str, Any]:

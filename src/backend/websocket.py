@@ -13,6 +13,7 @@ class ConnectionManager:
             "signals": set(),
             "performance": set(),
             "agent_status": set(),
+            "analysis": set(),
         }
 
     async def connect(self, websocket: WebSocket, connection_type: str):
@@ -115,4 +116,16 @@ async def broadcast_agent_status(agent_type: str, status: str):
             "timestamp": datetime.utcnow().isoformat(),
         },
         "agent_status",
+    )
+
+
+async def broadcast_analysis(analysis: dict):
+    """Broadcast market analysis updates to all connected clients"""
+    await manager.broadcast_to_type(
+        {
+            "type": "analysis_update",
+            "data": analysis,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        "analysis",
     )

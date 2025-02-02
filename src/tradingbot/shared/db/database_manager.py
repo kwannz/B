@@ -19,7 +19,8 @@ from ..models.sentiment import (
     CombinedMarketSentiment,
     SentimentAnalysis,
 )
-from ..models.trading import Strategy, Wallet
+from ..models.strategy import Strategy
+from ..models.wallet import Wallet
 from .exceptions import ConnectionError, MongoDBError, PostgreSQLError, ValidationError
 
 
