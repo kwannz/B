@@ -50,6 +50,11 @@ jobs:
         with:
           python-version: '3.8'
           cache: 'pip'
+          
+      - name: Initialize Database
+        run: |
+          cd src/backend
+          python init_database.py
       
       - name: Install Backend Dependencies
         run: |
@@ -63,7 +68,15 @@ jobs:
       - name: Run Backend Tests
         run: |
           cd src/backend
-          PYTHONPATH=$PYTHONPATH:$(pwd) pytest -v tests/unit --cov=tradingbot --cov-report=xml
+          python -m pytest -v tests/ --cov=. --cov-report=xml
+        env:
+          POSTGRES_DB: tradingbot_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          MONGODB_URL: mongodb://localhost:27017/
+          REDIS_URL: redis://localhost:6379/0
       
       - name: Upload Coverage
         uses: codecov/codecov-action@v3
