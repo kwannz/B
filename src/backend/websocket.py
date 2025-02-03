@@ -64,7 +64,6 @@ async def handle_websocket_connection(websocket: WebSocket, connection_type: str
     try:
         await manager.connect(websocket, connection_type)
         logger.info(f"New client connected to {connection_type} channel")
-        
         while True:
             try:
                 data = await websocket.receive_text()
