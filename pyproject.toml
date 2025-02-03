@@ -51,6 +51,10 @@ python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "src/backend"
+exclude = ["tests/.*"]
 
 [[tool.mypy.overrides]]
 module = ["tests.*"]
