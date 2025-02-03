@@ -1,0 +1,3 @@
+[submodule "src/go_executor"]
+path = src/go_executor
+url = https://github.com/devinjacknz/go_executor.git
