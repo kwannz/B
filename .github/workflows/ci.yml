@@ -67,7 +67,7 @@ jobs:
           python -m pip install --upgrade pip wheel setuptools
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-          pip install pytest pytest-cov pytest-asyncio motor pyjwt nest-asyncio pytest-env
+          pip install pytest==8.0.0 pytest-cov==4.1.0 pytest-asyncio==0.24.0 motor==2.5.1 pymongo==3.12.3 pyjwt==2.8.0 nest-asyncio==1.6.0 pytest-env==1.1.1
           cd src/backend
           pip install -e .
         env:
@@ -75,20 +75,33 @@ jobs:
           DEBUG: "true"
           JWT_SECRET_KEY: "test_secret_key"
           JWT_ALGORITHM: "HS256"
+          POSTGRES_DB: tradingbot_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          MONGODB_URL: mongodb://localhost:27017/tradingbot_test
+          REDIS_URL: redis://localhost:6379/0
       
       - name: Run Backend Tests
         run: |
           cd src/backend
-          python -m pytest -v tests/ --cov=. --cov-report=xml
+          python -m pytest -v tests/ --cov=. --cov-report=xml --import-mode=importlib -p no:warnings
         env:
           POSTGRES_DB: tradingbot_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
-          MONGODB_URL: mongodb://localhost:27017/
+          MONGODB_URL: mongodb://localhost:27017/tradingbot_test
           REDIS_URL: redis://localhost:6379/0
           PYTHONPATH: ${{ github.workspace }}/src/backend
+          DEBUG: "true"
+          JWT_SECRET_KEY: "test_secret_key"
+          JWT_ALGORITHM: "HS256"
+          TEST_MODE: "true"
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "true"
+          PYTEST_ADDOPTS: "--no-cov-on-fail"
       
       - name: Upload Coverage
         uses: codecov/codecov-action@v3
