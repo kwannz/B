@@ -14,6 +14,7 @@ setup(
         "redis==4.5.4",
         "sqlalchemy==2.0.0",
         "asyncpg==0.27.0",
+        "psycopg2-binary==2.9.9",
         "python-jose==3.3.0",
         "passlib==1.7.4",
         "python-multipart==0.0.6",
