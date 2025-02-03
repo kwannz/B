@@ -101,15 +101,10 @@ exclude_dirs = [
 skips = ["B101"]
 ignore_nosec = false
 recursive = true
-noqa_split_string = ","
-baseline = null
-ini_path = null
-output_format = "text"
-quiet = false
-verbose = false
-targets = [
-    "src/backend",
-    "src/frontend"
+exclude_paths = ["tests/", "*/tests/", "**/test_*.py", "**/tests/**/*.py"]
+per_file_ignores = [
+    "**/test_*.py:B101",
+    "**/tests/**/*.py:B101"
 ]
 
 [tool.pylint]
