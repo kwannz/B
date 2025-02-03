@@ -105,9 +105,13 @@ class Trade(Base):  # type: ignore[misc, valid-type]
     entry_price = Column(Float, nullable=False)
     exit_price = Column(Float, nullable=True)
     quantity = Column(Float, nullable=False)
-    status: Column[TradeStatus] = Column(Enum(TradeStatus), default=TradeStatus.OPEN)
+    status: Column[TradeStatus] = Column(
+        Enum(TradeStatus), default=TradeStatus.OPEN
+    )
     created_at: Column[datetime] = Column(DateTime, default=datetime.utcnow)
-    updated_at: Column[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Column[datetime] = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     def model_dump(self) -> Dict[str, Any]:
         return {
@@ -132,9 +136,13 @@ class Strategy(Base):  # type: ignore[misc, valid-type]
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)
     parameters = Column(JSON, nullable=False)
-    status: Column[StrategyStatus] = Column(Enum(StrategyStatus), default=StrategyStatus.INACTIVE)
+    status: Column[StrategyStatus] = Column(
+        Enum(StrategyStatus), default=StrategyStatus.INACTIVE
+    )
     created_at: Column[datetime] = Column(DateTime, default=datetime.utcnow)
-    updated_at: Column[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Column[datetime] = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     def model_dump(self) -> Dict[str, Any]:
         return {
@@ -153,8 +161,12 @@ class Agent(Base):  # type: ignore[misc, valid-type]
 
     id = Column(Integer, primary_key=True, index=True)
     type = Column(String, nullable=False)
-    status: Column[AgentStatus] = Column(Enum(AgentStatus), default=AgentStatus.STOPPED)
-    last_updated: Column[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status: Column[AgentStatus] = Column(
+        Enum(AgentStatus), default=AgentStatus.STOPPED
+    )
+    last_updated: Column[datetime] = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     def model_dump(self) -> Dict[str, Any]:
         return {
