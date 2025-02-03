@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
-from typing import Any, Dict, Generator, Optional, Type, TypeVar, cast
+from typing import Any, Dict, Generator
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
@@ -27,10 +27,6 @@ from config import settings
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-# Define a type variable for SQLAlchemy models
-ModelType = TypeVar("ModelType", bound=Any)
-T = TypeVar("T", bound=Any)
 
 mongodb_client = MongoClient(settings.MONGODB_URL)
 mongodb = mongodb_client.get_database()

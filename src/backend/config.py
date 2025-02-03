@@ -25,7 +25,7 @@ class Settings(BaseSettings):
         )
 
     # Server settings
-    HOST: str = os.getenv("HOST", "127.0.0.1")  # Default to localhost for security
+    HOST: str = os.getenv("HOST", "127.0.0.1")
     PORT: int = int(os.getenv("PORT", "8000"))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
@@ -37,12 +37,7 @@ class Settings(BaseSettings):
     )
 
     # CORS settings
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://deploy-trading-app-tunnel-edift3yc.devinapps.com",
-        "https://deploy-trading-app-tunnel-uv6t2aou.devinapps.com",
-    ]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     @property
     def get_allowed_origins(self) -> List[str]:

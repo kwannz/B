@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, Set
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -34,7 +34,7 @@ class ConnectionManager:
     ) -> None:
         if connection_type not in self.active_connections:
             logger.warning(
-                f"Attempted to broadcast to unknown connection type: {connection_type}"
+                "Attempted to broadcast to unknown connection type: %s", connection_type
             )
             return
 
@@ -48,7 +48,7 @@ class ConnectionManager:
             except Exception as e:
                 dead_connections.add(connection)
                 logger.error(
-                    f"Error broadcasting to {connection_type} client: {str(e)}"
+                    "Error broadcasting to %s client: %s", connection_type, str(e)
                 )
 
         # Remove dead connections after iteration
