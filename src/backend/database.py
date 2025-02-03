@@ -1,9 +1,11 @@
 import enum
 from datetime import datetime
-from typing import Generator
+from typing import Any, Dict, Generator, Optional, Type, TypeVar
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
+
+T = TypeVar('T', bound='Base')
 from sqlalchemy import (
     JSON,
     Column,
@@ -65,7 +67,7 @@ class AgentStatus(str, enum.Enum):
     ERROR = "error"
 
 
-class Signal(Base):
+class Signal(Base):  # type: ignore[valid-type]
     __tablename__ = "signals"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -75,7 +77,7 @@ class Signal(Base):
     indicators = Column(JSON, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def model_dump(self):
+    def model_dump(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "timestamp": self.timestamp.isoformat(),
@@ -86,7 +88,7 @@ class Signal(Base):
         }
 
 
-class Trade(Base):
+class Trade(Base):  # type: ignore[valid-type]
     __tablename__ = "trades"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -101,7 +103,7 @@ class Trade(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def model_dump(self):
+    def model_dump(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "symbol": self.symbol,
@@ -117,7 +119,7 @@ class Trade(Base):
         }
 
 
-class Strategy(Base):
+class Strategy(Base):  # type: ignore[valid-type]
     __tablename__ = "strategies"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -128,7 +130,7 @@ class Strategy(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def model_dump(self):
+    def model_dump(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -140,7 +142,7 @@ class Strategy(Base):
         }
 
 
-class Agent(Base):
+class Agent(Base):  # type: ignore[valid-type]
     __tablename__ = "agents"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -148,7 +150,7 @@ class Agent(Base):
     status = Column(Enum(AgentStatus), default=AgentStatus.STOPPED)
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def model_dump(self):
+    def model_dump(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "type": self.type,
