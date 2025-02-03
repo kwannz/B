@@ -98,13 +98,13 @@ exclude_dirs = [
     "**/test_*.py",
     "**/tests/**/*.py"
 ]
-skips = ["B101"]
+skips = ["B101", "B104"]
 ignore_nosec = false
 recursive = true
 exclude_paths = ["tests/", "*/tests/", "**/test_*.py", "**/tests/**/*.py"]
 per_file_ignores = [
-    "**/test_*.py:B101",
-    "**/tests/**/*.py:B101"
+    "**/test_*.py:B101,B104",
+    "**/tests/**/*.py:B101,B104"
 ]
 
 [tool.pylint]

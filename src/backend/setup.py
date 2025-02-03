@@ -10,6 +10,7 @@ setup(
         "uvicorn==0.21.0",
         "pydantic==1.10.12",
         "motor==2.5.1",
+        "pymongo==3.12.3",
         "redis==4.5.4",
         "sqlalchemy==2.0.0",
         "asyncpg==0.27.0",
@@ -18,5 +19,6 @@ setup(
         "python-multipart==0.0.6",
         "aiohttp==3.8.4",
         "websockets==11.0.3",
+        "python-dotenv==0.19.0",
     ],
 )
