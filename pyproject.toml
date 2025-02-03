@@ -99,7 +99,16 @@ per_file_ignores = [
     "src/backend/tests/*:B101",
     "src/backend/tests/e2e/*:B101",
     "**/test_*.py:B101",
-    "**/tests/**/*.py:B101"
+    "**/tests/**/*.py:B101",
+    "**/*_test.py:B101",
+    "**/conftest.py:B101"
+]
+
+# Exclude test directories from security scans
+exclude_dirs = [
+    "tests",
+    "src/backend/tests",
+    "**/tests"
 ]
 
 [tool.pylint]
