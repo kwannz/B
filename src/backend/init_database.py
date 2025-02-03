@@ -25,7 +25,7 @@ def init_database():
         exists = cur.fetchone()
         if not exists:
             print(f"Creating database {dbname}...")
-            cur.execute(f"CREATE DATABASE {dbname}")
+            cur.execute("CREATE DATABASE %s", (dbname,))
             print(f"Database {dbname} created successfully")
     finally:
         cur.close()
