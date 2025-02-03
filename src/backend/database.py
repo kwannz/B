@@ -1,3 +1,6 @@
+"""Database models and connection management."""
+from __future__ import annotations
+
 import enum
 from datetime import datetime
 from typing import Any, Dict, Generator, Optional, Type, TypeVar
@@ -19,9 +22,10 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
-from config import settings
+from config import get_settings
 
 # Create SQLAlchemy engine with configured DATABASE_URL
+settings = get_settings()
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
