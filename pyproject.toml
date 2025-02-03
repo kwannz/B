@@ -122,10 +122,12 @@ skips = ["B101", "B104"]
 ignore_nosec = false
 recursive = true
 exclude_paths = ["tests/", "*/tests/", "**/test_*.py", "**/tests/**/*.py"]
+noqa = true
 per_file_ignores = [
     "**/test_*.py:B101,B104",
     "**/tests/**/*.py:B101,B104"
 ]
+targets = ["src/backend"]
 
 [tool.pylint]
 max-line-length = 88

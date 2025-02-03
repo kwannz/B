@@ -66,7 +66,7 @@ jobs:
       - name: Run Security Scan
         run: |
           cd src/backend
-          bandit -r . -c ../../pyproject.toml --skip B101 --exclude "tests/,*/tests/,**/test_*.py,**/tests/**/*.py"
+          bandit -r . -c ../../.bandit --ignore-nosec
         env:
           PYTHONPATH: ${{ github.workspace }}/src/backend
           DEBUG: "true"

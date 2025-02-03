@@ -1,0 +1,10 @@
+[bandit]
+exclude_dirs = tests,docs,src/backend/tests,**/tests/**,**/test_*.py
+skips = B101,B104
+targets = src/backend
+recursive = true
+per_file_ignores =
+    tests/*:B101
+    src/backend/tests/*:B101
+    **/test_*.py:B101
+    **/tests/**/*.py:B101
