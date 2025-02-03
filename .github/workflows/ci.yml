@@ -51,7 +51,7 @@ jobs:
           mypy . --ignore-missing-imports --no-strict-optional --allow-untyped-decorators
           isort --check-only --diff . --skip __init__.py
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
+          PYTHONPATH: ${{ github.workspace }}/src/backend
           DEBUG: "true"
           JWT_SECRET_KEY: "test_secret_key"
           JWT_ALGORITHM: "HS256"
