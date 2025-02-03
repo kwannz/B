@@ -6,8 +6,12 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from typing import Optional
 
-from ..database import Base, get_db
-from ..main import app
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from database import Base, get_db
+from main import app
 
 
 # Create in-memory SQLite database for testing

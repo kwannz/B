@@ -51,6 +51,10 @@ python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "docs"]
+skips = ["B101"]  # Skip assert warnings in test files
 disallow_incomplete_defs = true
 check_untyped_defs = true
 disallow_untyped_decorators = true
