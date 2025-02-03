@@ -24,6 +24,19 @@ jobs:
         image: mongo:4.4
         ports:
           - 27017:27017
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_DB: tradingbot_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       redis:
         image: redis:6
         ports:
@@ -33,7 +46,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.8'
           cache: 'pip'
       
       - name: Install Backend Dependencies
@@ -41,10 +54,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+          pip install pytest pytest-cov pytest-asyncio motor
       
       - name: Run Backend Tests
         run: |
-          pytest tests/unit --cov=src/tradingbot --cov-report=xml
+          cd src/backend
+          PYTHONPATH=$PYTHONPATH:$(pwd) pytest -v --cov=. --cov-report=xml
       
       - name: Upload Coverage
         uses: codecov/codecov-action@v3
