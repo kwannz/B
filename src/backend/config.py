@@ -25,7 +25,7 @@ class Settings(BaseSettings):
         )
 
     # Server settings
-    HOST: str = os.getenv("HOST", "0.0.0.0")
+    HOST: str = os.getenv("HOST", "127.0.0.1")  # Default to localhost for security
     PORT: int = int(os.getenv("PORT", "8000"))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 

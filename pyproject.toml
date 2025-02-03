@@ -90,8 +90,9 @@ exclude_lines = [
 ]
 
 [tool.bandit]
-exclude_dirs = ["tests", "docs"]
-skips = ["B101"]  # Skip assert warnings in test files
+exclude_dirs = ["docs"]
+per_file_ignores = ["tests/*:B101"]
+skips = []
 [tool.pylint]
 max-line-length = 88
 disable = [

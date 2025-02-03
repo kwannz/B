@@ -21,7 +21,7 @@ def init_database():
 
     try:
         # Create database if it doesn't exist
-        cur.execute(f"SELECT 1 FROM pg_catalog.pg_database WHERE datname = '{dbname}'")
+        cur.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s", (dbname,))
         exists = cur.fetchone()
         if not exists:
             print(f"Creating database {dbname}...")
