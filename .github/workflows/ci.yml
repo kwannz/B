@@ -34,7 +34,7 @@ jobs:
           python -m pip install --upgrade pip wheel setuptools
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-          pip install black==24.8.0 flake8==7.1.1 mypy==1.14.1 isort==5.13.2 bandit==1.7.10
+          pip install black==24.8.0 flake8==7.1.1 mypy==1.14.1 isort==5.13.2 bandit==1.7.10 psycopg2-binary==2.9.9
           cd src/backend
           pip install -e .
         env:
@@ -124,7 +124,7 @@ jobs:
           python -m pip install --upgrade pip wheel setuptools
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-          pip install pytest==8.0.0 pytest-cov==4.1.0 pytest-asyncio==0.24.0 motor==2.5.1 pymongo==3.12.3 pyjwt==2.8.0 nest-asyncio==1.6.0 pytest-env==1.1.1
+          pip install pytest==8.0.0 pytest-cov==4.1.0 pytest-asyncio==0.24.0 motor==2.5.1 pymongo==3.12.3 pyjwt==2.8.0 nest-asyncio==1.6.0 pytest-env==1.1.1 types-pymongo==4.5.0.20240106
           cd src/backend
           pip install -e .
         env:
