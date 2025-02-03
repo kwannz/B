@@ -1,18 +1,13 @@
-import os
-import sys
 from typing import Optional
 
 import pytest
+from database import Base, get_db
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
+from main import app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from database import Base, get_db
-from main import app
 
 
 # Create in-memory SQLite database for testing

@@ -1,42 +1,44 @@
 import logging
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Depends, WebSocket
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+
 from database import (
-    get_db,
-    Signal,
-    Trade,
-    Strategy,
     Agent,
+    AgentStatus,
+    Signal,
+    Strategy,
+    Trade,
+    TradeStatus,
+    async_mongodb,
+    get_db,
     init_db,
     init_mongodb,
-    TradeStatus,
-    AgentStatus,
-    async_mongodb,
 )
+from fastapi import Depends, FastAPI, HTTPException, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from schemas import (
-    MarketData,
-    SignalCreate,
-    SignalResponse,
-    SignalListResponse,
-    TradeCreate,
-    TradeResponse,
-    TradeListResponse,
-    StrategyCreate,
-    StrategyResponse,
-    StrategyListResponse,
     AgentResponse,
+    MarketData,
     PerformanceResponse,
+    SignalCreate,
+    SignalListResponse,
+    SignalResponse,
+    StrategyCreate,
+    StrategyListResponse,
+    StrategyResponse,
+    TradeCreate,
+    TradeListResponse,
+    TradeResponse,
 )
-from tradingbot.shared.models.ollama import OllamaModel
+from sqlalchemy.orm import Session
 from websocket import (
-    handle_websocket_connection,
-    broadcast_trade_update,
-    broadcast_signal,
-    broadcast_performance_update,
     broadcast_agent_status,
+    broadcast_performance_update,
+    broadcast_signal,
+    broadcast_trade_update,
+    handle_websocket_connection,
 )
+
+from tradingbot.shared.models.ollama import OllamaModel
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

@@ -5,12 +5,12 @@ from typing import Generator
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
 from sqlalchemy import (
+    JSON,
     Column,
     DateTime,
     Enum,
     Float,
     Integer,
-    JSON,
     String,
     create_engine,
 )
