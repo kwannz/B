@@ -30,7 +30,9 @@ class ConnectionManager:
 
     async def broadcast_to_type(self, message: dict, connection_type: str):
         if connection_type not in self.active_connections:
-            logger.warning(f"Attempted to broadcast to unknown connection type: {connection_type}")
+            logger.warning(
+                f"Attempted to broadcast to unknown connection type: {connection_type}"
+            )
             return
 
         dead_connections = set()
@@ -42,7 +44,9 @@ class ConnectionManager:
                 logger.info(f"Client disconnected from {connection_type} channel")
             except Exception as e:
                 dead_connections.add(connection)
-                logger.error(f"Error broadcasting to {connection_type} client: {str(e)}")
+                logger.error(
+                    f"Error broadcasting to {connection_type} client: {str(e)}"
+                )
 
         # Remove dead connections after iteration
         for dead_connection in dead_connections:
@@ -71,7 +75,10 @@ async def handle_websocket_connection(websocket: WebSocket, connection_type: str
                     message = json.loads(data)
                     if message.get("type") == "ping":
                         await manager.send_personal_message(
-                            {"type": "pong", "timestamp": datetime.utcnow().isoformat()},
+                            {
+                                "type": "pong",
+                                "timestamp": datetime.utcnow().isoformat(),
+                            },
                             websocket,
                         )
                 except json.JSONDecodeError as e:

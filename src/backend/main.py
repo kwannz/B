@@ -77,19 +77,18 @@ async def analyze_market(market_data: MarketData):
             analysis = await model.analyze_market(analysis_request)
         except Exception as model_err:
             logger.error(f"Model error: {model_err}")
-            raise HTTPException(
-                status_code=500,
-                detail="Market analysis failed"
-            )
+            raise HTTPException(status_code=500, detail="Market analysis failed")
 
         try:
             await async_mongodb.market_snapshots.insert_one(market_data.dict())
-            await async_mongodb.technical_analysis.insert_one({
-                "symbol": market_data.symbol,
-                "timestamp": datetime.utcnow(),
-                "analysis": analysis,
-                "market_data": market_data.dict()
-            })
+            await async_mongodb.technical_analysis.insert_one(
+                {
+                    "symbol": market_data.symbol,
+                    "timestamp": datetime.utcnow(),
+                    "analysis": analysis,
+                    "market_data": market_data.dict(),
+                }
+            )
         except Exception as store_err:
             logger.error(f"Storage error: {store_err}")
 
@@ -121,10 +120,7 @@ async def health_check():
             "version": "1.0.0",
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Service unhealthy: {str(e)}"
-        )
+        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 
 # WebSocket endpoints
@@ -161,10 +157,7 @@ async def get_strategies(db: Session = Depends(get_db)):
         return StrategyListResponse(strategies=strategies)
     except Exception as e:
         logger.error(f"Error fetching strategies: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch strategies"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch strategies")
 
 
 @app.post("/api/v1/strategies", response_model=StrategyResponse)
@@ -178,29 +171,20 @@ async def create_strategy(strategy: StrategyCreate, db: Session = Depends(get_db
         except Exception as db_error:
             db.rollback()
             logger.error(f"Database error creating strategy: {db_error}")
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to create strategy"
-            )
+            raise HTTPException(status_code=500, detail="Failed to create strategy")
         return db_strategy
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error creating strategy: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to create strategy"
-        )
+        raise HTTPException(status_code=500, detail="Failed to create strategy")
 
 
 @app.get("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
 async def get_agent_status(agent_type: str, db: Session = Depends(get_db)):
     try:
         if not agent_type:
-            raise HTTPException(
-                status_code=400,
-                detail="Agent type is required"
-            )
+            raise HTTPException(status_code=400, detail="Agent type is required")
 
         agent = db.query(Agent).filter(Agent.type == agent_type).first()
         if not agent:
@@ -218,20 +202,14 @@ async def get_agent_status(agent_type: str, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error getting agent status: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to get agent status"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get agent status")
 
 
 @app.post("/api/v1/agents/{agent_type}/start", response_model=AgentResponse)
 async def start_agent(agent_type: str, db: Session = Depends(get_db)):
     try:
         if not agent_type:
-            raise HTTPException(
-                status_code=400,
-                detail="Agent type is required"
-            )
+            raise HTTPException(status_code=400, detail="Agent type is required")
 
         agent = db.query(Agent).filter(Agent.type == agent_type).first()
         if not agent:
@@ -257,27 +235,18 @@ async def start_agent(agent_type: str, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error starting agent: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to start agent"
-        )
+        raise HTTPException(status_code=500, detail="Failed to start agent")
 
 
 @app.post("/api/v1/agents/{agent_type}/stop", response_model=AgentResponse)
 async def stop_agent(agent_type: str, db: Session = Depends(get_db)):
     try:
         if not agent_type:
-            raise HTTPException(
-                status_code=400,
-                detail="Agent type is required"
-            )
+            raise HTTPException(status_code=400, detail="Agent type is required")
 
         agent = db.query(Agent).filter(Agent.type == agent_type).first()
         if not agent:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Agent {agent_type} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Agent {agent_type} not found")
 
         if agent.status == AgentStatus.STOPPED:
             return agent
@@ -298,10 +267,7 @@ async def stop_agent(agent_type: str, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error stopping agent: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to stop agent"
-        )
+        raise HTTPException(status_code=500, detail="Failed to stop agent")
 
 
 @app.get("/api/v1/trades", response_model=TradeListResponse)
@@ -311,10 +277,7 @@ async def get_trades(db: Session = Depends(get_db)):
         return TradeListResponse(trades=trades)
     except Exception as e:
         logger.error(f"Error fetching trades: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch trades"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch trades")
 
 
 @app.post("/api/v1/trades", response_model=TradeResponse)
@@ -328,10 +291,7 @@ async def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
         except Exception as db_error:
             db.rollback()
             logger.error(f"Database error creating trade: {db_error}")
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to create trade"
-            )
+            raise HTTPException(status_code=500, detail="Failed to create trade")
 
         try:
             await broadcast_trade_update(db_trade.model_dump())
@@ -343,10 +303,7 @@ async def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error creating trade: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to create trade"
-        )
+        raise HTTPException(status_code=500, detail="Failed to create trade")
 
 
 @app.get("/api/v1/signals", response_model=SignalListResponse)
@@ -356,10 +313,7 @@ async def get_signals(db: Session = Depends(get_db)):
         return SignalListResponse(signals=signals)
     except Exception as e:
         logger.error(f"Error fetching signals: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch signals"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch signals")
 
 
 @app.post("/api/v1/signals", response_model=SignalResponse)
@@ -373,10 +327,7 @@ async def create_signal(signal: SignalCreate, db: Session = Depends(get_db)):
         except Exception as db_error:
             db.rollback()
             logger.error(f"Database error creating signal: {db_error}")
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to create signal"
-            )
+            raise HTTPException(status_code=500, detail="Failed to create signal")
 
         try:
             await broadcast_signal(db_signal.model_dump())
@@ -388,10 +339,7 @@ async def create_signal(signal: SignalCreate, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error creating signal: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to create signal"
-        )
+        raise HTTPException(status_code=500, detail="Failed to create signal")
 
 
 @app.get("/api/v1/performance", response_model=PerformanceResponse)
@@ -468,8 +416,7 @@ async def get_performance(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error calculating performance metrics: {e}")
         raise HTTPException(
-            status_code=500,
-            detail="Failed to calculate performance metrics"
+            status_code=500, detail="Failed to calculate performance metrics"
         )
 
 
