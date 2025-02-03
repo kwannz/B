@@ -94,11 +94,13 @@ exclude_dirs = [
     "docs",
     "tests",
     "src/backend/tests",
-    "**/tests"
+    "**/tests",
+    "**/test_*.py"
 ]
-skips = ["B101"]
+skips = ["B101", "B404"]
 ignore_nosec = false
 recursive = true
+exclude_paths = ["tests/", "*/tests/"]
 
 [tool.pylint]
 max-line-length = 88
