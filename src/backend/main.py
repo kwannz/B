@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from config import settings
 from database import (
     Agent,
     AgentStatus,
@@ -425,4 +426,4 @@ async def get_performance(db: Session = Depends(get_db)):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=settings.HOST, port=settings.PORT)
