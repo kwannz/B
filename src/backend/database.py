@@ -1,29 +1,69 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON, Enum
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import enum
+from typing import Generator
+
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import MongoClient
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    Integer,
+    JSON,
+    String,
+    create_engine,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
 
 from config import settings
 
-# Create SQLAlchemy engine with the configured DATABASE_URL
-engine = create_engine(settings.DATABASE_URL)
+# Create SQLAlchemy engine with configured DATABASE_URL
+engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+mongodb_client = MongoClient(settings.MONGODB_URL)
+mongodb = mongodb_client.get_database()
+
+async_mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
+async_mongodb = async_mongodb_client.get_database()
+
+
+def init_mongodb():
+    try:
+        if "market_snapshots" not in mongodb.list_collection_names():
+            mongodb.create_collection("market_snapshots")
+            mongodb.market_snapshots.create_index("symbol")
+            mongodb.market_snapshots.create_index("timestamp")
+
+        if "technical_analysis" not in mongodb.list_collection_names():
+            mongodb.create_collection("technical_analysis")
+            mongodb.technical_analysis.create_index("symbol")
+            mongodb.technical_analysis.create_index("timestamp")
+        return True
+    except Exception as e:
+        print(f"Error initializing MongoDB: {e}")
+        return False
+
 
 class TradeStatus(str, enum.Enum):
     OPEN = "open"
     CLOSED = "closed"
     CANCELLED = "cancelled"
 
+
 class StrategyStatus(str, enum.Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
+
 
 class AgentStatus(str, enum.Enum):
     RUNNING = "running"
     STOPPED = "stopped"
     ERROR = "error"
+
 
 class Signal(Base):
     __tablename__ = "signals"
@@ -42,8 +82,9 @@ class Signal(Base):
             "direction": self.direction,
             "confidence": self.confidence,
             "indicators": self.indicators,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
+
 
 class Trade(Base):
     __tablename__ = "trades"
@@ -72,8 +113,9 @@ class Trade(Base):
             "quantity": self.quantity,
             "status": self.status.value,
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "updated_at": self.updated_at.isoformat(),
         }
+
 
 class Strategy(Base):
     __tablename__ = "strategies"
@@ -94,8 +136,9 @@ class Strategy(Base):
             "parameters": self.parameters,
             "status": self.status.value,
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "updated_at": self.updated_at.isoformat(),
         }
+
 
 class Agent(Base):
     __tablename__ = "agents"
@@ -110,16 +153,18 @@ class Agent(Base):
             "id": self.id,
             "type": self.type,
             "status": self.status.value,
-            "last_updated": self.last_updated.isoformat()
+            "last_updated": self.last_updated.isoformat(),
         }
 
+
 # Database Dependency
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
 
 # Create all tables
 def init_db():

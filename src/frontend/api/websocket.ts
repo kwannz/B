@@ -20,7 +20,7 @@ class WebSocketClient {
 
     constructor(connectionType: string) {
         // Use import.meta.env for Vite environment variables
-        const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+        const wsUrl = import.meta.env.VITE_WS_URL || 'wss://localhost:8000';
         this.url = `${wsUrl}/ws/${connectionType}`;
         this.connectionType = connectionType;
         this.messageHandlers = new Map();

@@ -1,10 +1,12 @@
 import os
 from typing import List
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
 
 class Settings(BaseSettings):
     # Database settings
@@ -12,7 +14,8 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
-    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
+    POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", "5432"))
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017/tradingbot")
 
     @property
     def DATABASE_URL(self) -> str:
@@ -26,18 +29,33 @@ class Settings(BaseSettings):
     # JWT settings
     JWT_SECRET: str = os.getenv("JWT_SECRET", "your-secret-key-here")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
+        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+    )
 
     # CORS settings
-    ALLOWED_ORIGINS: List[str] = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://deploy-trading-app-tunnel-edift3yc.devinapps.com",
+        "https://deploy-trading-app-tunnel-uv6t2aou.devinapps.com",
+    ]
+
+    @property
+    def get_allowed_origins(self) -> List[str]:
+        return self.ALLOWED_ORIGINS
 
     # WebSocket settings
     WS_PING_INTERVAL: int = int(os.getenv("WS_PING_INTERVAL", "30000"))
     WS_HEARTBEAT_TIMEOUT: int = int(os.getenv("WS_HEARTBEAT_TIMEOUT", "60000"))
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "env_prefix": "",
+        "extra": "allow",
+    }
+
 
 # Create global settings instance
 settings = Settings()

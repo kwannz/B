@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Any, Generic, List, Optional, TypeVar
 
-from src.shared.monitor.metrics import track_fallback_rate, track_model_fallback
+from tradingbot.shared.monitor.metrics import track_fallback_rate, track_model_fallback
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -13,8 +13,8 @@ class FallbackManager(Generic[T, R]):
         self,
         new_system: Any,
         legacy_system: Any,
-        timeout: float = None,
-        handled_exceptions: tuple = None,
+        timeout: Optional[float] = None,
+        handled_exceptions: Optional[tuple[Exception, ...]] = None,
         max_retries: int = 0,
     ):
         self.new = new_system
@@ -53,7 +53,9 @@ class FallbackManager(Generic[T, R]):
 
                 except asyncio.TimeoutError:
                     logging.warning(
-                        f"Primary system timed out (attempt {retry + 1}/{self.max_retries + 1})"
+                        "Primary system timed out (attempt %d/%d)",
+                        retry + 1,
+                        self.max_retries + 1
                     )
                     if retry == self.max_retries:
                         track_fallback_rate(success=False)
@@ -67,7 +69,10 @@ class FallbackManager(Generic[T, R]):
                         track_fallback_rate(success=False)
                         break
                     logging.warning(
-                        f"Primary system failed (attempt {retry + 1}/{self.max_retries + 1}): {str(e)}"
+                        "Primary system failed (attempt %d/%d): %s",
+                        retry + 1,
+                        self.max_retries + 1,
+                        str(e)
                     )
                     continue
 
@@ -90,20 +95,20 @@ class FallbackManager(Generic[T, R]):
 
             except Exception as e:
                 track_fallback_rate(success=False)
-                logging.error(f"Both systems failed: {str(e)}")
-                raise RuntimeError(f"Both systems failed: {str(e)}") from e
+                logging.error("Both systems failed: %s", str(e))
+                raise RuntimeError("Both systems failed: %s" % str(e)) from e
 
     async def execute_batch(self, requests: List[T]) -> List[Optional[R]]:
         async with self._lock:
             try:
                 if hasattr(self.new, "generate_batch"):
                     try:
-                        results = await self.new.generate_batch(requests)
+                        results: List[R] = await self.new.generate_batch(requests)
                         if results and len(results) == len(requests):
                             track_fallback_rate(success=True)
                             return results
                     except Exception as e:
-                        logging.warning(f"Batch generation failed: {str(e)}")
+                        logging.warning("Batch generation failed: %s", str(e))
                         track_fallback_rate(success=False)
 
                 if hasattr(self.new, "process"):
@@ -116,7 +121,7 @@ class FallbackManager(Generic[T, R]):
                             track_fallback_rate(success=True)
                             return [result] * len(requests)
                     except Exception as e:
-                        logging.warning(f"Batch processing failed: {str(e)}")
+                        logging.warning("Batch processing failed: %s", str(e))
                         track_fallback_rate(success=False)
 
                 results = []
@@ -128,7 +133,7 @@ class FallbackManager(Generic[T, R]):
                             success_count += 1
                         results.append(result)
                     except Exception as e:
-                        logging.warning(f"Individual request failed: {str(e)}")
+                        logging.warning("Individual request failed: %s", str(e))
                         results.append(None)
 
                 if success_count > 0:
@@ -145,7 +150,7 @@ class FallbackManager(Generic[T, R]):
                             track_fallback_rate(success=True)
                             return results
                     except Exception as e:
-                        logging.warning(f"Legacy batch processing failed: {str(e)}")
+                        logging.warning("Legacy batch processing failed: %s", str(e))
                         track_fallback_rate(success=False)
 
                 results = []
@@ -157,13 +162,13 @@ class FallbackManager(Generic[T, R]):
                             success_count += 1
                         results.append(result)
                     except Exception as e:
-                        logging.warning(f"Legacy individual request failed: {str(e)}")
+                        logging.warning("Legacy individual request failed: %s", str(e))
                         results.append(None)
 
                 track_fallback_rate(success=success_count > 0)
                 return results
 
             except Exception as e:
-                logging.error(f"Complete batch processing failure: {str(e)}")
+                logging.error("Complete batch processing failure: %s", str(e))
                 track_fallback_rate(success=False)
                 return [None] * len(requests)
