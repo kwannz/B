@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime
 
-from config import settings
-from database import (
+from src.backend.config import settings
+from src.backend.database import (
     Agent,
     AgentStatus,
     Signal,
@@ -16,7 +16,7 @@ from database import (
 )
 from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from schemas import (
+from src.backend.schemas import (
     AgentResponse,
     MarketData,
     PerformanceResponse,
@@ -31,7 +31,7 @@ from schemas import (
     TradeResponse,
 )
 from sqlalchemy.orm import Session
-from websocket import (
+from src.backend.websocket import (
     broadcast_agent_status,
     broadcast_performance_update,
     broadcast_signal,
@@ -39,7 +39,7 @@ from websocket import (
     handle_websocket_connection,
 )
 
-from tradingbot.shared.models.ollama import OllamaModel
+from src.tradingbot.shared.models.ollama import OllamaModel
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
