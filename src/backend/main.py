@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List
 from datetime import datetime
 
 from database import (
@@ -13,9 +12,7 @@ from database import (
     init_db,
     init_mongodb,
     TradeStatus,
-    StrategyStatus,
     AgentStatus,
-    mongodb,
     async_mongodb,
 )
 from schemas import MarketData

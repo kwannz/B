@@ -1,8 +1,11 @@
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, Set
 import json
-import asyncio
+
+import logging
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -27,48 +30,62 @@ class ConnectionManager:
 
     async def broadcast_to_type(self, message: dict, connection_type: str):
         if connection_type not in self.active_connections:
+            logger.warning(f"Attempted to broadcast to unknown connection type: {connection_type}")
             return
 
+        dead_connections = set()
         for connection in self.active_connections[connection_type]:
             try:
                 await connection.send_json(message)
             except WebSocketDisconnect:
-                # Remove dead connections
-                self.active_connections[connection_type].remove(connection)
+                dead_connections.add(connection)
+                logger.info(f"Client disconnected from {connection_type} channel")
             except Exception as e:
-                print(f"Error sending message to client: {e}")
-                self.active_connections[connection_type].remove(connection)
+                dead_connections.add(connection)
+                logger.error(f"Error broadcasting to {connection_type} client: {str(e)}")
+
+        # Remove dead connections after iteration
+        for dead_connection in dead_connections:
+            self.active_connections[connection_type].remove(dead_connection)
 
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         try:
             await websocket.send_json(message)
         except WebSocketDisconnect:
-            pass
+            logger.info("Client disconnected during personal message")
         except Exception as e:
-            print(f"Error sending personal message: {e}")
+            logger.error(f"Error sending personal message: {str(e)}")
 
 
 manager = ConnectionManager()
 
 
 async def handle_websocket_connection(websocket: WebSocket, connection_type: str):
-    await manager.connect(websocket, connection_type)
     try:
+        await manager.connect(websocket, connection_type)
+        logger.info(f"New client connected to {connection_type} channel")
+        
         while True:
-            # Keep connection alive and handle incoming messages
-            data = await websocket.receive_text()
             try:
-                message = json.loads(data)
-                # Handle different message types
-                if message.get("type") == "ping":
-                    await manager.send_personal_message(
-                        {"type": "pong", "timestamp": datetime.utcnow().isoformat()},
-                        websocket,
-                    )
-            except json.JSONDecodeError:
-                continue
-    except WebSocketDisconnect:
+                data = await websocket.receive_text()
+                try:
+                    message = json.loads(data)
+                    if message.get("type") == "ping":
+                        await manager.send_personal_message(
+                            {"type": "pong", "timestamp": datetime.utcnow().isoformat()},
+                            websocket,
+                        )
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Invalid JSON received: {str(e)}")
+                    continue
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"Error handling WebSocket message: {str(e)}")
+                break
+    finally:
         manager.disconnect(websocket, connection_type)
+        logger.info(f"Client disconnected from {connection_type} channel")
 
 
 async def broadcast_trade_update(trade_data: dict):
