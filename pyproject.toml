@@ -93,6 +93,7 @@ exclude_lines = [
 exclude_dirs = ["docs"]
 per_file_ignores = ["tests/*:B101", "tests/e2e/*:B101"]
 skips = []
+
 [tool.pylint]
 max-line-length = 88
 disable = [
