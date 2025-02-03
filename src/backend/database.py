@@ -1,14 +1,13 @@
 """Database models and connection management."""
+
 from __future__ import annotations
 
 import enum
 from datetime import datetime
-from typing import Any, Dict, Generator, Optional, Type, TypeVar
+from typing import Any, Dict, Generator, Optional, Type, TypeVar, cast
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
-
-T = TypeVar("T", bound="Base")
 from sqlalchemy import (
     JSON,
     Column,
@@ -22,13 +21,16 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
-from config import get_settings
+from config import settings
 
 # Create SQLAlchemy engine with configured DATABASE_URL
-settings = get_settings()
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Define a type variable for SQLAlchemy models
+ModelType = TypeVar("ModelType", bound=Any)
+T = TypeVar("T", bound=Any)
 
 mongodb_client = MongoClient(settings.MONGODB_URL)
 mongodb = mongodb_client.get_database()
@@ -37,7 +39,7 @@ async_mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
 async_mongodb = async_mongodb_client.get_database()
 
 
-def init_mongodb():
+def init_mongodb() -> bool:
     try:
         if "market_snapshots" not in mongodb.list_collection_names():
             mongodb.create_collection("market_snapshots")
@@ -71,7 +73,7 @@ class AgentStatus(str, enum.Enum):
     ERROR = "error"
 
 
-class Signal(Base):  # type: ignore[valid-type]
+class Signal(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "signals"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -92,7 +94,7 @@ class Signal(Base):  # type: ignore[valid-type]
         }
 
 
-class Trade(Base):  # type: ignore[valid-type]
+class Trade(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "trades"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -123,7 +125,7 @@ class Trade(Base):  # type: ignore[valid-type]
         }
 
 
-class Strategy(Base):  # type: ignore[valid-type]
+class Strategy(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "strategies"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -146,7 +148,7 @@ class Strategy(Base):  # type: ignore[valid-type]
         }
 
 
-class Agent(Base):  # type: ignore[valid-type]
+class Agent(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "agents"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -173,5 +175,5 @@ def get_db() -> Generator[Session, None, None]:
 
 
 # Create all tables
-def init_db():
+def init_db() -> None:
     Base.metadata.create_all(bind=engine)

@@ -59,14 +59,14 @@ app.add_middleware(
 
 # Initialize databases
 @app.on_event("startup")
-async def startup_event():
+async def startup_event() -> None:
     init_db()  # Initialize PostgreSQL
     init_mongodb()  # Initialize MongoDB collections
 
 
 # Market Analysis endpoint
 @app.post("/api/v1/analysis")
-async def analyze_market(market_data: MarketData):
+async def analyze_market(market_data: MarketData) -> dict:
     try:
         logger.info(f"Received market data for analysis: {market_data.symbol}")
         model = OllamaModel()
@@ -109,7 +109,7 @@ async def analyze_market(market_data: MarketData):
 
 # Health check endpoint
 @app.get("/api/v1/health")
-async def health_check():
+async def health_check() -> dict:
     try:
         # Test database connection
         from sqlalchemy import text
@@ -128,33 +128,33 @@ async def health_check():
 
 # WebSocket endpoints
 @app.websocket("/ws/trades")
-async def websocket_trades(websocket: WebSocket):
+async def websocket_trades(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "trades")
 
 
 @app.websocket("/ws/signals")
-async def websocket_signals(websocket: WebSocket):
+async def websocket_signals(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "signals")
 
 
 @app.websocket("/ws/performance")
-async def websocket_performance(websocket: WebSocket):
+async def websocket_performance(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "performance")
 
 
 @app.websocket("/ws/agent_status")
-async def websocket_agent_status(websocket: WebSocket):
+async def websocket_agent_status(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "agent_status")
 
 
 @app.websocket("/ws/analysis")
-async def websocket_analysis(websocket: WebSocket):
+async def websocket_analysis(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "analysis")
 
 
 # REST endpoints
 @app.get("/api/v1/strategies", response_model=StrategyListResponse)
-async def get_strategies(db: Session = Depends(get_db)):
+async def get_strategies(db: Session = Depends(get_db)) -> StrategyListResponse:
     try:
         strategies = db.query(Strategy).all()
         return StrategyListResponse(strategies=strategies)
@@ -164,7 +164,7 @@ async def get_strategies(db: Session = Depends(get_db)):
 
 
 @app.post("/api/v1/strategies", response_model=StrategyResponse)
-async def create_strategy(strategy: StrategyCreate, db: Session = Depends(get_db)):
+async def create_strategy(strategy: StrategyCreate, db: Session = Depends(get_db)) -> StrategyResponse:
     try:
         db_strategy = Strategy(**strategy.model_dump())
         try:
@@ -184,7 +184,7 @@ async def create_strategy(strategy: StrategyCreate, db: Session = Depends(get_db
 
 
 @app.get("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
-async def get_agent_status(agent_type: str, db: Session = Depends(get_db)):
+async def get_agent_status(agent_type: str, db: Session = Depends(get_db)) -> AgentResponse:
     try:
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
@@ -209,7 +209,7 @@ async def get_agent_status(agent_type: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/v1/agents/{agent_type}/start", response_model=AgentResponse)
-async def start_agent(agent_type: str, db: Session = Depends(get_db)):
+async def start_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentResponse:
     try:
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
@@ -242,7 +242,7 @@ async def start_agent(agent_type: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/v1/agents/{agent_type}/stop", response_model=AgentResponse)
-async def stop_agent(agent_type: str, db: Session = Depends(get_db)):
+async def stop_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentResponse:
     try:
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
@@ -274,7 +274,7 @@ async def stop_agent(agent_type: str, db: Session = Depends(get_db)):
 
 
 @app.get("/api/v1/trades", response_model=TradeListResponse)
-async def get_trades(db: Session = Depends(get_db)):
+async def get_trades(db: Session = Depends(get_db)) -> TradeListResponse:
     try:
         trades = db.query(Trade).all()
         return TradeListResponse(trades=trades)
@@ -284,7 +284,7 @@ async def get_trades(db: Session = Depends(get_db)):
 
 
 @app.post("/api/v1/trades", response_model=TradeResponse)
-async def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
+async def create_trade(trade: TradeCreate, db: Session = Depends(get_db)) -> TradeResponse:
     try:
         db_trade = Trade(**trade.model_dump())
         try:
@@ -310,7 +310,7 @@ async def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
 
 
 @app.get("/api/v1/signals", response_model=SignalListResponse)
-async def get_signals(db: Session = Depends(get_db)):
+async def get_signals(db: Session = Depends(get_db)) -> SignalListResponse:
     try:
         signals = db.query(Signal).all()
         return SignalListResponse(signals=signals)
@@ -320,7 +320,7 @@ async def get_signals(db: Session = Depends(get_db)):
 
 
 @app.post("/api/v1/signals", response_model=SignalResponse)
-async def create_signal(signal: SignalCreate, db: Session = Depends(get_db)):
+async def create_signal(signal: SignalCreate, db: Session = Depends(get_db)) -> SignalResponse:
     try:
         db_signal = Signal(**signal.model_dump())
         try:
@@ -346,7 +346,7 @@ async def create_signal(signal: SignalCreate, db: Session = Depends(get_db)):
 
 
 @app.get("/api/v1/performance", response_model=PerformanceResponse)
-async def get_performance(db: Session = Depends(get_db)):
+async def get_performance(db: Session = Depends(get_db)) -> PerformanceResponse:
     try:
         trades = db.query(Trade).all()
         total_trades = len(trades)

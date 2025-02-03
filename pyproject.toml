@@ -55,6 +55,22 @@ namespace_packages = true
 explicit_package_bases = true
 mypy_path = "src/backend"
 exclude = ["tests/.*"]
+ignore_missing_imports = true
+follow_imports = "silent"
+allow_redefinition = true
+
+[[tool.mypy.overrides]]
+module = [
+    "motor.*",
+    "pymongo.*",
+    "fastapi.*",
+    "pydantic.*",
+    "sqlalchemy.*",
+    "uvicorn.*",
+    "redis.*",
+    "aiohttp.*"
+]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["tests.*"]

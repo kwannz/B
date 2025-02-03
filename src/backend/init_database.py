@@ -4,7 +4,7 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 
-def init_database():
+def init_database() -> None:
     # Database connection parameters
     dbname = os.getenv("POSTGRES_DB", "tradingbot")
     user = os.getenv("POSTGRES_USER", "postgres")
