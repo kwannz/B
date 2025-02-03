@@ -1,5 +1,4 @@
 import pytest
-from datetime import datetime
 
 pytestmark = pytest.mark.asyncio
 

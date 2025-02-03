@@ -1,7 +1,11 @@
+import logging
+from datetime import datetime
 from fastapi import FastAPI, HTTPException, Depends, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from datetime import datetime
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 from database import (
     get_db,
@@ -15,13 +19,8 @@ from database import (
     AgentStatus,
     async_mongodb,
 )
-from schemas import MarketData
-from tradingbot.shared.models.ollama import OllamaModel
-import logging
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 from schemas import (
+    MarketData,
     SignalCreate,
     SignalResponse,
     SignalListResponse,
@@ -34,6 +33,7 @@ from schemas import (
     AgentResponse,
     PerformanceResponse,
 )
+from tradingbot.shared.models.ollama import OllamaModel
 from websocket import (
     handle_websocket_connection,
     broadcast_trade_update,
@@ -82,12 +82,14 @@ async def analyze_market(market_data: MarketData):
 
         try:
             await async_mongodb.market_snapshots.insert_one(market_data.dict())
-            await async_mongodb.technical_analysis.insert_one({
-                "symbol": market_data.symbol,
-                "timestamp": datetime.utcnow(),
-                "analysis": analysis,
-                "market_data": market_data.dict(),
-            })
+            await async_mongodb.technical_analysis.insert_one(
+                {
+                    "symbol": market_data.symbol,
+                    "timestamp": datetime.utcnow(),
+                    "analysis": analysis,
+                    "market_data": market_data.dict(),
+                }
+            )
         except Exception as store_err:
             logger.error(f"Storage error: {store_err}")
 
@@ -170,7 +172,10 @@ async def create_strategy(strategy: StrategyCreate, db: Session = Depends(get_db
         except Exception as db_error:
             db.rollback()
             logger.error(f"Database error creating strategy: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to create strategy")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create strategy"
+            )
         return db_strategy
     except HTTPException:
         raise
@@ -292,7 +297,10 @@ async def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
         except Exception as db_error:
             db.rollback()
             logger.error(f"Database error creating trade: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to create trade")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create trade"
+            )
 
         try:
             await broadcast_trade_update(db_trade.model_dump())
@@ -328,7 +336,10 @@ async def create_signal(signal: SignalCreate, db: Session = Depends(get_db)):
         except Exception as db_error:
             db.rollback()
             logger.error(f"Database error creating signal: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to create signal")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create signal"
+            )
 
         try:
             await broadcast_signal(db_signal.model_dump())
@@ -382,7 +393,9 @@ async def get_performance(db: Session = Depends(get_db)):
 
         for trade in closed_trades:
             try:
-                profit = (trade.exit_price - trade.entry_price) * trade.quantity if trade.direction == "long" else (trade.entry_price - trade.exit_price) * trade.quantity
+                profit = ((trade.exit_price - trade.entry_price) * trade.quantity
+                         if trade.direction == "long"
+                         else (trade.entry_price - trade.exit_price) * trade.quantity)
                 if profit > 0:
                     profitable_trades += 1
                 total_profit += profit

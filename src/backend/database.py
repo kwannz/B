@@ -1,5 +1,5 @@
-from datetime import datetime
 import enum
+from datetime import datetime
 from typing import Generator
 
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
-from config import settings
+from .config import settings
 
 # Create SQLAlchemy engine with configured DATABASE_URL
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
