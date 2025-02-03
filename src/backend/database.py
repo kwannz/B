@@ -5,7 +5,7 @@ from typing import Any, Dict, Generator, Optional, Type, TypeVar
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
 
-T = TypeVar('T', bound='Base')
+T = TypeVar("T", bound="Base")
 from sqlalchemy import (
     JSON,
     Column,

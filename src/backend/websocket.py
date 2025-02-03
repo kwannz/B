@@ -7,8 +7,6 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
 
 class ConnectionManager:
     def __init__(self) -> None:
@@ -31,7 +29,9 @@ class ConnectionManager:
         if connection_type in self.active_connections:
             self.active_connections[connection_type].remove(websocket)
 
-    async def broadcast_to_type(self, message: Dict[str, Any], connection_type: str) -> None:
+    async def broadcast_to_type(
+        self, message: Dict[str, Any], connection_type: str
+    ) -> None:
         if connection_type not in self.active_connections:
             logger.warning(
                 f"Attempted to broadcast to unknown connection type: {connection_type}"
@@ -55,7 +55,9 @@ class ConnectionManager:
         for dead_connection in dead_connections:
             self.active_connections[connection_type].remove(dead_connection)
 
-    async def send_personal_message(self, message: Dict[str, Any], websocket: WebSocket) -> None:
+    async def send_personal_message(
+        self, message: Dict[str, Any], websocket: WebSocket
+    ) -> None:
         try:
             await websocket.send_json(message)
         except WebSocketDisconnect:
@@ -67,7 +69,9 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-async def handle_websocket_connection(websocket: WebSocket, connection_type: str) -> None:
+async def handle_websocket_connection(
+    websocket: WebSocket, connection_type: str
+) -> None:
     try:
         await manager.connect(websocket, connection_type)
         logger.info(f"New client connected to {connection_type} channel")
