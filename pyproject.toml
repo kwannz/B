@@ -91,12 +91,14 @@ exclude_lines = [
 
 [tool.bandit]
 exclude_dirs = ["docs", "tests", "src/backend/tests", "src/backend/tests/e2e"]
-skips = ["B101"]
+skips = ["B101", "B101:assert_used"]
 ignore_nosec = false
 recursive = true
-
-[tool.bandit.assert_used]
-skips = ["*/test_*.py", "*/tests/*.py", "*/tests/**/*.py"]
+per_file_ignores = [
+    "tests/*:B101",
+    "src/backend/tests/*:B101",
+    "src/backend/tests/e2e/*:B101"
+]
 
 [tool.pylint]
 max-line-length = 88
