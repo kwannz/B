@@ -24,7 +24,6 @@ def init_database():
         cur.execute("SELECT 1 FROM pg_roles WHERE rolname='postgres'")
         if not cur.fetchone():
             cur.execute("CREATE USER postgres WITH SUPERUSER")
-        
         # Create database if it doesn't exist
         cur.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s", (dbname,))
         exists = cur.fetchone()
