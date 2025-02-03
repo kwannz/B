@@ -29,7 +29,6 @@ def init_database():
             print(f"Creating database {dbname}...")
             cur.execute(f"CREATE DATABASE {dbname}")
             print(f"Database {dbname} created successfully")
-            
         # Ensure proper permissions for current user
         cur.execute(f"ALTER DATABASE {dbname} OWNER TO CURRENT_USER")
         cur.execute(f"GRANT ALL PRIVILEGES ON DATABASE {dbname} TO CURRENT_USER")
