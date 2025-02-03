@@ -20,14 +20,18 @@ def init_database():
     cur = conn.cursor()
 
     try:
+        # Ensure postgres user exists and has necessary privileges
+        cur.execute("SELECT 1 FROM pg_roles WHERE rolname='postgres'")
+        if not cur.fetchone():
+            cur.execute("CREATE USER postgres WITH SUPERUSER")
+        
         # Create database if it doesn't exist
-        cur.execute(
-            "SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s", (dbname,)
-        )
+        cur.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s", (dbname,))
         exists = cur.fetchone()
         if not exists:
             print(f"Creating database {dbname}...")
             cur.execute("CREATE DATABASE %s", (dbname,))
+            cur.execute(f"GRANT ALL PRIVILEGES ON DATABASE {dbname} TO postgres")
             print(f"Database {dbname} created successfully")
     finally:
         cur.close()
