@@ -90,26 +90,15 @@ exclude_lines = [
 ]
 
 [tool.bandit]
-exclude_dirs = ["docs"]
-skips = ["B101"]
-ignore_nosec = false
-recursive = true
-per_file_ignores = [
-    "tests/*:B101",
-    "src/backend/tests/*:B101",
-    "src/backend/tests/e2e/*:B101",
-    "**/test_*.py:B101",
-    "**/tests/**/*.py:B101",
-    "**/*_test.py:B101",
-    "**/conftest.py:B101"
-]
-
-# Exclude test directories from security scans
 exclude_dirs = [
+    "docs",
     "tests",
     "src/backend/tests",
     "**/tests"
 ]
+skips = ["B101"]
+ignore_nosec = false
+recursive = true
 
 [tool.pylint]
 max-line-length = 88
