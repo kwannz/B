@@ -1,13 +1,19 @@
+import os
+import sys
 from typing import Optional
 
 import pytest
-from database import Base, get_db
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
-from main import app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+# Add the backend directory to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from database import Base, get_db  # noqa: E402
+from main import app  # noqa: E402
 
 
 # Create in-memory SQLite database for testing

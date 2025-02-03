@@ -92,14 +92,6 @@ exclude_lines = [
 [tool.bandit]
 exclude_dirs = ["tests", "docs"]
 skips = ["B101"]  # Skip assert warnings in test files
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_optional = true
-plugins = ["pydantic.mypy"]
-
 [tool.pylint]
 max-line-length = 88
 disable = [
