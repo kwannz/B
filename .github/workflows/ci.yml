@@ -30,6 +30,8 @@ jobs:
           POSTGRES_DB: tradingbot_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_INITDB_ARGS: "--auth-host=trust --auth-local=trust"
         ports:
           - 5432:5432
         options: >-
