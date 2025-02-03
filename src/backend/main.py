@@ -164,7 +164,9 @@ async def get_strategies(db: Session = Depends(get_db)) -> StrategyListResponse:
 
 
 @app.post("/api/v1/strategies", response_model=StrategyResponse)
-async def create_strategy(strategy: StrategyCreate, db: Session = Depends(get_db)) -> StrategyResponse:
+async def create_strategy(
+    strategy: StrategyCreate, db: Session = Depends(get_db)
+) -> StrategyResponse:
     try:
         db_strategy = Strategy(**strategy.model_dump())
         try:
@@ -184,7 +186,9 @@ async def create_strategy(strategy: StrategyCreate, db: Session = Depends(get_db
 
 
 @app.get("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
-async def get_agent_status(agent_type: str, db: Session = Depends(get_db)) -> AgentResponse:
+async def get_agent_status(
+    agent_type: str, db: Session = Depends(get_db)
+) -> AgentResponse:
     try:
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
@@ -284,7 +288,9 @@ async def get_trades(db: Session = Depends(get_db)) -> TradeListResponse:
 
 
 @app.post("/api/v1/trades", response_model=TradeResponse)
-async def create_trade(trade: TradeCreate, db: Session = Depends(get_db)) -> TradeResponse:
+async def create_trade(
+    trade: TradeCreate, db: Session = Depends(get_db)
+) -> TradeResponse:
     try:
         db_trade = Trade(**trade.model_dump())
         try:
@@ -320,7 +326,9 @@ async def get_signals(db: Session = Depends(get_db)) -> SignalListResponse:
 
 
 @app.post("/api/v1/signals", response_model=SignalResponse)
-async def create_signal(signal: SignalCreate, db: Session = Depends(get_db)) -> SignalResponse:
+async def create_signal(
+    signal: SignalCreate, db: Session = Depends(get_db)
+) -> SignalResponse:
     try:
         db_signal = Signal(**signal.model_dump())
         try:
