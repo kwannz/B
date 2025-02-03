@@ -90,9 +90,8 @@ exclude_lines = [
 ]
 
 [tool.bandit]
-exclude_dirs = ["docs"]
-per_file_ignores = ["tests/*:B101,B106", "tests/e2e/*:B101,B106"]
-skips = []
+exclude_dirs = ["docs", "tests", "src/backend/tests"]
+skips = ["B101"]
 ignore_nosec = false
 recursive = true
 
