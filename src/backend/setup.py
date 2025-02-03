@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="tradingbot",
@@ -17,6 +17,6 @@ setup(
         "passlib==1.7.4",
         "python-multipart==0.0.6",
         "aiohttp==3.8.4",
-        "websockets==11.0.3"
-    ]
+        "websockets==11.0.3",
+    ],
 )
