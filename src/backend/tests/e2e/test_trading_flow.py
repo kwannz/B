@@ -1,9 +1,10 @@
-import pytest
-import requests
-import websockets
 import asyncio
 import json
 from datetime import datetime, timedelta
+
+import pytest
+import requests
+import websockets
 
 BASE_URL = "http://localhost:8000"
 WS_URL = "ws://localhost:8000/ws"
@@ -15,13 +16,16 @@ async def test_complete_trading_flow():
     auth_response = requests.post(
         f"{BASE_URL}/api/v1/auth/login",
         json={"username": "test_user", "password": "test_password"},
+        timeout=30,
     )
     assert auth_response.status_code == 200
     token = auth_response.json()["token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # 2. 获取市场数据
-    market_data = requests.get(f"{BASE_URL}/api/v1/market/data", headers=headers)
+    market_data = requests.get(
+        f"{BASE_URL}/api/v1/market/data", headers=headers, timeout=30
+    )
     assert market_data.status_code == 200
     assert "BTC-USD" in market_data.json()["data"]
 
@@ -29,6 +33,7 @@ async def test_complete_trading_flow():
     order = requests.post(
         f"{BASE_URL}/api/v1/trade/order",
         headers=headers,
+        timeout=30,
         json={
             "symbol": "BTC-USD",
             "side": "buy",
@@ -64,13 +69,17 @@ async def test_complete_trading_flow():
                 continue
 
     # 5. 查询订单历史
-    history = requests.get(f"{BASE_URL}/api/v1/trade/history", headers=headers)
+    history = requests.get(
+        f"{BASE_URL}/api/v1/trade/history", headers=headers, timeout=30
+    )
     assert history.status_code == 200
     orders = history.json()["orders"]
     assert any(order["order_id"] == order_id for order in orders)
 
     # 6. 查询账户余额
-    balance = requests.get(f"{BASE_URL}/api/v1/account/balance", headers=headers)
+    balance = requests.get(
+        f"{BASE_URL}/api/v1/account/balance", headers=headers, timeout=30
+    )
     assert balance.status_code == 200
     assert "BTC" in balance.json()["balances"]
     assert "USD" in balance.json()["balances"]
@@ -117,6 +126,7 @@ async def test_error_handling():
     response = requests.get(
         f"{BASE_URL}/api/v1/account/balance",
         headers={"Authorization": "Bearer invalid_token"},
+        timeout=30,
     )
     assert response.status_code == 401
 
@@ -124,6 +134,7 @@ async def test_error_handling():
     auth_response = requests.post(
         f"{BASE_URL}/api/v1/auth/login",
         json={"username": "test_user", "password": "test_password"},
+        timeout=30,
     )
     token = auth_response.json()["token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -131,6 +142,7 @@ async def test_error_handling():
     response = requests.post(
         f"{BASE_URL}/api/v1/trade/order",
         headers=headers,
+        timeout=30,
         json={
             "symbol": "INVALID-PAIR",
             "side": "buy",

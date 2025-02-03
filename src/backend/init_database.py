@@ -1,9 +1,10 @@
 import os
+
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 
-def init_database():
+def init_database() -> None:
     # Database connection parameters
     dbname = os.getenv("POSTGRES_DB", "tradingbot")
     user = os.getenv("POSTGRES_USER", "postgres")
@@ -20,12 +21,17 @@ def init_database():
 
     try:
         # Create database if it doesn't exist
-        cur.execute(f"SELECT 1 FROM pg_catalog.pg_database WHERE datname = '{dbname}'")
+        cur.execute(
+            "SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s", (dbname,)
+        )
         exists = cur.fetchone()
         if not exists:
             print(f"Creating database {dbname}...")
             cur.execute(f"CREATE DATABASE {dbname}")
             print(f"Database {dbname} created successfully")
+        # Ensure proper permissions for current user
+        cur.execute(f"ALTER DATABASE {dbname} OWNER TO CURRENT_USER")
+        cur.execute(f"GRANT ALL PRIVILEGES ON DATABASE {dbname} TO CURRENT_USER")
     finally:
         cur.close()
         conn.close()

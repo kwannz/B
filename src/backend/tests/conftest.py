@@ -1,11 +1,21 @@
+import os
+import sys
+from typing import Optional
+
 import pytest
 from fastapi.testclient import TestClient
+from fastapi.websockets import WebSocket
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from database import Base, get_db
-from main import app
+# Add src/backend to Python path
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+from database import Base, get_db  # noqa: E402
+from main import app  # noqa: E402
 
 
 # Create in-memory SQLite database for testing
@@ -65,20 +75,25 @@ def websocket_client(client):
     class WSTestClient:
         def __init__(self, client):
             self.client = client
-            self.websocket = None
+            self.websocket: Optional[WebSocket] = None
 
-        async def connect(self, url):
+        async def connect(self, url: str):
             self.websocket = await self.client.websocket_connect(url)
             return self.websocket
 
-        async def send_json(self, data):
+        async def send_json(self, data: dict):
+            if not self.websocket:
+                raise RuntimeError("WebSocket not connected")
             await self.websocket.send_json(data)
 
         async def receive_json(self):
+            if not self.websocket:
+                raise RuntimeError("WebSocket not connected")
             return await self.websocket.receive_json()
 
         async def close(self):
-            await self.websocket.close()
+            if self.websocket:
+                await self.websocket.close()
 
     return WSTestClient(client)
 

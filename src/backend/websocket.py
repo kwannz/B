@@ -1,12 +1,15 @@
-from fastapi import WebSocket, WebSocketDisconnect
-from typing import Dict, Set
 import json
-import asyncio
+import logging
 from datetime import datetime
+from typing import Any, Dict, Set
+
+from fastapi import WebSocket, WebSocketDisconnect
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
-    def __init__(self):
+    def __init__(self) -> None:
         # Store active connections by type (trades, performance, etc.)
         self.active_connections: Dict[str, Set[WebSocket]] = {
             "trades": set(),
@@ -16,62 +19,89 @@ class ConnectionManager:
             "analysis": set(),
         }
 
-    async def connect(self, websocket: WebSocket, connection_type: str):
+    async def connect(self, websocket: WebSocket, connection_type: str) -> None:
         await websocket.accept()
         if connection_type not in self.active_connections:
             self.active_connections[connection_type] = set()
         self.active_connections[connection_type].add(websocket)
 
-    def disconnect(self, websocket: WebSocket, connection_type: str):
-        self.active_connections[connection_type].remove(websocket)
+    def disconnect(self, websocket: WebSocket, connection_type: str) -> None:
+        if connection_type in self.active_connections:
+            self.active_connections[connection_type].remove(websocket)
 
-    async def broadcast_to_type(self, message: dict, connection_type: str):
+    async def broadcast_to_type(
+        self, message: Dict[str, Any], connection_type: str
+    ) -> None:
         if connection_type not in self.active_connections:
+            logger.warning(
+                "Attempted to broadcast to unknown connection type: %s", connection_type
+            )
             return
 
+        dead_connections = set()
         for connection in self.active_connections[connection_type]:
             try:
                 await connection.send_json(message)
             except WebSocketDisconnect:
-                # Remove dead connections
-                self.active_connections[connection_type].remove(connection)
+                dead_connections.add(connection)
+                logger.info(f"Client disconnected from {connection_type} channel")
             except Exception as e:
-                print(f"Error sending message to client: {e}")
-                self.active_connections[connection_type].remove(connection)
+                dead_connections.add(connection)
+                logger.error(
+                    "Error broadcasting to %s client: %s", connection_type, str(e)
+                )
 
-    async def send_personal_message(self, message: dict, websocket: WebSocket):
+        # Remove dead connections after iteration
+        for dead_connection in dead_connections:
+            self.active_connections[connection_type].remove(dead_connection)
+
+    async def send_personal_message(
+        self, message: Dict[str, Any], websocket: WebSocket
+    ) -> None:
         try:
             await websocket.send_json(message)
         except WebSocketDisconnect:
-            pass
+            logger.info("Client disconnected during personal message")
         except Exception as e:
-            print(f"Error sending personal message: {e}")
+            logger.error(f"Error sending personal message: {str(e)}")
 
 
 manager = ConnectionManager()
 
 
-async def handle_websocket_connection(websocket: WebSocket, connection_type: str):
-    await manager.connect(websocket, connection_type)
+async def handle_websocket_connection(
+    websocket: WebSocket, connection_type: str
+) -> None:
     try:
+        await manager.connect(websocket, connection_type)
+        logger.info(f"New client connected to {connection_type} channel")
         while True:
-            # Keep connection alive and handle incoming messages
-            data = await websocket.receive_text()
             try:
-                message = json.loads(data)
-                # Handle different message types
-                if message.get("type") == "ping":
-                    await manager.send_personal_message(
-                        {"type": "pong", "timestamp": datetime.utcnow().isoformat()},
-                        websocket,
-                    )
-            except json.JSONDecodeError:
-                continue
-    except WebSocketDisconnect:
+                data = await websocket.receive_text()
+                try:
+                    message = json.loads(data)
+                    if isinstance(message, dict) and message.get("type") == "ping":
+                        await manager.send_personal_message(
+                            {
+                                "type": "pong",
+                                "timestamp": datetime.utcnow().isoformat(),
+                            },
+                            websocket,
+                        )
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Invalid JSON received: {str(e)}")
+                    continue
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"Error handling WebSocket message: {str(e)}")
+                break
+    finally:
         manager.disconnect(websocket, connection_type)
+        logger.info(f"Client disconnected from {connection_type} channel")
 
 
-async def broadcast_trade_update(trade_data: dict):
+async def broadcast_trade_update(trade_data: Dict[str, Any]) -> None:
     """Broadcast trade updates to all connected clients"""
     await manager.broadcast_to_type(
         {
@@ -83,7 +113,7 @@ async def broadcast_trade_update(trade_data: dict):
     )
 
 
-async def broadcast_signal(signal_data: dict):
+async def broadcast_signal(signal_data: Dict[str, Any]) -> None:
     """Broadcast new signals to all connected clients"""
     await manager.broadcast_to_type(
         {
@@ -95,7 +125,7 @@ async def broadcast_signal(signal_data: dict):
     )
 
 
-async def broadcast_performance_update(performance_data: dict):
+async def broadcast_performance_update(performance_data: Dict[str, Any]) -> None:
     """Broadcast performance updates to all connected clients"""
     await manager.broadcast_to_type(
         {
@@ -107,7 +137,7 @@ async def broadcast_performance_update(performance_data: dict):
     )
 
 
-async def broadcast_agent_status(agent_type: str, status: str):
+async def broadcast_agent_status(agent_type: str, status: str) -> None:
     """Broadcast agent status updates to all connected clients"""
     await manager.broadcast_to_type(
         {
@@ -119,7 +149,7 @@ async def broadcast_agent_status(agent_type: str, status: str):
     )
 
 
-async def broadcast_analysis(analysis: dict):
+async def broadcast_analysis(analysis: Dict[str, Any]) -> None:
     """Broadcast market analysis updates to all connected clients"""
     await manager.broadcast_to_type(
         {

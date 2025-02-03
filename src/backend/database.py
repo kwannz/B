@@ -1,23 +1,27 @@
-from datetime import datetime
+"""Database models and connection management."""
+
+from __future__ import annotations
+
 import enum
-from typing import Generator
+from datetime import datetime
+from typing import Any, Dict, Generator
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
 from sqlalchemy import (
+    JSON,
     Column,
     DateTime,
     Enum,
     Float,
     Integer,
-    JSON,
     String,
     create_engine,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
-from config import settings
+from .config import settings
 
 # Create SQLAlchemy engine with configured DATABASE_URL
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
@@ -31,7 +35,7 @@ async_mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
 async_mongodb = async_mongodb_client.get_database()
 
 
-def init_mongodb():
+def init_mongodb() -> bool:
     try:
         if "market_snapshots" not in mongodb.list_collection_names():
             mongodb.create_collection("market_snapshots")
@@ -65,7 +69,7 @@ class AgentStatus(str, enum.Enum):
     ERROR = "error"
 
 
-class Signal(Base):
+class Signal(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "signals"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -75,7 +79,7 @@ class Signal(Base):
     indicators = Column(JSON, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def model_dump(self):
+    def model_dump(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "timestamp": self.timestamp.isoformat(),
@@ -86,7 +90,7 @@ class Signal(Base):
         }
 
 
-class Trade(Base):
+class Trade(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "trades"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -97,11 +101,21 @@ class Trade(Base):
     entry_price = Column(Float, nullable=False)
     exit_price = Column(Float, nullable=True)
     quantity = Column(Float, nullable=False)
-    status = Column(Enum(TradeStatus), default=TradeStatus.OPEN)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status: Column[TradeStatus] = Column(
+        Enum(TradeStatus),
+        default=TradeStatus.OPEN,
+    )
+    created_at: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+    updated_at: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
-    def model_dump(self):
+    def model_dump(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "symbol": self.symbol,
@@ -117,18 +131,28 @@ class Trade(Base):
         }
 
 
-class Strategy(Base):
+class Strategy(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "strategies"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)
     parameters = Column(JSON, nullable=False)
-    status = Column(Enum(StrategyStatus), default=StrategyStatus.INACTIVE)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status: Column[StrategyStatus] = Column(
+        Enum(StrategyStatus),
+        default=StrategyStatus.INACTIVE,
+    )
+    created_at: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+    updated_at: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
-    def model_dump(self):
+    def model_dump(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -140,15 +164,22 @@ class Strategy(Base):
         }
 
 
-class Agent(Base):
+class Agent(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "agents"
 
     id = Column(Integer, primary_key=True, index=True)
     type = Column(String, nullable=False)
-    status = Column(Enum(AgentStatus), default=AgentStatus.STOPPED)
-    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status: Column[AgentStatus] = Column(
+        Enum(AgentStatus),
+        default=AgentStatus.STOPPED,
+    )
+    last_updated: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
-    def model_dump(self):
+    def model_dump(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "type": self.type,
@@ -167,5 +198,5 @@ def get_db() -> Generator[Session, None, None]:
 
 
 # Create all tables
-def init_db():
+def init_db() -> None:
     Base.metadata.create_all(bind=engine)

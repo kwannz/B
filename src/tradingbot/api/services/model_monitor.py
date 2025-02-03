@@ -6,11 +6,10 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta
-from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
+import asyncio
 import numpy as np
-import pandas as pd
 from pymongo.database import Database
 from sklearn.metrics import (
     f1_score,
@@ -22,8 +21,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-from ..core.exceptions import RiskError
-from ..models.trading import OrderSide, Position
+from ..models.trading import Position
 from .market import MarketDataService
 from .risk import RiskManager
 from .risk_analytics import RiskAnalytics
@@ -65,35 +63,41 @@ class ModelMonitor:
         self._last_update = None
         self._metrics_history = self._load_metrics_history()
 
-    async def start_monitoring(self):
-        """Start model monitoring."""
+    async def start_monitoring(self) -> None:
+        """Start continuous model monitoring and update cycle."""
+        check_interval = 60  # Check every minute
+        retry_delay = 5  # Short delay before retry
+
         while True:
             try:
-                # Check if update is needed
-                current_time = datetime.utcnow()
-                if (
-                    not self._last_update
-                    or (current_time - self._last_update).total_seconds()
-                    >= self.update_interval
-                ):
-                    # Evaluate models
-                    metrics = await self.evaluate_models()
-
-                    # Update metrics history
-                    self._update_metrics_history(metrics)
-
-                    # Check if models need updating
-                    if self._should_update_models(metrics):
-                        await self.update_models()
-
-                    self._last_update = current_time
-
-                # Sleep until next check
-                await asyncio.sleep(60)  # Check every minute
-
+                await self._check_and_update_models()
+                await asyncio.sleep(check_interval)
             except Exception as e:
-                logger.error(f"Error in model monitoring: {e}")
-                await asyncio.sleep(5)  # Short delay before retry
+                logger.error("Error in model monitoring: %s", str(e))
+                await asyncio.sleep(retry_delay)
+
+    async def _check_and_update_models(self) -> None:
+        """Check if models need evaluation and updates."""
+        current_time = datetime.utcnow()
+        
+        if not self._should_check_models(current_time):
+            return
+            
+        metrics = await self.evaluate_models()
+        self._update_metrics_history(metrics)
+        
+        if self._should_update_models(metrics):
+            await self.update_models()
+            
+        self._last_update = current_time
+        
+    def _should_check_models(self, current_time: datetime) -> bool:
+        """Determine if models should be checked based on time interval."""
+        if not self._last_update:
+            return True
+            
+        elapsed = (current_time - self._last_update).total_seconds()
+        return elapsed >= self.update_interval
 
     async def evaluate_models(self) -> Dict[str, Any]:
         """Evaluate model performance."""
@@ -106,15 +110,17 @@ class ModelMonitor:
             return metrics
 
         # Evaluate anomaly detection
-        metrics["models"]["anomaly_detector"] = await self._evaluate_anomaly_detector(
-            evaluation_data
+        metrics["models"]["anomaly_detector"] = (
+            await self._evaluate_anomaly_detector(evaluation_data)
         )
 
         # Evaluate risk predictors
-        for predictor in ["var", "volatility", "correlation"]:
-            metrics["models"][
-                f"{predictor}_predictor"
-            ] = await self._evaluate_predictor(predictor, evaluation_data)
+        predictors = ["var", "volatility", "correlation"]
+        for predictor in predictors:
+            model_name = f"{predictor}_predictor"
+            metrics["models"][model_name] = (
+                await self._evaluate_predictor(predictor, evaluation_data)
+            )
 
         return metrics
 
@@ -135,7 +141,7 @@ class ModelMonitor:
             logger.info("Successfully updated models")
 
         except Exception as e:
-            logger.error(f"Error updating models: {e}")
+            logger.error("Error updating models: %s", str(e))
             raise
 
     def _should_update_models(self, metrics: Dict[str, Any]) -> bool:
@@ -159,29 +165,37 @@ class ModelMonitor:
 
                 if current < avg_historical * 0.8:  # 20% degradation
                     logger.warning(
-                        f"Performance degradation detected for {model}: "
-                        f"current={current:.3f}, historical={avg_historical:.3f}"
+                        "Performance degradation detected for %s: current=%.3f, historical=%.3f",
+                        model, current, avg_historical
                     )
                     return True
 
         return False
 
-    def _update_metrics_history(self, metrics: Dict[str, Any]):
-        """Update metrics history."""
+    def _update_metrics_history(self, metrics: Dict[str, Any]) -> None:
+        """Update metrics history and save to disk.
+        
+        Args:
+            metrics: Dictionary containing model evaluation metrics
+        """
         self._metrics_history.append(metrics)
-
-        # Save to disk
+        self._save_metrics_to_disk(metrics)
+        self._trim_metrics_history()
+        
+    def _save_metrics_to_disk(self, metrics: Dict[str, Any]) -> None:
+        """Save metrics to disk in JSON format."""
+        timestamp_str = metrics["timestamp"].strftime("%Y%m%d_%H%M%S")
         metrics_file = os.path.join(
             self.metrics_path,
-            f"metrics_{metrics['timestamp'].strftime('%Y%m%d_%H%M%S')}.json",
+            f"metrics_{timestamp_str}.json",
         )
-
         with open(metrics_file, "w") as f:
             json.dump(metrics, f, default=str)
-
-        # Keep only last 100 evaluations
-        if len(self._metrics_history) > 100:
-            self._metrics_history = self._metrics_history[-100:]
+            
+    def _trim_metrics_history(self, max_entries: int = 100) -> None:
+        """Trim metrics history to keep only recent entries."""
+        if len(self._metrics_history) > max_entries:
+            self._metrics_history = self._metrics_history[-max_entries:]
 
     def _load_metrics_history(self) -> List[Dict[str, Any]]:
         """Load metrics history from disk."""
@@ -202,70 +216,79 @@ class ModelMonitor:
             history = history[-100:]
 
         except Exception as e:
-            logger.error(f"Error loading metrics history: {e}")
+            logger.error("Error loading metrics history: %s", str(e))
 
         return history
 
     async def _get_evaluation_data(self) -> Dict[str, Any]:
         """Get data for model evaluation."""
-        # Get recent positions
-        positions = await self.db.positions.find(
-            {
-                "status": "closed",
-                "closed_at": {
-                    "$gte": datetime.utcnow() - timedelta(days=30)  # Last 30 days
-                },
-            }
-        ).to_list(None)
+        # Get recent positions from last 30 days
+        query = {
+            "status": "closed",
+            "closed_at": {"$gte": datetime.utcnow() - timedelta(days=30)},
+        }
+        positions = await self.db.positions.find(query).to_list(None)
 
         if not positions:
             return {}
 
-        # Extract features and targets
+        # Initialize feature and target arrays
         features = []
-        targets = {"anomaly": [], "var": [], "volatility": [], "correlation": []}
+        targets = {
+            "anomaly": [],
+            "var": [],
+            "volatility": [],
+            "correlation": [],
+        }
 
         for position in positions:
-            # Extract features
-            position_features = await self.risk_ml._extract_features([position])
-            if position_features is not None:
-                features.append(position_features)
+            position_data = await self._extract_position_data(position)
+            if position_data:
+                features.append(position_data["features"])
+                for target_type, value in position_data["targets"].items():
+                    targets[target_type].append(value)
 
-                # Extract targets
-                returns_data, weights = await self.risk_analytics._get_position_data(
-                    [position]
-                )
-                if len(returns_data) > 0:
-                    portfolio_returns = (
-                        self.risk_analytics._calculate_portfolio_returns(
-                            returns_data, weights
-                        )
-                    )
+    async def _extract_position_data(self, position: Position) -> Dict[str, Any]:
+        """Extract features and targets from a position."""
+        position_features = await self.risk_ml._extract_features([position])
+        if position_features is None:
+            return {}
 
-                    # Anomaly target (using realized loss as proxy)
-                    realized_pnl = float(position.get("realized_pnl", 0))
-                    targets["anomaly"].append(
-                        1 if realized_pnl < -0.1 else 0
-                    )  # 10% loss threshold
+        returns_data, weights = await self.risk_analytics._get_position_data([position])
+        if len(returns_data) == 0:
+            return {}
 
-                    # Risk metrics targets
-                    targets["var"].append(
-                        self.risk_analytics._calculate_var(
-                            portfolio_returns, self.risk_analytics.confidence_level
-                        )
-                    )
-                    targets["volatility"].append(
-                        float(portfolio_returns.std() * np.sqrt(252))
-                    )
-                    targets["correlation"].append(
-                        float(
-                            returns_data.corr()
-                            .values[np.triu_indices_from(returns_data.corr().values, 1)]
-                            .mean()
-                        )
-                        if len(returns_data.columns) > 1
-                        else 0
-                    )
+        portfolio_returns = self.risk_analytics._calculate_portfolio_returns(
+            returns_data, weights
+        )
+
+        # Calculate targets
+        realized_pnl = float(position.get("realized_pnl", 0))
+        var_value = self.risk_analytics._calculate_var(
+            portfolio_returns, self.risk_analytics.confidence_level
+        )
+        volatility = float(portfolio_returns.std() * np.sqrt(252))
+        
+        # Calculate correlation
+        corr_value = (
+            float(
+                returns_data.corr()
+                .values[np.triu_indices_from(returns_data.corr().values, 1)]
+                .mean()
+            )
+            if len(returns_data.columns) > 1
+            else 0
+        )
+
+        return {
+            "features": position_features,
+            "targets": {
+                "anomaly": 1 if realized_pnl < -0.1 else 0,
+                "var": var_value,
+                "volatility": volatility,
+                "correlation": corr_value,
+            },
+        }
 
         if not features:
             return {}
@@ -298,56 +321,71 @@ class ModelMonitor:
             "f1": float(f1_score(true_anomalies, pred_anomalies)),
         }
 
-        # Calculate overall performance score
-        metrics["performance"] = np.mean([metrics["auc_roc"], metrics["f1"]])
+        # Calculate overall performance score (average of AUC-ROC and F1)
+        perf_metrics = [metrics["auc_roc"], metrics["f1"]]
+        metrics["performance"] = np.mean(perf_metrics)
 
         return metrics
 
     async def _evaluate_predictor(
         self, predictor_name: str, evaluation_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Evaluate risk predictor model."""
+    ) -> Dict[str, float]:
+        """Evaluate performance metrics for a risk predictor model."""
         if not evaluation_data:
             return self._empty_metrics()
 
         features = evaluation_data["features"]
         true_values = evaluation_data["targets"][predictor_name]
+        predictions = await self._get_predictor_predictions(
+            predictor_name, features
+        )
 
-        # Get predictions
+        base_metrics = self._calculate_base_metrics(true_values, predictions)
+        mape = self._calculate_mape(true_values, predictions)
+        
+        return {
+            **base_metrics,
+            "mape": mape,
+            "performance": self._calculate_performance_score(mape, base_metrics["r2"]),
+        }
+
+    async def _get_predictor_predictions(
+        self, predictor_name: str, features: np.ndarray
+    ) -> np.ndarray:
+        """Get scaled predictions from a predictor model."""
         predictor = getattr(self.risk_ml, f"{predictor_name}_predictor")
         scaler = self.risk_ml.target_scalers[predictor_name]
-
+        
         scaled_features = self.risk_ml.feature_scaler.transform(features)
-        scaled_predictions = predictor.predict(scaled_features)
-        predictions = scaler.inverse_transform(
-            scaled_predictions.reshape(-1, 1)
-        ).ravel()
+        scaled_pred = predictor.predict(scaled_features)
+        return scaler.inverse_transform(scaled_pred.reshape(-1, 1)).ravel()
 
-        # Calculate metrics
-        metrics = {
-            "sample_count": len(features),
+    def _calculate_base_metrics(
+        self, true_values: np.ndarray, predictions: np.ndarray
+    ) -> Dict[str, float]:
+        """Calculate basic regression metrics."""
+        return {
+            "sample_count": float(len(true_values)),
             "mse": float(mean_squared_error(true_values, predictions)),
             "mae": float(mean_absolute_error(true_values, predictions)),
             "r2": float(r2_score(true_values, predictions)),
         }
 
-        # Calculate MAPE for non-zero values
+    def _calculate_mape(
+        self, true_values: np.ndarray, predictions: np.ndarray
+    ) -> float:
+        """Calculate Mean Absolute Percentage Error."""
         non_zero_mask = true_values != 0
-        if non_zero_mask.any():
-            mape = np.mean(
-                np.abs(
-                    (true_values[non_zero_mask] - predictions[non_zero_mask])
-                    / true_values[non_zero_mask]
-                )
-            )
-            metrics["mape"] = float(mape)
-        else:
-            metrics["mape"] = 0.0
+        if not non_zero_mask.any():
+            return 0.0
+            
+        diff = true_values[non_zero_mask] - predictions[non_zero_mask]
+        rel_error = diff / true_values[non_zero_mask]
+        return float(np.mean(np.abs(rel_error)))
 
-        # Calculate overall performance score
-        metrics["performance"] = 1 - min(metrics["mape"], 1 - metrics["r2"])
-
-        return metrics
+    def _calculate_performance_score(self, mape: float, r2: float) -> float:
+        """Calculate overall performance score."""
+        return float(1 - min(mape, 1 - r2))
 
     def _empty_metrics(self) -> Dict[str, Any]:
         """Return empty metrics structure."""
@@ -364,18 +402,18 @@ class ModelMonitor:
             "models": {},
         }
 
-        # Calculate trends
-        for model in self._metrics_history[-1]["models"]:
+        # Calculate trends for each model
+        latest_metrics = self._metrics_history[-1]["models"]
+        for model in latest_metrics:
             model_metrics = []
             for metrics in self._metrics_history:
-                if model in metrics["models"]:
-                    model_metrics.append(
-                        {
-                            "timestamp": metrics["timestamp"],
-                            "performance": metrics["models"][model]["performance"],
-                            "sample_count": metrics["models"][model]["sample_count"],
-                        }
-                    )
+                model_data = metrics["models"].get(model)
+                if model_data:
+                    model_metrics.append({
+                        "timestamp": metrics["timestamp"],
+                        "performance": model_data["performance"],
+                        "sample_count": model_data["sample_count"],
+                    })
 
             if model_metrics:
                 diagnostics["models"][model] = {

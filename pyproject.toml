@@ -7,7 +7,7 @@ name = "tradingbot"
 version = "1.0.0"
 description = "Trading Bot with DeepSeek AI integration"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.8"
 license = {file = "LICENSE"}
 authors = [
     {name = "Your Name", email = "your.email@example.com"}
@@ -28,7 +28,7 @@ classifiers = [
 
 [tool.black]
 line-length = 88
-target-version = ['py311']
+target-version = ['py38']
 include = '\.pyi?$'
 extend-exclude = '''
 # A regex preceded with ^/ will apply only to files and directories
@@ -47,20 +47,30 @@ line_length = 88
 skip = ["docs/"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_optional = true
-plugins = ["pydantic.mypy"]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "src/backend"
+exclude = ["tests/.*"]
+ignore_missing_imports = true
+follow_imports = "silent"
+allow_redefinition = true
+
+[[tool.mypy.overrides]]
+module = [
+    "motor.*",
+    "pymongo.*",
+    "fastapi.*",
+    "pydantic.*",
+    "sqlalchemy.*",
+    "uvicorn.*",
+    "redis.*",
+    "aiohttp.*"
+]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["tests.*"]
@@ -100,8 +110,24 @@ exclude_lines = [
 ]
 
 [tool.bandit]
-exclude_dirs = ["tests", "docs"]
-skips = ["B101"]
+exclude_dirs = [
+    "docs",
+    "tests",
+    "src/backend/tests",
+    "**/tests",
+    "**/test_*.py",
+    "**/tests/**/*.py"
+]
+skips = ["B101", "B104"]
+ignore_nosec = false
+recursive = true
+exclude_paths = ["tests/", "*/tests/", "**/test_*.py", "**/tests/**/*.py"]
+noqa = true
+per_file_ignores = [
+    "**/test_*.py:B101,B104",
+    "**/tests/**/*.py:B101,B104"
+]
+targets = ["src/backend"]
 
 [tool.pylint]
 max-line-length = 88

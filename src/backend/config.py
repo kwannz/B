@@ -1,8 +1,8 @@
 import os
 from typing import List
-from pydantic_settings import BaseSettings
-from pydantic import field_validator
+
 from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,10 +19,13 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
 
     # Server settings
-    HOST: str = os.getenv("HOST", "0.0.0.0")
+    HOST: str = os.getenv("HOST", "127.0.0.1")
     PORT: int = int(os.getenv("PORT", "8000"))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
@@ -34,12 +37,7 @@ class Settings(BaseSettings):
     )
 
     # CORS settings
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://deploy-trading-app-tunnel-edift3yc.devinapps.com",
-        "https://deploy-trading-app-tunnel-uv6t2aou.devinapps.com",
-    ]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     @property
     def get_allowed_origins(self) -> List[str]:

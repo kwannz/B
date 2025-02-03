@@ -1,6 +1,4 @@
 import pytest
-import json
-from datetime import datetime
 
 pytestmark = pytest.mark.asyncio
 
