@@ -5,8 +5,16 @@ from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from config import settings
-from database import (
+import sys
+import os
+
+# Add src directory to Python path
+src_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+from src.backend.config import settings
+from src.backend.database import (
     Agent,
     AgentStatus,
     Signal,
@@ -18,7 +26,7 @@ from database import (
     init_db,
     init_mongodb,
 )
-from schemas import (
+from src.backend.schemas import (
     AgentListResponse,
     AgentResponse,
     MarketData,
@@ -33,8 +41,8 @@ from schemas import (
     TradeListResponse,
     TradeResponse,
 )
-from shared.models.ollama import OllamaModel
-from websocket import (
+from src.backend.shared.models.ollama import OllamaModel
+from src.backend.websocket import (
     broadcast_agent_status,
     broadcast_performance_update,
     broadcast_signal,
