@@ -5,14 +5,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.backend.data_infrastructure.monitoring import Monitoring, PerformanceMetrics
+from tradingbot.backend.monitoring.performance_monitor import PerformanceMonitor, PerformanceMetrics
 
 
 @pytest.fixture
 def monitoring():
-    """创建Monitoring实例"""
+    """Create PerformanceMonitor instance"""
     config = {"metrics_ttl": 3600, "alert_threshold": 0.9, "sampling_interval": 1}
-    return Monitoring(config)
+    return PerformanceMonitor(config)
 
 
 @pytest.fixture
@@ -299,3 +299,33 @@ class TestMonitoring:
             assert "threshold" in alert
             assert "current_value" in alert
             assert "timestamp" in alert
+            
+        # Test performance metrics aggregation
+        perf_metrics = await monitoring.aggregate_performance_metrics()
+        assert isinstance(perf_metrics, dict)
+        assert "latency_percentiles" in perf_metrics
+        assert "error_rates" in perf_metrics
+        assert "resource_utilization" in perf_metrics
+        assert "bottlenecks" in perf_metrics
+        
+        # Test cross-component latency tracking
+        latency_data = await monitoring.track_cross_component_latency()
+        assert isinstance(latency_data, dict)
+        assert "ipc_latency" in latency_data
+        assert "network_latency" in latency_data
+        assert "processing_latency" in latency_data
+        assert all(isinstance(v, (int, float)) for v in latency_data.values())
+        
+        # Test system-wide health score
+        health_score = await monitoring.calculate_system_health_score()
+        assert isinstance(health_score, float)
+        assert 0 <= health_score <= 100
+        
+        # Test resource bottleneck detection
+        bottlenecks = await monitoring.detect_resource_bottlenecks()
+        assert isinstance(bottlenecks, list)
+        for bottleneck in bottlenecks:
+            assert "component" in bottleneck
+            assert "resource" in bottleneck
+            assert "severity" in bottleneck
+            assert "recommendation" in bottleneck

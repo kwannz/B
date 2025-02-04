@@ -71,7 +71,7 @@ class RateLimitCache(BaseModel):
     """Rate limit tracking cache model."""
 
     symbol: str
-    requests: list[float] = []  # List of request timestamps
+    requests: List[float] = []  # List of request timestamps
     window_start: float
     limit: int
     window_size: int

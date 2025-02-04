@@ -3,10 +3,10 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from src.shared.models.cache import CacheConfig, MarketDataCache, RateLimitCache
-from src.shared.models.database import delete_cache, get_cache, set_cache
-from src.shared.risk.risk_manager import RiskAssessment, RiskConfig, RiskManager
-from src.shared.risk.trade_factory import create_trade_dict
+from tradingbot.shared.models.cache import CacheConfig, MarketDataCache, RateLimitCache
+from tradingbot.shared.models.database import delete_cache, get_cache, set_cache
+from tradingbot.shared.risk.risk_manager import RiskAssessment, RiskConfig, RiskManager
+from tradingbot.shared.risk.trade_factory import create_trade_dict
 
 
 @pytest.fixture
@@ -354,7 +354,7 @@ async def test_concurrent_trades(risk_manager):
     assert any("position size" in rec.lower() for rec in assessment2.recommendations)
 
 
-from src.shared.risk.trade_factory import create_trade_dict
+from tradingbot.shared.risk.trade_factory import create_trade_dict
 
 
 @pytest.mark.asyncio
@@ -1309,7 +1309,7 @@ async def test_portfolio_risk_and_margin(risk_manager):
     # Test rate limiting and market data caching
     from datetime import datetime, timedelta
 
-    from src.shared.models.cache import MarketDataCache, RateLimitCache
+    from tradingbot.shared.models.cache import MarketDataCache, RateLimitCache
 
     # Set up rate limit cache
     rate_limit = {

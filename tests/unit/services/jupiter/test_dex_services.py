@@ -149,10 +149,8 @@ async def test_uniswap_execute_swap(uniswap_service):
         "status": "success",
     }
 
-    with (
-        patch.object(uniswap_service.session, "get") as mock_get,
-        patch.object(uniswap_service.session, "post") as mock_post,
-    ):
+    with patch.object(uniswap_service.session, "get") as mock_get, \
+         patch.object(uniswap_service.session, "post") as mock_post:
         mock_get.return_value.__aenter__.return_value.status = 200
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=mock_quote_response
@@ -196,14 +194,12 @@ async def test_jupiter_execute_swap(jupiter_service):
         "status": "success",
     }
 
-    with (
-        patch.object(jupiter_service.session, "get") as mock_get,
-        patch.object(jupiter_service.session, "post") as mock_post,
-    ):
-        mock_get.return_value.__aenter__.return_value.status = 200
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
-            return_value=mock_quote_response
-        )
+    with patch.object(jupiter_service.session, "get") as mock_get:
+        with patch.object(jupiter_service.session, "post") as mock_post:
+            mock_get.return_value.__aenter__.return_value.status = 200
+            mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+                return_value=mock_quote_response
+            )
 
         mock_post.return_value.__aenter__.return_value.status = 200
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(

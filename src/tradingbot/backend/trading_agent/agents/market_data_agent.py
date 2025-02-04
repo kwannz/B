@@ -7,12 +7,12 @@ from typing import Any, Dict, List, Optional
 import aiohttp
 import numpy as np
 
-from src.shared.db.database_manager import DatabaseManager
-from src.shared.models.deepseek import DeepSeek1_5B
-from src.shared.models.market_data import MarketData
-from src.shared.scanner.meme_token_scanner import MemeTokenScanner
-from src.shared.utils.batch_processor import BatchProcessor
-from src.shared.utils.fallback_manager import FallbackManager
+from tradingbot.shared.db.database_manager import DatabaseManager
+from tradingbot.shared.models.deepseek import DeepSeek1_5B
+from tradingbot.shared.models.market_data import MarketData
+from tradingbot.shared.scanner.meme_token_scanner import MemeTokenScanner
+from tradingbot.shared.utils.batch_processor import BatchProcessor
+from tradingbot.shared.utils.fallback_manager import FallbackManager
 
 from .base_agent import BaseAgent
 

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pytest
 import numpy as np
 
-from src.tradingbot.backend.monitoring.performance_monitor import PerformanceMonitor
+from tradingbot.backend.monitoring.performance_monitor import PerformanceMonitor
 
 
 @pytest.fixture
