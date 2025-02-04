@@ -13,15 +13,23 @@ from .base_agent import BaseAgent
 class MemeCoinAgent(BaseAgent):
     def __init__(
         self,
+        name: str,
         config: Dict[str, Any],
         db_manager: MongoDBManager,
         metrics_manager: MetricsManager,
     ):
-        super().__init__(config, db_manager, metrics_manager)
+        super().__init__(name)
+        self.config = config
+        self.db_manager = db_manager
+        self.metrics_manager = metrics_manager
         self.sentiment_threshold = config.get("sentiment_threshold", 0.5)
         self.momentum_window = config.get("momentum_window", 24)
         self.min_volume = config.get("min_volume", 1000)
         self.max_slippage = config.get("max_slippage", 0.05)
+        self.max_position_size = config.get("max_position_size", 0.1)  # Max 10% of portfolio
+        self.max_concentration = config.get("max_concentration", 0.2)  # Max 20% in meme tokens
+        self.volatility_threshold = config.get("volatility_threshold", 1.5)
+        self.min_liquidity_ratio = config.get("min_liquidity_ratio", 5.0)  # 5x position size
 
     async def analyze_market_sentiment(self, symbol: str) -> Dict[str, float]:
         social_data = await self.db_manager.mongodb.social_metrics.find_one(
@@ -36,27 +44,64 @@ class MemeCoinAgent(BaseAgent):
 
         return {"score": sentiment_score, "momentum": momentum}
 
-    async def check_volume_requirements(self, symbol: str) -> bool:
+    async def check_risk_requirements(self, symbol: str, amount: float) -> Dict[str, Any]:
         market_data = await self.db_manager.mongodb.market_data.find_one(
             {"symbol": symbol}, sort=[("timestamp", -1)]
         )
 
         if not market_data:
-            return False
+            return {"passed": False, "reason": "no_market_data"}
 
-        return market_data.get("volume_24h", 0) >= self.min_volume
+        volume_24h = market_data.get("volume_24h", 0)
+        volatility = market_data.get("volatility", float("inf"))
+        liquidity = market_data.get("liquidity", 0)
+        
+        # Volume check
+        if volume_24h < self.min_volume:
+            return {"passed": False, "reason": "insufficient_volume"}
+            
+        # Volatility check
+        if volatility > self.volatility_threshold:
+            return {"passed": False, "reason": "high_volatility"}
+            
+        # Liquidity check
+        if liquidity < amount * self.min_liquidity_ratio:
+            return {"passed": False, "reason": "insufficient_liquidity"}
+            
+        # Position concentration check
+        portfolio_value = await self.get_portfolio_value()
+        if amount > portfolio_value * self.max_position_size:
+            return {"passed": False, "reason": "position_too_large"}
+            
+        # Total meme exposure check
+        meme_exposure = await self.get_meme_exposure()
+        if (meme_exposure + amount) > portfolio_value * self.max_concentration:
+            return {"passed": False, "reason": "high_meme_exposure"}
+            
+        return {
+            "passed": True,
+            "metrics": {
+                "volume_ratio": amount / volume_24h,
+                "volatility": volatility,
+                "liquidity_ratio": liquidity / amount,
+                "position_ratio": amount / portfolio_value,
+                "meme_exposure": (meme_exposure + amount) / portfolio_value
+            }
+        }
 
     async def get_trading_signal(self, symbol: str) -> Dict[str, Any]:
         sentiment = await self.analyze_market_sentiment(symbol)
-        volume_ok = await self.check_volume_requirements(symbol)
+        position_size = await self.calculate_position_size(symbol)
+        risk_check = await self.check_risk_requirements(symbol, position_size)
 
-        if not volume_ok:
+        if not risk_check["passed"]:
             return {
                 "action": "hold",
-                "reason": "insufficient_volume",
+                "reason": risk_check["reason"],
                 "metrics": {
                     "sentiment": sentiment["score"],
                     "momentum": sentiment["momentum"],
+                    "risk_metrics": risk_check.get("metrics", {})
                 },
             }
 
@@ -87,6 +132,31 @@ class MemeCoinAgent(BaseAgent):
                 "momentum": sentiment["momentum"],
             },
         }
+
+    async def get_portfolio_value(self) -> float:
+        portfolio = await self.db_manager.mongodb.portfolio.find_one(
+            {"user_id": self.config.get("user_id")}
+        )
+        return float(portfolio.get("total_value", 0)) if portfolio else 0.0
+
+    async def get_meme_exposure(self) -> float:
+        positions = await self.db_manager.mongodb.positions.find(
+            {"user_id": self.config.get("user_id"), "is_meme": True}
+        ).to_list(length=None)
+        return sum(float(p.get("value", 0)) for p in positions)
+
+    async def calculate_position_size(self, symbol: str) -> float:
+        portfolio_value = await self.get_portfolio_value()
+        risk_per_trade = self.config.get("risk_per_trade", 0.02)  # 2% per trade
+        return portfolio_value * risk_per_trade
+
+    async def place_buy_order(self, symbol: str, amount: float) -> Dict[str, Any]:
+        # Implement order placement logic
+        return {"status": "success", "amount": amount, "symbol": symbol}
+
+    async def place_sell_order(self, symbol: str, amount: float) -> Dict[str, Any]:
+        # Implement order placement logic
+        return {"status": "success", "amount": amount, "symbol": symbol}
 
     async def execute_trade(
         self, symbol: str, action: str, amount: float
