@@ -204,10 +204,8 @@ class RiskML:
             scaled_predictions = predictor.predict(scaled_features)
 
             # Inverse transform predictions
-            predictions[target_name] = (
-                scaler.inverse_transform(scaled_predictions.reshape(-1, 1))
-                .ravel()
-                .tolist()
+            predictions[target_name] = list(
+                scaler.inverse_transform(scaled_predictions.reshape(-1, 1)).ravel()
             )
 
         return predictions
@@ -215,7 +213,7 @@ class RiskML:
     async def adjust_risk_limits(self, user_id: str) -> Dict[str, Any]:
         """Adjust risk limits based on predictions."""
         # Get predictions
-        predictions = await self.risk_analytics.predict_risk_metrics(user_id)
+        predictions = await self.predict_risk_metrics(user_id)
 
         if not predictions:
             return {}

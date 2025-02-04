@@ -83,7 +83,7 @@ jobs:
       - name: Run Bandit
         run: |
           pip install bandit
-          bandit -r . -ll
+          bandit -r . -ll -c .bandit.yml
 
   build:
     needs: [test, lint, security-scan]

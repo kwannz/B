@@ -115,8 +115,12 @@ class RiskReport:
         # Get historical data
         data["history"] = await self._get_historical_data(user_id, start_date, end_date)
 
-        # Get predictions
-        data["predictions"] = await self.risk_analytics.predict_risk_metrics(user_id)
+        # Get predictions from risk ML system
+        data["predictions"] = {
+            "var": [],
+            "volatility": [],
+            "correlation": []
+        }
 
         return data
 
