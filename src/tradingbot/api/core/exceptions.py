@@ -130,3 +130,15 @@ class MarketDataError(TradingBotException):
             detail=detail,
             internal_code="MARKET_DATA_ERROR"
         )
+
+
+class RiskError(TradingBotException):
+    """Raised when risk-related operations fail"""
+
+    def __init__(self, detail: str, data: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            status_code=400,
+            detail=detail,
+            internal_code="RISK_ERROR",
+            data=data
+        )

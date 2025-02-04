@@ -16,7 +16,7 @@ from sklearn.covariance import EmpiricalCovariance
 from ..core.exceptions import RiskError
 from ..models.trading import OrderSide, Position
 from .market import MarketDataService
-from .risk import RiskManager
+from ..shared.risk.risk_manager import RiskManager
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +110,28 @@ class RiskAnalytics:
         risk_factors["correlations"] = correlations
 
         return risk_factors
+
+    def _apply_stress_scenario(
+        self, returns_data: pd.DataFrame, scenario: Dict[str, Any]
+    ) -> pd.DataFrame:
+        """Apply stress scenario to returns data."""
+        stressed_returns = returns_data.copy()
+        
+        if "market_shock" in scenario:
+            stressed_returns = stressed_returns * (1 + float(scenario["market_shock"]))
+            
+        if "volatility_multiplier" in scenario:
+            vol_adj = float(scenario["volatility_multiplier"])
+            means = stressed_returns.mean()
+            stressed_returns = (stressed_returns - means) * vol_adj + means
+            
+        if "correlation_stress" in scenario:
+            corr_stress = float(scenario["correlation_stress"])
+            if corr_stress > 0:
+                means = stressed_returns.mean()
+                stressed_returns = stressed_returns * (1 - corr_stress) + means * corr_stress
+                
+        return stressed_returns
 
     async def calculate_stress_metrics(
         self, user_id: str, scenario: Dict[str, Any]
@@ -238,8 +260,8 @@ class RiskAnalytics:
         return {
             "mean_return": float(returns.mean() * 252),
             "volatility": float(returns.std() * np.sqrt(252)),
-            "skewness": float(returns.skew()),
-            "kurtosis": float(returns.kurtosis()),
+            "skewness": float(stats.skew(returns.to_numpy())),
+            "kurtosis": float(stats.kurtosis(returns.to_numpy())),
         }
 
     def _calculate_risk_metrics(self, returns: pd.Series) -> Dict[str, float]:
@@ -422,7 +444,7 @@ class RiskAnalytics:
         momentum = {}
         for symbol in returns_data.columns:
             returns = returns_data[symbol]
-            momentum[symbol] = float((1 + returns).prod() - 1)
+            momentum[symbol] = float(np.prod(1 + returns.to_numpy()) - 1.0)
 
         momentum_exposure = sum(
             weights[symbol] * momentum.get(symbol, 0) for symbol in weights
@@ -436,10 +458,12 @@ class RiskAnalytics:
     ) -> Dict[str, List[float]]:
         """Calculate correlation matrix."""
         corr_matrix = returns_data.corr()
+        matrix_values = corr_matrix.values.astype(float).tolist()
+        symbols = [float(i) for i in range(len(returns_data.columns))]  # Use numeric indices instead of symbols
 
         return {
-            "symbols": returns_data.columns.tolist(),
-            "matrix": corr_matrix.values.tolist(),
+            "symbols": symbols,
+            "matrix": matrix_values,
         }
 
     def _optimize_weights(
