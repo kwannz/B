@@ -131,7 +131,6 @@ class RiskAnalytics:
                 )
                 
         return stressed_returns
-
     async def calculate_stress_metrics(
         self, user_id: str, scenario: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -456,7 +455,6 @@ class RiskAnalytics:
     ) -> Dict[str, List[float]]:
         """Calculate correlation matrix."""
         corr_matrix = returns_data.corr()
-
         matrix_values = corr_matrix.values.astype(float).tolist()
         symbols = [float(i) for i in range(len(returns_data.columns))]  # Use numeric indices instead of symbols
 
