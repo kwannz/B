@@ -1,25 +1,10 @@
 import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket
-from fastapi.security import OAuth2PasswordBearer
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
-    try:
-        # In a real application, you would decode and verify the JWT token
-        # For now, we'll return a mock user
-        return {"id": "test_user", "username": "test"}
-    except Exception as e:
-        logger.error(f"Error authenticating user: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from src.backend.config import settings
@@ -27,7 +12,10 @@ from src.backend.database import (
     Account,
     Agent,
     AgentStatus,
+    LimitSettings,
+    Order,
     Position,
+    RiskMetrics,
     Signal,
     Strategy,
     Trade,
@@ -38,14 +26,18 @@ from src.backend.database import (
     init_mongodb,
 )
 from src.backend.schemas import (
-    AccountListResponse,
     AccountResponse,
     AgentListResponse,
     AgentResponse,
+    LimitSettingsResponse,
+    LimitSettingsUpdate,
     MarketData,
+    OrderCreate,
+    OrderListResponse,
+    OrderResponse,
     PerformanceResponse,
     PositionListResponse,
-    PositionResponse,
+    RiskMetricsResponse,
     SignalCreate,
     SignalListResponse,
     SignalResponse,
@@ -59,12 +51,32 @@ from src.backend.schemas import (
 from src.backend.shared.models.ollama import OllamaModel
 from src.backend.websocket import (
     broadcast_agent_status,
+    broadcast_analysis,
+    broadcast_limit_update,
+    broadcast_order_update,
     broadcast_performance_update,
     broadcast_position_update,
+    broadcast_risk_update,
     broadcast_signal,
     broadcast_trade_update,
     handle_websocket_connection,
 )
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
+    try:
+        # In a real application, you would decode and verify the JWT token
+        # For now, we'll return a mock user
+        return {"id": "test_user", "username": "test"}
+    except Exception as e:
+        logger.error(f"Error authenticating user: {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -175,6 +187,211 @@ async def websocket_agent_status(websocket: WebSocket) -> None:
 @app.websocket("/ws/analysis")
 async def websocket_analysis(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "analysis")
+
+
+@app.get("/api/v1/account/balance", response_model=AccountResponse)
+async def get_account_balance(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> AccountResponse:
+    try:
+        account = db.query(Account).filter(Account.user_id == current_user["id"]).first()
+        if not account:
+            account = Account(user_id=current_user["id"], balance=0.0)
+            db.add(account)
+            db.commit()
+            db.refresh(account)
+        return account
+    except Exception as e:
+        logger.error(f"Error fetching account balance: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch balance")
+
+
+@app.get("/api/v1/account/positions", response_model=PositionListResponse)
+async def get_account_positions(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> PositionListResponse:
+    try:
+        positions = db.query(Position).filter(Position.user_id == current_user["id"]).all()
+        positions_data = PositionListResponse(positions=positions)
+        
+        # Broadcast position updates via WebSocket
+        for position in positions:
+            await broadcast_position_update(position.model_dump())
+            
+        return positions_data
+    except Exception as e:
+        logger.error(f"Error fetching positions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch positions")
+
+
+@app.websocket("/ws/positions")
+async def websocket_positions(websocket: WebSocket) -> None:
+    await handle_websocket_connection(websocket, "positions")
+
+
+@app.websocket("/ws/orders")
+async def websocket_orders(websocket: WebSocket) -> None:
+    await handle_websocket_connection(websocket, "orders")
+
+
+@app.post("/api/v1/orders", response_model=OrderResponse)
+async def create_order(
+    order: OrderCreate,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> OrderResponse:
+    try:
+        order_data = order.model_dump()
+        order_data["user_id"] = current_user["id"]
+        db_order = Order(**order_data)
+        db.add(db_order)
+        db.commit()
+        db.refresh(db_order)
+        await broadcast_order_update(db_order.model_dump())
+        return db_order
+    except Exception as e:
+        logger.error(f"Error creating order: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create order")
+
+
+@app.get("/api/v1/orders", response_model=OrderListResponse)
+async def list_orders(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> OrderListResponse:
+    try:
+        orders = db.query(Order).filter(Order.user_id == current_user["id"]).all()
+        return OrderListResponse(orders=orders)
+    except Exception as e:
+        logger.error(f"Error listing orders: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list orders")
+
+
+@app.get("/api/v1/orders/{order_id}", response_model=OrderResponse)
+async def get_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> OrderResponse:
+    try:
+        order = db.query(Order).filter(
+            Order.id == order_id,
+            Order.user_id == current_user["id"]
+        ).first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return order
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching order: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch order")
+
+
+@app.websocket("/ws/risk")
+async def websocket_risk(websocket: WebSocket) -> None:
+    await handle_websocket_connection(websocket, "risk")
+
+
+@app.get("/api/v1/risk/metrics", response_model=RiskMetricsResponse)
+async def get_risk_metrics(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> RiskMetricsResponse:
+    try:
+        positions = db.query(Position).filter(
+            Position.user_id == current_user["id"]
+        ).all()
+        
+        # Calculate risk metrics
+        total_exposure = sum(abs(p.size * p.current_price) for p in positions)
+        margin_used = total_exposure * 0.1  # Example: 10% margin requirement
+        margin_ratio = margin_used / total_exposure if total_exposure > 0 else 0
+        daily_pnl = sum(p.unrealized_pnl for p in positions)
+        total_pnl = daily_pnl  # For simplicity, using same value
+        
+        # Create or update risk metrics
+        risk_metrics = db.query(RiskMetrics).filter(
+            RiskMetrics.user_id == current_user["id"]
+        ).first()
+        
+        if not risk_metrics:
+            risk_metrics = RiskMetrics(
+                user_id=current_user["id"],
+                total_exposure=total_exposure,
+                margin_used=margin_used,
+                margin_ratio=margin_ratio,
+                daily_pnl=daily_pnl,
+                total_pnl=total_pnl
+            )
+            db.add(risk_metrics)
+        else:
+            risk_metrics.total_exposure = total_exposure
+            risk_metrics.margin_used = margin_used
+            risk_metrics.margin_ratio = margin_ratio
+            risk_metrics.daily_pnl = daily_pnl
+            risk_metrics.total_pnl = total_pnl
+        
+        db.commit()
+        db.refresh(risk_metrics)
+        await broadcast_risk_update(risk_metrics.model_dump())
+        return risk_metrics
+    except Exception as e:
+        logger.error(f"Error calculating risk metrics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to calculate risk metrics")
+
+
+@app.post("/api/v1/risk/limits", response_model=LimitSettingsResponse)
+async def update_limit_settings(
+    settings: LimitSettingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> LimitSettingsResponse:
+    try:
+        limit_settings = db.query(LimitSettings).filter(
+            LimitSettings.user_id == current_user["id"]
+        ).first()
+        
+        if not limit_settings:
+            limit_settings = LimitSettings(
+                user_id=current_user["id"],
+                **settings.model_dump()
+            )
+            db.add(limit_settings)
+        else:
+            for key, value in settings.model_dump().items():
+                setattr(limit_settings, key, value)
+        
+        db.commit()
+        db.refresh(limit_settings)
+        await broadcast_limit_update(limit_settings.model_dump())
+        return limit_settings
+    except Exception as e:
+        logger.error(f"Error updating limit settings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update limits")
+
+
+@app.get("/api/v1/risk/limits", response_model=LimitSettingsResponse)
+async def get_limit_settings(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> LimitSettingsResponse:
+    try:
+        limit_settings = db.query(LimitSettings).filter(
+            LimitSettings.user_id == current_user["id"]
+        ).first()
+        
+        if not limit_settings:
+            raise HTTPException(status_code=404, detail="Limit settings not found")
+            
+        return limit_settings
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching limit settings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch limits")
 
 
 # REST endpoints
@@ -467,46 +684,7 @@ async def get_performance(db: Session = Depends(get_db)) -> PerformanceResponse:
         )
 
 
-@app.get("/api/v1/account/balance", response_model=AccountResponse)
-async def get_account_balance(
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user),
-) -> AccountResponse:
-    try:
-        account = db.query(Account).filter(Account.user_id == current_user["id"]).first()
-        if not account:
-            account = Account(user_id=current_user["id"], balance=0.0)
-            db.add(account)
-            db.commit()
-            db.refresh(account)
-        return account
-    except Exception as e:
-        logger.error(f"Error fetching account balance: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch balance")
 
-
-@app.get("/api/v1/account/positions", response_model=PositionListResponse)
-async def get_account_positions(
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user),
-) -> PositionListResponse:
-    try:
-        positions = db.query(Position).filter(Position.user_id == current_user["id"]).all()
-        positions_data = PositionListResponse(positions=positions)
-        
-        # Broadcast position updates via WebSocket
-        for position in positions:
-            await broadcast_position_update(position.model_dump())
-            
-        return positions_data
-    except Exception as e:
-        logger.error(f"Error fetching positions: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch positions")
-
-
-@app.websocket("/ws/positions")
-async def websocket_positions(websocket: WebSocket) -> None:
-    await handle_websocket_connection(websocket, "positions")
 
 
 if __name__ == "__main__":
