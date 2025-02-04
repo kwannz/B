@@ -696,4 +696,10 @@ class PerformanceMonitor:
             }
         except Exception as e:
             self.logger.error(f"Error getting performance metrics: {str(e)}")
-            return {}
+            return {
+                "system": {},
+                "api": {},
+                "trading": {},
+                "meme_tokens": {},
+                "risk": {}
+            }
