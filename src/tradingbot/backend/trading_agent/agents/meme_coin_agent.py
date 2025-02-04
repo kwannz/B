@@ -18,8 +18,7 @@ class MemeCoinAgent(BaseAgent):
         db_manager: MongoDBManager,
         metrics_manager: MetricsManager,
     ):
-        super().__init__(name)
-        self.config = config
+        super().__init__(name=name, agent_type="meme_coin", config=config)
         self.db_manager = db_manager
         self.metrics_manager = metrics_manager
         self.sentiment_threshold = config.get("sentiment_threshold", 0.5)
