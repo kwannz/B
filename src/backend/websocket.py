@@ -17,6 +17,7 @@ class ConnectionManager:
             "performance": set(),
             "agent_status": set(),
             "analysis": set(),
+            "positions": set(),
         }
 
     async def connect(self, websocket: WebSocket, connection_type: str) -> None:
@@ -158,4 +159,16 @@ async def broadcast_analysis(analysis: Dict[str, Any]) -> None:
             "timestamp": datetime.utcnow().isoformat(),
         },
         "analysis",
+    )
+
+
+async def broadcast_position_update(position: Dict[str, Any]) -> None:
+    """Broadcast position updates to all connected clients"""
+    await manager.broadcast_to_type(
+        {
+            "type": "position_update",
+            "data": position,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        "positions",
     )

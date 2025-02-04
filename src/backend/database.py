@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
-from .config import settings
+from src.backend.config import settings
 
 # Create SQLAlchemy engine with configured DATABASE_URL
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
@@ -159,6 +159,54 @@ class Strategy(Base):  # type: ignore[misc, valid-type]
             "type": self.type,
             "parameters": self.parameters,
             "status": self.status.value,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class Account(Base):  # type: ignore[misc, valid-type]
+    __tablename__ = "accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False)
+    balance = Column(Float, nullable=False, default=0.0)
+    created_at: Column[datetime] = Column(DateTime, default=datetime.utcnow)
+    updated_at: Column[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def model_dump(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "balance": self.balance,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class Position(Base):  # type: ignore[misc, valid-type]
+    __tablename__ = "positions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False)
+    symbol = Column(String, nullable=False)
+    direction = Column(String, nullable=False)
+    size = Column(Float, nullable=False)
+    entry_price = Column(Float, nullable=False)
+    current_price = Column(Float, nullable=False)
+    unrealized_pnl = Column(Float, nullable=False, default=0.0)
+    created_at: Column[datetime] = Column(DateTime, default=datetime.utcnow)
+    updated_at: Column[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def model_dump(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "symbol": self.symbol,
+            "direction": self.direction,
+            "size": self.size,
+            "entry_price": self.entry_price,
+            "current_price": self.current_price,
+            "unrealized_pnl": self.unrealized_pnl,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

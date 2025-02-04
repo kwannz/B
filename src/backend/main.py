@@ -1,14 +1,33 @@
 import logging
 from datetime import datetime
+from typing import Any, Dict
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
+    try:
+        # In a real application, you would decode and verify the JWT token
+        # For now, we'll return a mock user
+        return {"id": "test_user", "username": "test"}
+    except Exception as e:
+        logger.error(f"Error authenticating user: {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from .config import settings
-from .database import (
+from src.backend.config import settings
+from src.backend.database import (
+    Account,
     Agent,
     AgentStatus,
+    Position,
     Signal,
     Strategy,
     Trade,
@@ -18,11 +37,15 @@ from .database import (
     init_db,
     init_mongodb,
 )
-from .schemas import (
+from src.backend.schemas import (
+    AccountListResponse,
+    AccountResponse,
     AgentListResponse,
     AgentResponse,
     MarketData,
     PerformanceResponse,
+    PositionListResponse,
+    PositionResponse,
     SignalCreate,
     SignalListResponse,
     SignalResponse,
@@ -33,10 +56,11 @@ from .schemas import (
     TradeListResponse,
     TradeResponse,
 )
-from .shared.models.ollama import OllamaModel
-from .websocket import (
+from src.backend.shared.models.ollama import OllamaModel
+from src.backend.websocket import (
     broadcast_agent_status,
     broadcast_performance_update,
+    broadcast_position_update,
     broadcast_signal,
     broadcast_trade_update,
     handle_websocket_connection,
@@ -194,10 +218,7 @@ async def list_agents(db: Session = Depends(get_db)) -> AgentListResponse:
         return AgentListResponse(agents=agent_types, count=len(agent_types))
     except Exception as e:
         logger.error(f"Error fetching agents: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch agents"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch agents")
 
 
 @app.get("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
@@ -444,6 +465,48 @@ async def get_performance(db: Session = Depends(get_db)) -> PerformanceResponse:
         raise HTTPException(
             status_code=500, detail="Failed to calculate performance metrics"
         )
+
+
+@app.get("/api/v1/account/balance", response_model=AccountResponse)
+async def get_account_balance(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> AccountResponse:
+    try:
+        account = db.query(Account).filter(Account.user_id == current_user["id"]).first()
+        if not account:
+            account = Account(user_id=current_user["id"], balance=0.0)
+            db.add(account)
+            db.commit()
+            db.refresh(account)
+        return account
+    except Exception as e:
+        logger.error(f"Error fetching account balance: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch balance")
+
+
+@app.get("/api/v1/account/positions", response_model=PositionListResponse)
+async def get_account_positions(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> PositionListResponse:
+    try:
+        positions = db.query(Position).filter(Position.user_id == current_user["id"]).all()
+        positions_data = PositionListResponse(positions=positions)
+        
+        # Broadcast position updates via WebSocket
+        for position in positions:
+            await broadcast_position_update(position.model_dump())
+            
+        return positions_data
+    except Exception as e:
+        logger.error(f"Error fetching positions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch positions")
+
+
+@app.websocket("/ws/positions")
+async def websocket_positions(websocket: WebSocket) -> None:
+    await handle_websocket_connection(websocket, "positions")
 
 
 if __name__ == "__main__":

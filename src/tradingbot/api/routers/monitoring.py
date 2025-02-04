@@ -2,8 +2,8 @@
 Monitoring router for system metrics and performance tracking
 """
 
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import List, Optional
 
 import asyncio
 from fastapi import APIRouter, Depends, Path, Query, WebSocket, WebSocketDisconnect
@@ -78,9 +78,14 @@ async def get_trading_metrics(
     positions = await trading_service.get_positions(
         user_id=current_user.id, status=PositionStatus.OPEN
     )
-    orders = await trading_service.get_orders(
-        user_id=current_user.id, status=OrderStatus.PENDING | OrderStatus.OPEN
+    # Get pending and open orders separately and combine results
+    pending_orders = await trading_service.get_orders(
+        user_id=current_user.id, status=OrderStatus.PENDING
     )
+    open_orders = await trading_service.get_orders(
+        user_id=current_user.id, status=OrderStatus.OPEN
+    )
+    orders = pending_orders + open_orders
 
     metrics.active_positions = len(positions)
     metrics.pending_orders = len(orders)

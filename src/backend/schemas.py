@@ -126,5 +126,46 @@ class AgentListResponse(BaseModel):
 
 
 # Error Response Schema
+class AccountBase(BaseModel):
+    user_id: str
+    balance: float = Field(0.0, ge=0)
+
+
+class AccountResponse(AccountBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PositionBase(BaseModel):
+    user_id: str
+    symbol: str
+    direction: str = Field(..., pattern="^(long|short)$")
+    size: float = Field(..., gt=0)
+    entry_price: float = Field(..., gt=0)
+    current_price: float = Field(..., gt=0)
+    unrealized_pnl: float = 0.0
+
+
+class PositionResponse(PositionBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AccountListResponse(BaseModel):
+    accounts: List[AccountResponse]
+
+
+class PositionListResponse(BaseModel):
+    positions: List[PositionResponse]
+
+
 class ErrorResponse(BaseModel):
     detail: str
