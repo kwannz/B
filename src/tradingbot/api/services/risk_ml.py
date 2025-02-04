@@ -205,7 +205,7 @@ class RiskML:
 
             # Inverse transform predictions
             transformed = scaler.inverse_transform(scaled_predictions.reshape(-1, 1))
-            predictions[target_name] = transformed.flatten().tolist()
+            predictions[target_name] = np.asarray(transformed).flatten().tolist()
 
         return predictions
 
