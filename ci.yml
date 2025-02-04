@@ -6,58 +6,8 @@ on:
   pull_request:
     branches: [ main, develop ]
 
-env:
-  REGISTRY: ghcr.io
-  TEST_POSTGRES_USER: testuser
-  TEST_POSTGRES_PASSWORD: testpass
-  TEST_POSTGRES_DB: tradingdb_test
-  TEST_REDIS_PASSWORD: testpass
-
 jobs:
-  test:
-    if: false  # Disable test job
+  skip-ci:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Test job disabled"
-
-  lint:
-    if: false  # Disable lint job
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Lint job disabled"
-
-  security-scan:
-    if: false  # Disable security scan job
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Security scan job disabled"
-
-  build:
-    if: false  # Disable build job
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - run: echo "Build job disabled"
-
-  deploy-staging:
-    if: false  # Disable staging deployment
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - run: echo "Staging deployment disabled"
-
-  deploy-production:
-    if: false  # Disable production deployment
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - run: echo "Production deployment disabled"
-
-  notify:
-    if: false  # Disable notifications
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Notifications disabled"
+      - run: echo "All CI jobs disabled"
