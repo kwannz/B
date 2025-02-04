@@ -1,14 +1,7 @@
-name: CI/CD Pipeline
-
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
-
+name: CI
+on: [push, pull_request]
 jobs:
   skip-ci:
     runs-on: ubuntu-latest
     steps:
-      - name: Skip CI
-        run: |
+      - run: echo "Skipping all CI checks as configured"
