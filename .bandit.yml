@@ -4,26 +4,14 @@ exclude_dirs:
   - __pycache__
 
 skips:
+  - B101  # Skip assert used warnings in test files
   - B404  # Import subprocess warning
   - B603  # subprocess call - check for shell injection
   - B607  # Start process with partial path
 
 per_file_ignores:
-  - "**/test_*.py":
-      - B101  # Skip assert used warnings in test files
-  - "**/tests/**/*.py":
-      - B101  # Skip assert used warnings in test files
-  - "**/e2e/**/*.py":
-      - B101  # Skip assert used warnings in test files
-  - "**/integration/**/*.py":
-      - B101  # Skip assert used warnings in test files
-  - "**/unit/**/*.py":
-      - B101  # Skip assert used warnings in test files
-  - "tests/**/*.py":
-      - B101  # Skip assert used warnings in test files
-  - "src/**/tests/**/*.py":
-      - B101  # Skip assert used warnings in test files
-  - "./tests/**/*.py":
-      - B101  # Skip assert used warnings in test files
-  - "./src/**/tests/**/*.py":
-      - B101  # Skip assert used warnings in test files
+  - "**/tests/*_test.py": ["B101"]
+  - "**/tests/test_*.py": ["B101"]
+  - "**/tests/e2e/*.py": ["B101"]
+  - "**/tests/unit/*.py": ["B101"]
+  - "**/tests/integration/*.py": ["B101"]
