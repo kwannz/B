@@ -3,23 +3,8 @@ from datetime import datetime
 from typing import Any, Dict
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket
-from fastapi.security import OAuth2PasswordBearer
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
-    try:
-        # In a real application, you would decode and verify the JWT token
-        # For now, we'll return a mock user
-        return {"id": "test_user", "username": "test"}
-    except Exception as e:
-        logger.error(f"Error authenticating user: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from src.backend.config import settings
@@ -38,14 +23,12 @@ from src.backend.database import (
     init_mongodb,
 )
 from src.backend.schemas import (
-    AccountListResponse,
     AccountResponse,
     AgentListResponse,
     AgentResponse,
     MarketData,
     PerformanceResponse,
     PositionListResponse,
-    PositionResponse,
     SignalCreate,
     SignalListResponse,
     SignalResponse,
@@ -65,6 +48,22 @@ from src.backend.websocket import (
     broadcast_trade_update,
     handle_websocket_connection,
 )
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
+    try:
+        # In a real application, you would decode and verify the JWT token
+        # For now, we'll return a mock user
+        return {"id": "test_user", "username": "test"}
+    except Exception as e:
+        logger.error(f"Error authenticating user: {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

@@ -171,7 +171,11 @@ class Account(Base):  # type: ignore[misc, valid-type]
     user_id = Column(String, nullable=False)
     balance = Column(Float, nullable=False, default=0.0)
     created_at: Column[datetime] = Column(DateTime, default=datetime.utcnow)
-    updated_at: Column[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
     def model_dump(self) -> Dict[str, Any]:
         return {
@@ -195,7 +199,11 @@ class Position(Base):  # type: ignore[misc, valid-type]
     current_price = Column(Float, nullable=False)
     unrealized_pnl = Column(Float, nullable=False, default=0.0)
     created_at: Column[datetime] = Column(DateTime, default=datetime.utcnow)
-    updated_at: Column[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
     def model_dump(self) -> Dict[str, Any]:
         return {
