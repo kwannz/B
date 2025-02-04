@@ -185,6 +185,20 @@ async def create_strategy(
         raise HTTPException(status_code=500, detail="Failed to create strategy")
 
 
+@app.get("/api/v1/agents", response_model=AgentListResponse)
+async def list_agents(db: Session = Depends(get_db)) -> AgentListResponse:
+    try:
+        agents = db.query(Agent.type).distinct().all()
+        agent_types = [agent[0] for agent in agents]
+        return AgentListResponse(
+            agents=agent_types,
+            count=len(agent_types)
+        )
+    except Exception as e:
+        logger.error(f"Error fetching agents: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch agents")
+
+
 @app.get("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
 async def get_agent_status(
     agent_type: str, db: Session = Depends(get_db)
