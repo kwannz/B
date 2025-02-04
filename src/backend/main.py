@@ -5,16 +5,8 @@ from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-import sys
-import os
-
-# Add src directory to Python path
-src_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-
-from src.backend.config import settings
-from src.backend.database import (
+from config import settings
+from database import (
     Agent,
     AgentStatus,
     Signal,
