@@ -477,9 +477,21 @@ class PerformanceMonitor:
             alert_type = alert_data["type"]
             self.metrics.critical_alerts.labels(type=alert_type).inc()
             
-            if hasattr(self, "db"):
-                collection = self.db["alerts"]
-                await collection.insert_one(alert_data)
+            if self.db is not None:
+                async with self.db.acquire() as conn:
+                    await conn.execute(
+                        """
+                        INSERT INTO alerts (type, message, severity, timestamp, metadata, source, status)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        """,
+                        alert_data["type"],
+                        alert_data["message"],
+                        alert_data["severity"],
+                        alert_data["timestamp"],
+                        alert_data["metadata"],
+                        alert_data["source"],
+                        alert_data["status"]
+                    )
             
             self.logger.critical(
                 f"Critical alert [{alert_type}]: {alert_data['message']}\n"
@@ -595,7 +607,13 @@ class PerformanceMonitor:
                     }
             return alerts
         except Exception:
-            return {}
+            return {
+                "system": {},
+                "api": {},
+                "trading": {},
+                "meme_tokens": {},
+                "risk": {"alerts": {}}
+            }
 
     def get_performance_metrics(self) -> Dict[str, Dict[str, Any]]:
         """Get performance metrics"""
