@@ -2,10 +2,6 @@ exclude_dirs:
   - venv
   - .git
   - __pycache__
-  - tests
-  - src/backend/tests
-  - src/frontend/tests
-  - src/tradingbot/tests
 
 skips:
   - B404  # Import subprocess warning
@@ -17,5 +13,13 @@ per_file_ignores:
       - B101  # Skip assert used warnings in test files
   - "**/tests/**/*.py":
       - B101  # Skip assert used warnings in test files
+  - "**/e2e/**/*.py":
+      - B101  # Skip assert used warnings in test files
+  - "**/integration/**/*.py":
+      - B101  # Skip assert used warnings in test files
+  - "**/unit/**/*.py":
+      - B101  # Skip assert used warnings in test files
   - "tests/**/*.py":
+      - B101  # Skip assert used warnings in test files
+  - "src/**/tests/**/*.py":
       - B101  # Skip assert used warnings in test files
