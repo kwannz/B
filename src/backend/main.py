@@ -5,8 +5,8 @@ from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from .config import settings
-from .database import (
+from config import settings
+from database import (
     Agent,
     AgentStatus,
     Signal,
@@ -18,7 +18,7 @@ from .database import (
     init_db,
     init_mongodb,
 )
-from .schemas import (
+from schemas import (
     AgentListResponse,
     AgentResponse,
     MarketData,
@@ -33,8 +33,8 @@ from .schemas import (
     TradeListResponse,
     TradeResponse,
 )
-from .shared.models.ollama import OllamaModel
-from .websocket import (
+from shared.models.ollama import OllamaModel
+from websocket import (
     broadcast_agent_status,
     broadcast_performance_update,
     broadcast_signal,
