@@ -442,8 +442,65 @@ class RiskManagementService:
             "market_crash": self._simulate_market_crash(positions),
             "volatility_spike": self._simulate_volatility_spike(positions),
             "liquidity_crisis": self._simulate_liquidity_crisis(positions),
+            "meme_token_crash": self._simulate_meme_token_crash(positions),
+            "social_sentiment_shock": self._simulate_social_sentiment_shock(positions),
+            "cross_dex_liquidity_shock": self._simulate_cross_dex_liquidity_shock(positions),
         }
         return results
+
+    def _simulate_meme_token_crash(self, positions: List[Position]) -> Dict[str, Any]:
+        """Simulate meme token specific crash scenario."""
+        meme_loss = sum(
+            p.amount * p.current_price * Decimal("0.8")  # 80% drop for meme tokens
+            for p in positions
+            if p.status == "OPEN" and p.side == "LONG" and getattr(p, "is_meme", False)
+        ) + sum(
+            p.amount * p.current_price * Decimal("-0.8")  # 80% gain for meme shorts
+            for p in positions
+            if p.status == "OPEN" and p.side == "SHORT" and getattr(p, "is_meme", False)
+        )
+        return {
+            "scenario": "MEME_TOKEN_CRASH",
+            "price_change": -80,
+            "estimated_loss": float(meme_loss),
+            "impact_level": "CRITICAL" if meme_loss > 5000 else "HIGH",
+        }
+
+    def _simulate_social_sentiment_shock(self, positions: List[Position]) -> Dict[str, Any]:
+        """Simulate social sentiment driven price shock."""
+        sentiment_impact = sum(
+            p.amount * p.current_price * Decimal("0.5")  # 50% drop on negative sentiment
+            for p in positions
+            if p.status == "OPEN" and p.side == "LONG" and getattr(p, "is_meme", False)
+        ) + sum(
+            p.amount * p.current_price * Decimal("-0.5")  # 50% gain on negative sentiment shorts
+            for p in positions
+            if p.status == "OPEN" and p.side == "SHORT" and getattr(p, "is_meme", False)
+        )
+        return {
+            "scenario": "SOCIAL_SENTIMENT_SHOCK",
+            "sentiment_change": "EXTREMELY_NEGATIVE",
+            "estimated_loss": float(sentiment_impact),
+            "impact_level": "HIGH" if sentiment_impact > 10000 else "MEDIUM",
+        }
+
+    def _simulate_cross_dex_liquidity_shock(self, positions: List[Position]) -> Dict[str, Any]:
+        """Simulate cross-DEX liquidity shock scenario."""
+        liquidity_impact = sum(
+            p.amount * p.current_price * Decimal("0.25")  # 25% slippage due to liquidity shock
+            for p in positions
+            if p.status == "OPEN" and p.side == "LONG" and getattr(p, "is_meme", False)
+        ) + sum(
+            p.amount * p.current_price * Decimal("-0.25")  # 25% slippage gain for shorts
+            for p in positions
+            if p.status == "OPEN" and p.side == "SHORT" and getattr(p, "is_meme", False)
+        )
+        return {
+            "scenario": "CROSS_DEX_LIQUIDITY_SHOCK",
+            "liquidity_change": -90,  # 90% liquidity reduction
+            "estimated_loss": float(liquidity_impact),
+            "impact_level": "HIGH" if liquidity_impact > 7500 else "MEDIUM",
+        }
 
     def _simulate_market_crash(self, positions: List[Position]) -> Dict[str, Any]:
         """Simulate market crash scenario."""

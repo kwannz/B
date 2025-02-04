@@ -31,18 +31,60 @@ class MemeCoinAgent(BaseAgent):
         self.volatility_threshold = config.get("volatility_threshold", 1.5)
         self.min_liquidity_ratio = config.get("min_liquidity_ratio", 5.0)  # 5x position size
 
-    async def analyze_market_sentiment(self, symbol: str) -> Dict[str, float]:
+    async def analyze_market_sentiment(self, symbol: str) -> Dict[str, Any]:
         social_data = await self.db_manager.mongodb.social_metrics.find_one(
             {"symbol": symbol}, sort=[("timestamp", -1)]
         )
 
         if not social_data:
-            return {"score": 0.5, "momentum": 0}
+            return {
+                "score": 0.5,
+                "momentum": 0,
+                "risk_level": "HIGH",
+                "warning": "No social data available",
+                "metrics": {
+                    "volume_spike": 0.0,
+                    "mention_count": 0,
+                    "sentiment_volatility": 0.0
+                }
+            }
 
         sentiment_score = social_data.get("sentiment_score", 0.5)
         momentum = social_data.get("price_momentum", 0)
+        volume_spike = social_data.get("volume_spike", 0.0)
+        mention_count = social_data.get("mention_count", 0)
+        sentiment_volatility = social_data.get("sentiment_volatility", 0.0)
+        
+        risk_factors = []
+        if sentiment_score < 0.3:
+            risk_factors.append("Extremely negative sentiment")
+        if momentum > 0.8:
+            risk_factors.append("Excessive momentum")
+        if volume_spike > 5.0:
+            risk_factors.append("Abnormal volume spike")
+        if mention_count > 1000:
+            risk_factors.append("High social media attention")
+        if sentiment_volatility > 0.5:
+            risk_factors.append("Unstable sentiment")
 
-        return {"score": sentiment_score, "momentum": momentum}
+        risk_level = "LOW" if not risk_factors else (
+            "CRITICAL" if len(risk_factors) >= 3
+            else "HIGH" if len(risk_factors) >= 2
+            else "MEDIUM"
+        )
+
+        return {
+            "score": sentiment_score,
+            "momentum": momentum,
+            "risk_level": risk_level,
+            "risk_factors": risk_factors,
+            "metrics": {
+                "volume_spike": volume_spike,
+                "mention_count": mention_count,
+                "sentiment_volatility": sentiment_volatility
+            },
+            "timestamp": social_data.get("timestamp")
+        }
 
     async def check_risk_requirements(self, symbol: str, amount: float) -> Dict[str, Any]:
         market_data = await self.db_manager.mongodb.market_data.find_one(
@@ -101,17 +143,43 @@ class MemeCoinAgent(BaseAgent):
                 "metrics": {
                     "sentiment": sentiment["score"],
                     "momentum": sentiment["momentum"],
-                    "risk_metrics": risk_check.get("metrics", {})
+                    "risk_metrics": risk_check.get("metrics", {}),
+                    "social_metrics": sentiment.get("metrics", {}),
+                    "risk_level": sentiment.get("risk_level", "HIGH")
                 },
             }
 
-        if sentiment["score"] >= self.sentiment_threshold and sentiment["momentum"] > 0:
+        if sentiment.get("risk_level") == "CRITICAL":
             return {
-                "action": "buy",
-                "reason": "positive_sentiment_momentum",
+                "action": "hold",
+                "reason": "critical_risk_level",
                 "metrics": {
                     "sentiment": sentiment["score"],
                     "momentum": sentiment["momentum"],
+                    "risk_factors": sentiment.get("risk_factors", []),
+                    "social_metrics": sentiment.get("metrics", {})
+                },
+            }
+
+        position_scale = 1.0
+        if sentiment.get("risk_level") == "HIGH":
+            position_scale = 0.5
+        elif sentiment.get("risk_level") == "MEDIUM":
+            position_scale = 0.75
+
+        if sentiment["score"] >= self.sentiment_threshold and sentiment["momentum"] > 0:
+            adjusted_size = position_size * position_scale
+            return {
+                "action": "buy",
+                "reason": "positive_sentiment_momentum",
+                "position_size": adjusted_size,
+                "metrics": {
+                    "sentiment": sentiment["score"],
+                    "momentum": sentiment["momentum"],
+                    "risk_level": sentiment.get("risk_level"),
+                    "risk_factors": sentiment.get("risk_factors", []),
+                    "social_metrics": sentiment.get("metrics", {}),
+                    "position_scale": position_scale
                 },
             }
         elif sentiment["score"] < self.sentiment_threshold or sentiment["momentum"] < 0:
@@ -121,6 +189,9 @@ class MemeCoinAgent(BaseAgent):
                 "metrics": {
                     "sentiment": sentiment["score"],
                     "momentum": sentiment["momentum"],
+                    "risk_level": sentiment.get("risk_level"),
+                    "risk_factors": sentiment.get("risk_factors", []),
+                    "social_metrics": sentiment.get("metrics", {})
                 },
             }
 
@@ -130,6 +201,8 @@ class MemeCoinAgent(BaseAgent):
             "metrics": {
                 "sentiment": sentiment["score"],
                 "momentum": sentiment["momentum"],
+                "risk_level": sentiment.get("risk_level"),
+                "social_metrics": sentiment.get("metrics", {})
             },
         }
 
@@ -159,9 +232,20 @@ class MemeCoinAgent(BaseAgent):
         return {"status": "success", "amount": amount, "symbol": symbol}
 
     async def execute_trade(
-        self, symbol: str, action: str, amount: float
+        self, symbol: str, action: str, amount: float, signal_metrics: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         try:
+            if signal_metrics and signal_metrics.get("risk_level") == "CRITICAL":
+                return {
+                    "success": False,
+                    "error": "Trade rejected due to critical risk level",
+                    "metrics": signal_metrics
+                }
+
+            # Apply position scaling based on risk level
+            if signal_metrics and "position_size" in signal_metrics:
+                amount = signal_metrics["position_size"]
+
             if action == "buy":
                 order = await self.place_buy_order(symbol, amount)
             elif action == "sell":
@@ -169,33 +253,46 @@ class MemeCoinAgent(BaseAgent):
             else:
                 return {"success": False, "error": "Invalid action"}
 
-            await self.metrics_manager.update_metrics(
-                "trading",
-                {
-                    "memeCoin": {
-                        "volume": amount,
-                        "sentiment": order.get("metrics", {}).get("sentiment", 0),
-                        "momentum": order.get("metrics", {}).get("momentum", 0),
-                        "totalTrades": 1,
-                    }
-                },
-            )
+            # Enhanced metrics tracking
+            metrics_update = {
+                "memeCoin": {
+                    "volume": amount,
+                    "sentiment": signal_metrics.get("sentiment", 0) if signal_metrics else 0,
+                    "momentum": signal_metrics.get("momentum", 0) if signal_metrics else 0,
+                    "risk_level": signal_metrics.get("risk_level", "MEDIUM") if signal_metrics else "MEDIUM",
+                    "social_metrics": signal_metrics.get("social_metrics", {}) if signal_metrics else {},
+                    "position_scale": signal_metrics.get("position_scale", 1.0) if signal_metrics else 1.0,
+                    "totalTrades": 1,
+                }
+            }
+
+            await self.metrics_manager.update_metrics("trading", metrics_update)
 
             return {
                 "success": True,
                 "order": order,
+                "amount": amount,
                 "metrics": {
-                    "sentiment": order.get("metrics", {}).get("sentiment", 0),
-                    "momentum": order.get("metrics", {}).get("momentum", 0),
-                },
+                    "sentiment": signal_metrics.get("sentiment", 0) if signal_metrics else 0,
+                    "momentum": signal_metrics.get("momentum", 0) if signal_metrics else 0,
+                    "risk_level": signal_metrics.get("risk_level") if signal_metrics else "MEDIUM",
+                    "risk_factors": signal_metrics.get("risk_factors", []) if signal_metrics else [],
+                    "social_metrics": signal_metrics.get("social_metrics", {}) if signal_metrics else {},
+                    "position_scale": signal_metrics.get("position_scale", 1.0) if signal_metrics else 1.0
+                }
             }
 
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e),
+                "metrics": signal_metrics if signal_metrics else {}
+            }
 
     async def run_trading_cycle(self, symbol: str) -> Dict[str, Any]:
         signal = await self.get_trading_signal(symbol)
-
+        
+        # Early exit on hold signals
         if signal["action"] == "hold":
             return {
                 "action": "hold",
@@ -203,7 +300,8 @@ class MemeCoinAgent(BaseAgent):
                 "metrics": signal["metrics"],
             }
 
-        position_size = await self.calculate_position_size(symbol)
+        # Get position size (already adjusted for risk in get_trading_signal)
+        position_size = signal.get("position_size", await self.calculate_position_size(symbol))
         if position_size <= 0:
             return {
                 "action": "hold",
@@ -211,12 +309,23 @@ class MemeCoinAgent(BaseAgent):
                 "metrics": signal["metrics"],
             }
 
-        trade_result = await self.execute_trade(symbol, signal["action"], position_size)
+        # Execute trade with enhanced risk metrics
+        trade_result = await self.execute_trade(
+            symbol=symbol,
+            action=signal["action"],
+            amount=position_size,
+            signal_metrics=signal["metrics"]
+        )
 
         return {
             "action": signal["action"],
             "success": trade_result["success"],
             "reason": signal["reason"],
-            "metrics": signal["metrics"],
-            "trade_details": trade_result.get("order", {}),
+            "metrics": trade_result["metrics"],
+            "trade_details": {
+                "order": trade_result.get("order", {}),
+                "amount": trade_result.get("amount", position_size),
+                "risk_level": signal["metrics"].get("risk_level", "MEDIUM"),
+                "risk_factors": signal["metrics"].get("risk_factors", [])
+            }
         }
