@@ -492,11 +492,11 @@ async def get_account_positions(
     try:
         positions = db.query(Position).filter(Position.user_id == current_user["id"]).all()
         positions_data = PositionListResponse(positions=positions)
-        
+
         # Broadcast position updates via WebSocket
         for position in positions:
             await broadcast_position_update(position.model_dump())
-            
+
         return positions_data
     except Exception as e:
         logger.error(f"Error fetching positions: {e}")
