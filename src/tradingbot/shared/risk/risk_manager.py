@@ -9,8 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel
 
-from src.shared.models.cache import CacheConfig, MarketDataCache, RateLimitCache
-from src.shared.models.database import delete_cache, get_cache, set_cache
+from tradingbot.shared.models.cache import CacheConfig, MarketDataCache, RateLimitCache
+from tradingbot.shared.models.database import delete_cache, get_cache, set_cache
 
 logger = logging.getLogger(__name__)
 
