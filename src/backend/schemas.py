@@ -167,5 +167,69 @@ class PositionListResponse(BaseModel):
     positions: List[PositionResponse]
 
 
+class OrderBase(BaseModel):
+    symbol: str
+    order_type: str = Field(..., pattern="^(market|limit)$")
+    direction: str = Field(..., pattern="^(buy|sell)$")
+    quantity: float = Field(..., gt=0)
+    price: float = Field(..., gt=0)
+
+
+class OrderCreate(OrderBase):
+    pass
+
+
+class OrderResponse(OrderBase):
+    id: int
+    user_id: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class OrderListResponse(BaseModel):
+    orders: List[OrderResponse]
+
+
+class RiskMetricsBase(BaseModel):
+    total_exposure: float = Field(..., ge=0)
+    margin_used: float = Field(..., ge=0)
+    margin_ratio: float = Field(..., ge=0)
+    daily_pnl: float
+    total_pnl: float
+
+
+class RiskMetricsResponse(RiskMetricsBase):
+    id: int
+    user_id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class LimitSettingsBase(BaseModel):
+    max_position_size: float = Field(..., gt=0)
+    max_daily_loss: float = Field(..., gt=0)
+    max_leverage: float = Field(..., gt=0)
+    max_trades_per_day: int = Field(..., gt=0)
+
+
+class LimitSettingsUpdate(LimitSettingsBase):
+    pass
+
+
+class LimitSettingsResponse(LimitSettingsBase):
+    id: int
+    user_id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 class ErrorResponse(BaseModel):
     detail: str

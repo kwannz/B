@@ -220,6 +220,97 @@ class Position(Base):  # type: ignore[misc, valid-type]
         }
 
 
+class Order(Base):  # type: ignore[misc, valid-type]
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False)
+    symbol = Column(String, nullable=False)
+    order_type = Column(String, nullable=False)
+    direction = Column(String, nullable=False)
+    quantity = Column(Float, nullable=False)
+    price = Column(Float, nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    created_at: Column[datetime] = Column(DateTime, default=datetime.utcnow)
+    updated_at: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    def model_dump(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "symbol": self.symbol,
+            "order_type": self.order_type,
+            "direction": self.direction,
+            "quantity": self.quantity,
+            "price": self.price,
+            "status": self.status,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class RiskMetrics(Base):  # type: ignore[misc, valid-type]
+    __tablename__ = "risk_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False)
+    total_exposure = Column(Float, nullable=False, default=0.0)
+    margin_used = Column(Float, nullable=False, default=0.0)
+    margin_ratio = Column(Float, nullable=False, default=0.0)
+    daily_pnl = Column(Float, nullable=False, default=0.0)
+    total_pnl = Column(Float, nullable=False, default=0.0)
+    created_at: Column[datetime] = Column(DateTime, default=datetime.utcnow)
+    updated_at: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    def model_dump(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "total_exposure": self.total_exposure,
+            "margin_used": self.margin_used,
+            "margin_ratio": self.margin_ratio,
+            "daily_pnl": self.daily_pnl,
+            "total_pnl": self.total_pnl,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class LimitSettings(Base):  # type: ignore[misc, valid-type]
+    __tablename__ = "limit_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False)
+    max_position_size = Column(Float, nullable=False)
+    max_daily_loss = Column(Float, nullable=False)
+    max_leverage = Column(Float, nullable=False)
+    max_trades_per_day = Column(Integer, nullable=False)
+    created_at: Column[datetime] = Column(DateTime, default=datetime.utcnow)
+    updated_at: Column[datetime] = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    def model_dump(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "max_position_size": self.max_position_size,
+            "max_daily_loss": self.max_daily_loss,
+            "max_leverage": self.max_leverage,
+            "max_trades_per_day": self.max_trades_per_day,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
 class Agent(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "agents"
 

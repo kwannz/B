@@ -18,6 +18,9 @@ class ConnectionManager:
             "agent_status": set(),
             "analysis": set(),
             "positions": set(),
+            "orders": set(),
+            "risk": set(),
+            "limits": set(),
         }
 
     async def connect(self, websocket: WebSocket, connection_type: str) -> None:
@@ -171,4 +174,40 @@ async def broadcast_position_update(position: Dict[str, Any]) -> None:
             "timestamp": datetime.utcnow().isoformat(),
         },
         "positions",
+    )
+
+
+async def broadcast_order_update(order: Dict[str, Any]) -> None:
+    """Broadcast order updates to all connected clients"""
+    await manager.broadcast_to_type(
+        {
+            "type": "order_update",
+            "data": order,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        "orders",
+    )
+
+
+async def broadcast_risk_update(metrics: Dict[str, Any]) -> None:
+    """Broadcast risk metrics updates to all connected clients"""
+    await manager.broadcast_to_type(
+        {
+            "type": "risk_update",
+            "data": metrics,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        "risk",
+    )
+
+
+async def broadcast_limit_update(limits: Dict[str, Any]) -> None:
+    """Broadcast limit settings updates to all connected clients"""
+    await manager.broadcast_to_type(
+        {
+            "type": "limit_update",
+            "data": limits,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        "limits",
     )
