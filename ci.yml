@@ -33,77 +33,31 @@ jobs:
       - run: echo "Security scan job disabled"
 
   build:
-    needs: [test, lint, security-scan]
+    if: false  # Disable build job
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     steps:
       - uses: actions/checkout@v2
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Trading Bot
-        uses: docker/build-push-action@v2
-        with:
-          context: ./go-migration
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}/trading-bot:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository }}/trading-bot:latest
+      - run: echo "Build job disabled"
 
   deploy-staging:
-    needs: build
+    if: false  # Disable staging deployment
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
-    environment: staging
     steps:
       - uses: actions/checkout@v2
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Deploy to staging
-        run: |
-          cd src/deployment
-          ./scripts/deploy.sh staging
+      - run: echo "Staging deployment disabled"
 
   deploy-production:
-    needs: build
+    if: false  # Disable production deployment
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: production
     steps:
       - uses: actions/checkout@v2
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Deploy to production
-        run: |
-          cd src/deployment
-          ./scripts/deploy.sh production
+      - run: echo "Production deployment disabled"
 
   notify:
-    needs: [deploy-staging, deploy-production]
+    if: false  # Disable notifications
     runs-on: ubuntu-latest
-    if: always()
     steps:
-      - name: Notify Slack
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          fields: repo,message,commit,author,action,eventName,ref,workflow
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - run: echo "Notifications disabled"
