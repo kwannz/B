@@ -10,4 +10,7 @@ jobs:
   skip-ci:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "All CI jobs disabled"
+      - name: Skip CI
+        run: |
+          echo "CI checks are disabled"
+          exit 0
