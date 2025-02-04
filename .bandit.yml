@@ -23,3 +23,7 @@ per_file_ignores:
       - B101  # Skip assert used warnings in test files
   - "src/**/tests/**/*.py":
       - B101  # Skip assert used warnings in test files
+  - "./tests/**/*.py":
+      - B101  # Skip assert used warnings in test files
+  - "./src/**/tests/**/*.py":
+      - B101  # Skip assert used warnings in test files
