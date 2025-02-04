@@ -3,7 +3,7 @@ Monitoring router for system metrics and performance tracking
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import asyncio
 from fastapi import APIRouter, Depends, Path, Query, WebSocket, WebSocketDisconnect

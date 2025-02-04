@@ -152,12 +152,12 @@ async def get_openapi_endpoint():
         AI-powered automated trading system API.
         
         Features:
-        * 🤖 AI-driven trading decisions
-        * 📊 Real-time market analysis
-        * ⚡ High-frequency trading support
-        * 🔒 Advanced risk management
-        * 📈 Performance monitoring
-        * 🔄 Multiple strategy support
+        * AI-driven trading decisions
+        * Real-time market analysis
+        * High-frequency trading support
+        * Advanced risk management
+        * Performance monitoring
+        * Multiple strategy support
         """,
         routes=app.routes,
     )

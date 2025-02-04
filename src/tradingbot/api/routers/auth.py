@@ -5,9 +5,9 @@ Authentication router
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
-from jose import JWTError, jwt
+from jose import jwt
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from passlib.context import CryptContext
 
