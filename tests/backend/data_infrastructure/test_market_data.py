@@ -3,8 +3,8 @@ from datetime import datetime
 
 import pytest
 
-from src.tradingbot.backend.trading_agent.agents.market_data_agent import MarketDataAgent
-from src.shared.models.market_data import MarketData
+from tradingbot.backend.trading_agent.agents.market_data_agent import MarketDataAgent
+from tradingbot.shared.models.market_data import MarketData
 
 
 @pytest.fixture

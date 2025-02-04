@@ -131,6 +131,7 @@ class RiskAnalytics:
                 )
                 
         return stressed_returns
+
     async def calculate_stress_metrics(
         self, user_id: str, scenario: Dict[str, Any]
     ) -> Dict[str, Any]:
