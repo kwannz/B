@@ -204,9 +204,8 @@ class RiskML:
             scaled_predictions = predictor.predict(scaled_features)
 
             # Inverse transform predictions
-            predictions[target_name] = list(
-                scaler.inverse_transform(scaled_predictions.reshape(-1, 1)).ravel()
-            )
+            transformed = scaler.inverse_transform(scaled_predictions.reshape(-1, 1))
+            predictions[target_name] = transformed.flatten().tolist()
 
         return predictions
 
