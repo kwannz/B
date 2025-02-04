@@ -503,57 +503,135 @@ class RiskManagementService:
         }
 
     def _simulate_market_crash(self, positions: List[Position]) -> Dict[str, Any]:
-        """Simulate market crash scenario."""
-        total_loss = sum(
-            p.amount * p.current_price * Decimal("0.3")  # 30% market drop
-            for p in positions
+        """Simulate market crash scenario with differentiated impact on meme vs standard tokens."""
+        meme_positions = [p for p in positions if getattr(p, "is_meme", False)]
+        standard_positions = [p for p in positions if not getattr(p, "is_meme", False)]
+        
+        meme_drop = Decimal("0.6")  # 60% drop for meme tokens
+        standard_drop = Decimal("0.3")  # 30% drop for standard tokens
+        
+        meme_loss = sum(
+            p.amount * p.current_price * meme_drop
+            for p in meme_positions
             if p.status == "OPEN" and p.side == "LONG"
         ) + sum(
-            p.amount * p.current_price * Decimal("-0.3")  # 30% gain for shorts
-            for p in positions
+            p.amount * p.current_price * -meme_drop
+            for p in meme_positions
             if p.status == "OPEN" and p.side == "SHORT"
         )
+        
+        standard_loss = sum(
+            p.amount * p.current_price * standard_drop
+            for p in standard_positions
+            if p.status == "OPEN" and p.side == "LONG"
+        ) + sum(
+            p.amount * p.current_price * -standard_drop
+            for p in standard_positions
+            if p.status == "OPEN" and p.side == "SHORT"
+        )
+        
+        total_loss = meme_loss + standard_loss
         return {
             "scenario": "MARKET_CRASH",
-            "price_change": -30,
+            "price_change": {"meme": -60, "standard": -30},
             "estimated_loss": float(total_loss),
+            "breakdown": {
+                "meme_loss": float(meme_loss),
+                "standard_loss": float(standard_loss)
+            },
             "survival_probability": "HIGH" if total_loss < 50000 else "MEDIUM",
+            "risk_level": "CRITICAL" if meme_loss > total_loss * Decimal("0.7") else "HIGH"
         }
 
     def _simulate_volatility_spike(self, positions: List[Position]) -> Dict[str, Any]:
-        """Simulate volatility spike scenario."""
-        var_increase = sum(
-            p.amount * p.current_price * Decimal("0.15")  # 15% VaR increase
-            for p in positions
+        """Simulate volatility spike scenario with higher impact on meme tokens."""
+        meme_positions = [p for p in positions if getattr(p, "is_meme", False)]
+        standard_positions = [p for p in positions if not getattr(p, "is_meme", False)]
+        
+        meme_var = Decimal("0.25")  # 25% VaR increase for meme tokens
+        standard_var = Decimal("0.15")  # 15% VaR increase for standard tokens
+        
+        meme_impact = sum(
+            p.amount * p.current_price * meme_var
+            for p in meme_positions
             if p.status == "OPEN" and p.side == "LONG"
         ) + sum(
-            p.amount * p.current_price * Decimal("-0.15")  # 15% VaR decrease for shorts
-            for p in positions
+            p.amount * p.current_price * -meme_var
+            for p in meme_positions
             if p.status == "OPEN" and p.side == "SHORT"
         )
+        
+        standard_impact = sum(
+            p.amount * p.current_price * standard_var
+            for p in standard_positions
+            if p.status == "OPEN" and p.side == "LONG"
+        ) + sum(
+            p.amount * p.current_price * -standard_var
+            for p in standard_positions
+            if p.status == "OPEN" and p.side == "SHORT"
+        )
+        
+        total_impact = meme_impact + standard_impact
         return {
             "scenario": "VOLATILITY_SPIKE",
-            "var_increase": 15,
-            "risk_increase": float(var_increase),
-            "impact_level": "HIGH" if var_increase > 25000 else "MEDIUM",
+            "var_increase": {"meme": 25, "standard": 15},
+            "risk_increase": float(total_impact),
+            "breakdown": {
+                "meme_impact": float(meme_impact),
+                "standard_impact": float(standard_impact)
+            },
+            "impact_level": "CRITICAL" if meme_impact > total_impact * Decimal("0.6") else "HIGH"
         }
 
     def _simulate_liquidity_crisis(self, positions: List[Position]) -> Dict[str, Any]:
-        """Simulate liquidity crisis scenario."""
-        slippage_loss = sum(
-            p.amount * p.current_price * Decimal("0.05")  # 5% slippage
-            for p in positions
+        """Simulate liquidity crisis scenario with higher impact on meme tokens."""
+        meme_positions = [p for p in positions if getattr(p, "is_meme", False)]
+        standard_positions = [p for p in positions if not getattr(p, "is_meme", False)]
+        
+        meme_slippage = Decimal("0.15")  # 15% slippage for meme tokens
+        standard_slippage = Decimal("0.05")  # 5% slippage for standard tokens
+        
+        meme_impact = sum(
+            p.amount * p.current_price * meme_slippage
+            for p in meme_positions
             if p.status == "OPEN" and p.side == "LONG"
         ) + sum(
-            p.amount * p.current_price * Decimal("-0.05")  # 5% slippage gain for shorts
-            for p in positions
+            p.amount * p.current_price * -meme_slippage
+            for p in meme_positions
             if p.status == "OPEN" and p.side == "SHORT"
         )
+        
+        standard_impact = sum(
+            p.amount * p.current_price * standard_slippage
+            for p in standard_positions
+            if p.status == "OPEN" and p.side == "LONG"
+        ) + sum(
+            p.amount * p.current_price * -standard_slippage
+            for p in standard_positions
+            if p.status == "OPEN" and p.side == "SHORT"
+        )
+        
+        total_impact = meme_impact + standard_impact
+        
+        # Calculate market depth impact
+        large_positions = [p for p in positions if p.amount * p.current_price > Decimal("50000")]
+        depth_impact = sum(
+            (p.amount * p.current_price * Decimal("0.1"))  # Additional 10% for large positions
+            for p in large_positions
+            if p.status == "OPEN"
+        )
+        
         return {
             "scenario": "LIQUIDITY_CRISIS",
-            "slippage": 5,
-            "estimated_loss": float(slippage_loss),
-            "impact_level": "HIGH" if slippage_loss > 10000 else "MEDIUM",
+            "slippage": {"meme": 15, "standard": 5},
+            "estimated_loss": float(total_impact + depth_impact),
+            "breakdown": {
+                "meme_impact": float(meme_impact),
+                "standard_impact": float(standard_impact),
+                "depth_impact": float(depth_impact)
+            },
+            "impact_level": "CRITICAL" if meme_impact > total_impact * Decimal("0.5") else "HIGH",
+            "large_positions_affected": len(large_positions)
         }
 
     async def _analyze_scenarios(self, positions: List[Position]) -> Dict[str, Any]:
@@ -609,13 +687,29 @@ class RiskManagementService:
     def _determine_risk_level(
         self, metrics: RiskMetrics, limit_breaches: List[Dict[str, Any]]
     ) -> RiskLevel:
-        """Determine overall risk level."""
+        """Determine overall risk level with special handling for meme tokens."""
+        # Check for critical breaches first
+        if any(b["severity"] == "CRITICAL" for b in limit_breaches):
+            return RiskLevel.CRITICAL
+            
+        # Check for high severity breaches
         if any(b["severity"] == "HIGH" for b in limit_breaches):
             return RiskLevel.HIGH
 
+        # Check meme token exposure
+        meme_exposure = next(
+            (b["exposure"] for b in metrics.risk_factors 
+             if b["type"] == "MARKET_EXPOSURE" and b.get("market") == "MEME"),
+            0
+        )
+        if meme_exposure > 100000:  # $100k meme exposure
+            return RiskLevel.HIGH
+        elif meme_exposure > 50000:  # $50k meme exposure
+            return RiskLevel.MEDIUM
+
+        # Check standard metrics
         if metrics.leverage_ratio > 3 or metrics.position_concentration > 50:
             return RiskLevel.HIGH
-
         if metrics.leverage_ratio > 2 or metrics.position_concentration > 30:
             return RiskLevel.MEDIUM
 
@@ -624,69 +718,165 @@ class RiskManagementService:
     def _generate_risk_warnings(
         self, limit_breaches: List[Dict[str, Any]]
     ) -> List[str]:
-        """Generate risk warnings based on limit breaches."""
+        """Generate risk warnings with special attention to meme token risks."""
         warnings = []
+        
+        # Process limit breaches
         for breach in limit_breaches:
-            warnings.append(
-                f"{breach['type']} limit breach: "
-                f"Current {breach['current']:.2f} > Limit {breach['limit']:.2f}"
-            )
+            if breach["severity"] == "CRITICAL":
+                warnings.append(
+                    f"CRITICAL: {breach['type']} limit severely breached: "
+                    f"Current {breach['current']:.2f} > Limit {breach['limit']:.2f}"
+                )
+            else:
+                warnings.append(
+                    f"{breach['type']} limit breach: "
+                    f"Current {breach['current']:.2f} > Limit {breach['limit']:.2f}"
+                )
+                
+            # Add specific recommendations for meme tokens
+            if "meme" in str(breach).lower():
+                warnings.append(
+                    "High meme token exposure detected. Consider:"
+                    "\n- Reducing position sizes"
+                    "\n- Setting tighter stop losses"
+                    "\n- Monitoring social sentiment closely"
+                )
+                
         return warnings
 
     def _generate_suggestions(self, limit_breaches: List[Dict[str, Any]]) -> List[str]:
-        """Generate suggestions based on limit breaches."""
+        """Generate detailed suggestions based on limit breaches with special handling for meme tokens."""
         suggestions = []
         for breach in limit_breaches:
             if breach["type"] == "CONCENTRATION":
-                suggestions.append(
-                    "Consider reducing position sizes to improve diversification"
-                )
+                if "meme" in str(breach).lower():
+                    suggestions.extend([
+                        "High meme token concentration detected:",
+                        "- Consider reducing meme token exposure to < 20% of portfolio",
+                        "- Implement strict position size limits for meme tokens",
+                        "- Set up automated take-profit levels"
+                    ])
+                else:
+                    suggestions.append(
+                        "Consider reducing position sizes to improve diversification"
+                    )
             elif breach["type"] == "LEVERAGE":
-                suggestions.append(
-                    "Consider reducing leverage to decrease risk exposure"
-                )
+                if "meme" in str(breach).lower():
+                    suggestions.extend([
+                        "High meme token leverage detected:",
+                        "- Reduce leverage to maximum 2x for meme tokens",
+                        "- Consider spot trading for highly volatile tokens",
+                        "- Implement dynamic leverage based on volatility"
+                    ])
+                else:
+                    suggestions.append(
+                        "Consider reducing leverage to decrease risk exposure"
+                    )
             elif breach["type"] == "LIQUIDITY":
-                suggestions.append(
-                    "Consider trading more liquid markets or reducing position sizes"
-                )
+                if "meme" in str(breach).lower():
+                    suggestions.extend([
+                        "Meme token liquidity risk detected:",
+                        "- Monitor cross-DEX liquidity distribution",
+                        "- Set maximum position size to 1% of available liquidity",
+                        "- Use multiple DEXs for large orders",
+                        "- Implement dynamic slippage tolerance"
+                    ])
+                else:
+                    suggestions.extend([
+                        "Consider trading more liquid markets or reducing position sizes",
+                        "- Monitor market depth across multiple DEXs",
+                        "- Split large orders across venues"
+                    ])
+            elif breach["type"] == "VOLATILITY":
+                suggestions.extend([
+                    "High volatility detected:",
+                    "- Reduce position sizes during high volatility",
+                    "- Implement dynamic stop-loss levels",
+                    "- Consider mean reversion strategies"
+                ])
         return suggestions
 
     def _suggest_position_adjustments(
         self, positions: List[Position], metrics: RiskMetrics
     ) -> List[Dict[str, Any]]:
-        """Suggest position adjustments."""
+        """Suggest position adjustments with special handling for meme tokens."""
         adjustments = []
-
-        # Check for high concentration positions
-        for position in positions:
+        
+        # Group positions by type
+        meme_positions = [p for p in positions if getattr(p, "is_meme", False)]
+        standard_positions = [p for p in positions if not getattr(p, "is_meme", False)]
+        
+        # Check meme token positions
+        for position in meme_positions:
             if position.status == "OPEN":
                 position_value = position.amount * position.current_price
+                
+                # Stricter limits for meme tokens
+                if position_value > Decimal("25000"):  # Lower threshold for meme tokens
+                    adjustments.append({
+                        "position_id": str(position.id),
+                        "symbol": position.symbol,
+                        "current_size": float(position_value),
+                        "suggested_size": float(position_value * Decimal("0.5")),  # More aggressive reduction
+                        "reason": "High meme token exposure",
+                        "priority": "HIGH",
+                        "recommendations": [
+                            "Reduce position size by 50%",
+                            "Set tight stop-loss at -10%",
+                            "Consider partial take-profit at +20%"
+                        ]
+                    })
+                
+                # Check leverage for meme positions
+                if position.leverage and position.leverage > 2:  # Stricter leverage limit
+                    adjustments.append({
+                        "position_id": str(position.id),
+                        "symbol": position.symbol,
+                        "current_leverage": position.leverage,
+                        "suggested_leverage": 1.5,  # More conservative leverage
+                        "reason": "High meme token leverage",
+                        "priority": "CRITICAL",
+                        "recommendations": [
+                            "Reduce leverage to 1.5x maximum",
+                            "Consider spot trading instead",
+                            "Implement trailing stop-loss"
+                        ]
+                    })
+        
+        # Check standard positions
+        for position in standard_positions:
+            if position.status == "OPEN":
+                position_value = position.amount * position.current_price
+                
+                # Standard position size checks
                 if position_value > Decimal("50000"):
-                    adjustments.append(
-                        {
-                            "position_id": str(position.id),
-                            "symbol": position.symbol,
-                            "current_size": float(position_value),
-                            "suggested_size": float(position_value * Decimal("0.7")),
-                            "reason": "High position concentration",
-                        }
-                    )
-
-        # Check for high leverage positions
-        for position in positions:
-            if (
-                position.status == "OPEN"
-                and position.leverage
-                and position.leverage > 3
-            ):
-                adjustments.append(
-                    {
+                    adjustments.append({
+                        "position_id": str(position.id),
+                        "symbol": position.symbol,
+                        "current_size": float(position_value),
+                        "suggested_size": float(position_value * Decimal("0.7")),
+                        "reason": "High position concentration",
+                        "priority": "MEDIUM",
+                        "recommendations": [
+                            "Reduce position size by 30%",
+                            "Consider scaling out in tranches"
+                        ]
+                    })
+                
+                # Standard leverage checks
+                if position.leverage and position.leverage > 3:
+                    adjustments.append({
                         "position_id": str(position.id),
                         "symbol": position.symbol,
                         "current_leverage": position.leverage,
                         "suggested_leverage": 2,
                         "reason": "High leverage risk",
-                    }
-                )
-
+                        "priority": "MEDIUM",
+                        "recommendations": [
+                            "Reduce leverage to 2x",
+                            "Set appropriate stop-loss levels"
+                        ]
+                    })
+        
         return adjustments
