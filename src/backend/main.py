@@ -194,10 +194,7 @@ async def list_agents(db: Session = Depends(get_db)) -> AgentListResponse:
         return AgentListResponse(agents=agent_types, count=len(agent_types))
     except Exception as e:
         logger.error(f"Error fetching agents: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch agents"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch agents")
 
 
 @app.get("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
