@@ -152,6 +152,48 @@ async def websocket_analysis(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "analysis")
 
 
+@app.get("/api/v1/account/balance", response_model=AccountResponse)
+async def get_account_balance(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> AccountResponse:
+    try:
+        account = db.query(Account).filter(Account.user_id == current_user["id"]).first()
+        if not account:
+            account = Account(user_id=current_user["id"], balance=0.0)
+            db.add(account)
+            db.commit()
+            db.refresh(account)
+        return account
+    except Exception as e:
+        logger.error(f"Error fetching account balance: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch balance")
+
+
+@app.get("/api/v1/account/positions", response_model=PositionListResponse)
+async def get_account_positions(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> PositionListResponse:
+    try:
+        positions = db.query(Position).filter(Position.user_id == current_user["id"]).all()
+        positions_data = PositionListResponse(positions=positions)
+        
+        # Broadcast position updates via WebSocket
+        for position in positions:
+            await broadcast_position_update(position.model_dump())
+            
+        return positions_data
+    except Exception as e:
+        logger.error(f"Error fetching positions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch positions")
+
+
+@app.websocket("/ws/positions")
+async def websocket_positions(websocket: WebSocket) -> None:
+    await handle_websocket_connection(websocket, "positions")
+
+
 # REST endpoints
 @app.get("/api/v1/strategies", response_model=StrategyListResponse)
 async def get_strategies(db: Session = Depends(get_db)) -> StrategyListResponse:
