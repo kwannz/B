@@ -19,6 +19,7 @@ from .database import (
     init_mongodb,
 )
 from .schemas import (
+    AgentListResponse,
     AgentResponse,
     MarketData,
     PerformanceResponse,
