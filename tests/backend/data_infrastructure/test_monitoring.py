@@ -254,3 +254,48 @@ class TestMonitoring:
         summary = monitoring.get_metrics_summary("market")
         assert summary is not None
         assert len(monitoring.metrics_history["market"]) <= monitoring.metrics_ttl
+
+    @pytest.mark.asyncio
+    async def test_cross_component_monitoring(self, monitoring):
+        """Test monitoring across Python and Go components."""
+        # Test Go component metrics collection
+        go_metrics = await monitoring.collect_go_metrics()
+        assert isinstance(go_metrics, dict)
+        assert "processing_time" in go_metrics
+        assert "memory_usage" in go_metrics
+        assert "goroutine_count" in go_metrics
+        assert all(isinstance(v, (int, float)) for v in go_metrics.values())
+        
+        # Test Python component metrics
+        py_metrics = await monitoring.collect_python_metrics()
+        assert isinstance(py_metrics, dict)
+        assert "cpu_usage" in py_metrics
+        assert "memory_usage" in py_metrics
+        assert "thread_count" in py_metrics
+        assert all(isinstance(v, (int, float)) for v in py_metrics.values())
+        
+        # Test IPC channel monitoring
+        ipc_metrics = await monitoring.monitor_ipc_channels()
+        assert isinstance(ipc_metrics, dict)
+        assert "latency" in ipc_metrics
+        assert "error_rate" in ipc_metrics
+        assert "message_rate" in ipc_metrics
+        assert all(isinstance(v, (int, float)) for v in ipc_metrics.values())
+        
+        # Test component health status
+        health_status = await monitoring.check_component_health()
+        assert isinstance(health_status, dict)
+        assert "go_components" in health_status
+        assert "python_components" in health_status
+        assert "ipc_channels" in health_status
+        assert all(isinstance(v, dict) for v in health_status.values())
+        
+        # Test alert generation
+        alerts = await monitoring.check_cross_component_alerts()
+        assert isinstance(alerts, list)
+        for alert in alerts:
+            assert "type" in alert
+            assert "component" in alert
+            assert "threshold" in alert
+            assert "current_value" in alert
+            assert "timestamp" in alert

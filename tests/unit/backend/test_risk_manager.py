@@ -451,6 +451,58 @@ async def test_meme_coin_risk(risk_manager):
 
 
 @pytest.mark.asyncio
+async def test_pump_token_validation(risk_manager):
+    """Test Pump.fun token validation and risk assessment."""
+    # Test normal pump token
+    pump_token = {
+        "symbol": "PUMP/USDC",
+        "market_cap": 5000000,
+        "volume_24h": 2000000,
+        "price_change_24h": 150.0,
+        "liquidity": 1000000,
+        "holder_distribution": {
+            "top_10_holders": 45.0,
+            "top_50_holders": 75.0,
+            "unique_holders": 500
+        },
+        "social_metrics": {
+            "twitter_mentions": 1000,
+            "telegram_members": 5000,
+            "sentiment_score": 0.8
+        }
+    }
+    
+    validation = await risk_manager.validate_pump_token(pump_token)
+    assert validation["risk_score"] >= 0 and validation["risk_score"] <= 100
+    assert "volume_analysis" in validation
+    assert "holder_distribution" in validation
+    assert "market_metrics" in validation
+    assert "social_metrics" in validation
+    
+    # Test high-risk pump token
+    high_risk_token = pump_token.copy()
+    high_risk_token["holder_distribution"]["top_10_holders"] = 90.0
+    high_risk_token["volume_24h"] = 10000000
+    high_risk_token["price_change_24h"] = 500.0
+    
+    high_risk_validation = await risk_manager.validate_pump_token(high_risk_token)
+    assert high_risk_validation["risk_score"] > validation["risk_score"]
+    assert high_risk_validation["holder_distribution"]["concentration_risk"] > 0.8
+    assert high_risk_validation["volume_analysis"]["unusual_activity"]
+    
+    # Test low-risk token
+    low_risk_token = pump_token.copy()
+    low_risk_token["holder_distribution"]["top_10_holders"] = 20.0
+    low_risk_token["volume_24h"] = 1000000
+    low_risk_token["price_change_24h"] = 50.0
+    
+    low_risk_validation = await risk_manager.validate_pump_token(low_risk_token)
+    assert low_risk_validation["risk_score"] < validation["risk_score"]
+    assert low_risk_validation["holder_distribution"]["concentration_risk"] < 0.5
+    assert not low_risk_validation["volume_analysis"]["unusual_activity"]
+
+
+@pytest.mark.asyncio
 async def test_market_data_caching(risk_manager):
     from src.shared.models.cache import MarketDataCache
     from src.shared.models.database import delete_cache, get_cache, set_cache

@@ -222,3 +222,53 @@ async def test_jupiter_execute_swap(jupiter_service):
         assert float(result["amount_in"]) == 1.0
         assert float(result["amount_out"]) == 2.0
         assert result["status"] == "success"
+
+
+@pytest.mark.asyncio
+async def test_cross_dex_liquidity(jupiter_service):
+    """Test cross-DEX liquidity aggregation."""
+    mock_liquidity_response = {
+        "total_liquidity": "100000000000",
+        "dex_breakdown": [
+            {
+                "dex": "Orca",
+                "liquidity": "50000000000",
+                "price": "24.5",
+                "slippage": "0.1"
+            },
+            {
+                "dex": "Raydium",
+                "liquidity": "30000000000",
+                "price": "24.48",
+                "slippage": "0.15"
+            },
+            {
+                "dex": "Serum",
+                "liquidity": "20000000000",
+                "price": "24.52",
+                "slippage": "0.2"
+            }
+        ],
+        "best_route": {
+            "amount_in": "1000000000",
+            "amount_out": "24500000000",
+            "price_impact": "0.05",
+            "dexes": ["Orca", "Raydium"]
+        }
+    }
+
+    with patch.object(jupiter_service.session, "get") as mock_get:
+        mock_get.return_value.__aenter__.return_value.status = 200
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=mock_liquidity_response
+        )
+
+        liquidity = await jupiter_service.get_aggregated_liquidity("SOL/USDC")
+        
+        assert "total_liquidity" in liquidity
+        assert float(liquidity["total_liquidity"]) == 100000000000
+        assert "dex_breakdown" in liquidity
+        assert len(liquidity["dex_breakdown"]) == 3
+        assert "best_route" in liquidity
+        assert len(liquidity["best_route"]["dexes"]) == 2
+        assert float(liquidity["best_route"]["price_impact"]) < 0.1
