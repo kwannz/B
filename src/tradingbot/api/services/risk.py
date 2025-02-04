@@ -317,7 +317,7 @@ class RiskManagementService:
             gamma=0.1,
             vega=0.2,
             theta=-0.1,
-            stress_test_loss=Decimal(str(portfolio_value * 0.15)),
+            stress_test_loss=portfolio_value * Decimal("0.15"),
             risk_adjusted_return=1.5,
             diversification_score=75.0,
         )
@@ -450,7 +450,11 @@ class RiskManagementService:
         total_loss = sum(
             p.amount * p.current_price * Decimal("0.3")  # 30% market drop
             for p in positions
-            if p.status == "OPEN"
+            if p.status == "OPEN" and p.side == "LONG"
+        ) + sum(
+            p.amount * p.current_price * Decimal("-0.3")  # 30% gain for shorts
+            for p in positions
+            if p.status == "OPEN" and p.side == "SHORT"
         )
         return {
             "scenario": "MARKET_CRASH",
@@ -464,7 +468,11 @@ class RiskManagementService:
         var_increase = sum(
             p.amount * p.current_price * Decimal("0.15")  # 15% VaR increase
             for p in positions
-            if p.status == "OPEN"
+            if p.status == "OPEN" and p.side == "LONG"
+        ) + sum(
+            p.amount * p.current_price * Decimal("-0.15")  # 15% VaR decrease for shorts
+            for p in positions
+            if p.status == "OPEN" and p.side == "SHORT"
         )
         return {
             "scenario": "VOLATILITY_SPIKE",
@@ -478,7 +486,11 @@ class RiskManagementService:
         slippage_loss = sum(
             p.amount * p.current_price * Decimal("0.05")  # 5% slippage
             for p in positions
-            if p.status == "OPEN"
+            if p.status == "OPEN" and p.side == "LONG"
+        ) + sum(
+            p.amount * p.current_price * Decimal("-0.05")  # 5% slippage gain for shorts
+            for p in positions
+            if p.status == "OPEN" and p.side == "SHORT"
         )
         return {
             "scenario": "LIQUIDITY_CRISIS",
