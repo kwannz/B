@@ -7,7 +7,7 @@ import pandas as pd
 import pandas_ta as ta
 
 from ....shared.exchange.dex_client import DEXClient
-from ....shared.models.trading import TradeType
+from tradingbot.shared.models.trading import TradeType
 from ..base_agent import BaseTradingAgent
 
 logger = logging.getLogger(__name__)

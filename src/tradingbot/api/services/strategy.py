@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from pymongo.database import Database
 
-from ..core.exceptions import StrategyError
+from tradingbot.api.core.exceptions import StrategyError
 from ..models.strategy import (
     ArbitrageStrategyConfig,
     BacktestResult,

@@ -325,7 +325,7 @@ class ModelEvaluator:
     ) -> Dict[str, bool]:
         """验证性能阈值"""
         results = {}
-        metrics = self._calculate_metrics(y_true, y_pred)
+        metrics = self._calculate_metrics(y_true.to_numpy(), y_pred.to_numpy())
 
         for metric_name, threshold in thresholds.items():
             if metric_name in metrics:
