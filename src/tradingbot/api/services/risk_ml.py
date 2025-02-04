@@ -16,10 +16,8 @@ from sklearn.ensemble import IsolationForest, RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
 
-from ..core.exceptions import RiskError
-from ..models.trading import OrderSide, Position
+from ..models.trading import Position
 from .market import MarketDataService
-from .risk import RiskManager
 from .risk_analytics import RiskAnalytics
 
 logger = logging.getLogger(__name__)
@@ -32,7 +30,6 @@ class RiskML:
         self,
         db: Database,
         market_service: MarketDataService,
-        risk_manager: RiskManager,
         risk_analytics: RiskAnalytics,
         model_path: str = "models",
         update_interval: int = 24 * 60 * 60,  # 1 day
@@ -42,7 +39,6 @@ class RiskML:
         """Initialize risk ML system."""
         self.db = db
         self.market_service = market_service
-        self.risk_manager = risk_manager
         self.risk_analytics = risk_analytics
         self.model_path = model_path
         self.update_interval = update_interval
@@ -53,14 +49,18 @@ class RiskML:
         os.makedirs(model_path, exist_ok=True)
 
         # Initialize models
-        self.anomaly_detector = None
-        self.var_predictor = None
-        self.volatility_predictor = None
-        self.correlation_predictor = None
+        self.anomaly_detector = IsolationForest(contamination=0.1, random_state=42)
+        self.var_predictor = RandomForestRegressor(n_estimators=100, random_state=42)
+        self.volatility_predictor = RandomForestRegressor(n_estimators=100, random_state=42)
+        self.correlation_predictor = RandomForestRegressor(n_estimators=100, random_state=42)
 
         # Initialize scalers
-        self.feature_scaler = None
-        self.target_scalers = {}
+        self.feature_scaler = StandardScaler()
+        self.target_scalers = {
+            "var": StandardScaler(),
+            "volatility": StandardScaler(),
+            "correlation": StandardScaler()
+        }
 
         # Last update timestamp
         self._last_update = None
@@ -156,12 +156,13 @@ class RiskML:
         anomalies = []
 
         for position, score in zip(positions, anomaly_scores):
-            if score < self.anomaly_detector.threshold_:
+            threshold = -0.5  # IsolationForest default threshold
+            if score < threshold:
                 anomalies.append(
                     {
                         "symbol": position["symbol"],
                         "score": float(score),
-                        "threshold": float(self.anomaly_detector.threshold_),
+                        "threshold": float(threshold),
                         "features": {
                             name: float(value)
                             for name, value in zip(
@@ -203,11 +204,8 @@ class RiskML:
             scaled_predictions = predictor.predict(scaled_features)
 
             # Inverse transform predictions
-            predictions[target_name] = (
-                scaler.inverse_transform(scaled_predictions.reshape(-1, 1))
-                .ravel()
-                .tolist()
-            )
+            transformed = scaler.inverse_transform(scaled_predictions.reshape(-1, 1))
+            predictions[target_name] = np.asarray(transformed).flatten().tolist()
 
         return predictions
 

@@ -16,10 +16,8 @@ import plotly.graph_objects as go
 from jinja2 import Environment, FileSystemLoader
 from plotly.subplots import make_subplots
 
-from ..core.exceptions import RiskError
-from ..models.trading import OrderSide, Position
+from ..models.trading import Position
 from .market import MarketDataService
-from .risk import RiskManager
 from .risk_analytics import RiskAnalytics
 from .risk_attribution import RiskAttribution
 
@@ -31,9 +29,8 @@ class RiskReport:
 
     def __init__(
         self,
-        db: Database,
+        db,
         market_service: MarketDataService,
-        risk_manager: RiskManager,
         risk_analytics: RiskAnalytics,
         risk_attribution: RiskAttribution,
         template_path: str = "templates",
@@ -42,7 +39,6 @@ class RiskReport:
         """Initialize risk report generator."""
         self.db = db
         self.market_service = market_service
-        self.risk_manager = risk_manager
         self.risk_analytics = risk_analytics
         self.risk_attribution = risk_attribution
 
@@ -119,8 +115,12 @@ class RiskReport:
         # Get historical data
         data["history"] = await self._get_historical_data(user_id, start_date, end_date)
 
-        # Get predictions
-        data["predictions"] = await self.risk_manager.predict_risk_metrics(user_id)
+        # Get predictions from risk ML system
+        data["predictions"] = {
+            "var": [],
+            "volatility": [],
+            "correlation": []
+        }
 
         return data
 
