@@ -4,13 +4,14 @@ import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import aiohttp
 import aioping
 import asyncpg
 import psutil
 from prometheus_client import Counter, Gauge, Histogram, Summary
+from datetime import datetime, timedelta
 
 
 @dataclass
@@ -43,6 +44,7 @@ class PerformanceMetrics:
     risk_exposure: Gauge
     volatility: Histogram
     drawdown: Gauge
+    critical_alerts: Counter
 
 
 class PerformanceMonitor:
@@ -51,6 +53,9 @@ class PerformanceMonitor:
     def __init__(self, config: Dict):
         self.config = config
         self.logger = logging.getLogger(__name__)
+        self.db = None
+        if "database_url" in config:
+            self.db = asyncpg.create_pool(config["database_url"])
 
         # Initialize metrics
         self.metrics = PerformanceMetrics(
@@ -80,7 +85,8 @@ class PerformanceMonitor:
             position_concentration=Gauge("position_concentration", "Position concentration percentage", ["token_type"]),
             risk_exposure=Gauge("risk_exposure", "Total risk exposure", ["risk_type"]),
             volatility=Histogram("price_volatility", "Price volatility", ["token", "timeframe"]),
-            drawdown=Gauge("max_drawdown", "Maximum drawdown percentage", ["portfolio_type"])
+            drawdown=Gauge("max_drawdown", "Maximum drawdown percentage", ["portfolio_type"]),
+            critical_alerts=Counter("critical_alerts_total", "Total critical alerts", ["type"])
         )
 
         # 监控配置
@@ -136,22 +142,37 @@ class PerformanceMonitor:
                 await asyncio.sleep(60)
 
     async def _monitor_system_resources(self):
-        """监控系统资源"""
+        """Monitor system resources with enhanced metrics"""
         try:
-            # CPU使用率
             cpu_percent = psutil.cpu_percent(interval=1)
             self.metrics.cpu_usage.set(cpu_percent)
 
             if cpu_percent > self.monitor_config["cpu_threshold"]:
-                await self._create_alert("high_cpu_usage", f"CPU usage: {cpu_percent}%")
+                await self._create_alert(
+                    "high_cpu_usage", 
+                    f"CPU usage: {cpu_percent}%",
+                    severity="WARNING" if cpu_percent < 90 else "CRITICAL",
+                    metadata={
+                        "current_usage": cpu_percent,
+                        "threshold": self.monitor_config["cpu_threshold"],
+                        "load_avg": os.getloadavg()
+                    }
+                )
 
-            # 内存使用率
             memory = psutil.virtual_memory()
             self.metrics.memory_usage.set(memory.percent)
 
             if memory.percent > self.monitor_config["memory_threshold"]:
                 await self._create_alert(
-                    "high_memory_usage", f"Memory usage: {memory.percent}%"
+                    "high_memory_usage", 
+                    f"Memory usage: {memory.percent}%",
+                    severity="WARNING" if memory.percent < 90 else "CRITICAL",
+                    metadata={
+                        "current_usage": memory.percent,
+                        "threshold": self.monitor_config["memory_threshold"],
+                        "available": memory.available,
+                        "total": memory.total
+                    }
                 )
 
         except Exception as e:
@@ -348,22 +369,37 @@ class PerformanceMonitor:
             self.logger.error(f"Cross-DEX monitoring error: {str(e)}")
             self.metrics.error_count.labels(type="cross_dex").inc()
 
-    async def _create_alert(self, alert_type: str, message: str):
-        """创建告警"""
+    async def _create_alert(self, alert_type: str, message: str, severity: str = "WARNING", metadata: Optional[Dict[str, Any]] = None):
+        """Create alert with severity level and metadata"""
         current_time = time.time()
 
-        # 检查冷却时间
         if alert_type in self.last_alert_time:
-            if (
-                current_time - self.last_alert_time[alert_type]
-                < self.monitor_config["alert_cooldown"]
-            ):
+            if current_time - self.last_alert_time[alert_type] < self.monitor_config["alert_cooldown"]:
                 return
 
         self.last_alert_time[alert_type] = current_time
-
-        # TODO: 实现告警通知
-        self.logger.warning(f"Alert: {message}")
+        
+        if severity not in ["INFO", "WARNING", "ERROR", "CRITICAL"]:
+            severity = "WARNING"
+            
+        alert_data = {
+            "type": alert_type,
+            "message": message,
+            "severity": severity,
+            "timestamp": datetime.utcnow().isoformat(),
+            "metadata": metadata or {},
+            "source": "performance_monitor",
+            "status": "ACTIVE"
+        }
+            
+        log_level = getattr(logging, severity, logging.WARNING)
+        self.logger.log(log_level, f"Alert [{severity}]: {message}")
+        
+        if severity in ["ERROR", "CRITICAL"]:
+            self.metrics.error_count.labels(type=alert_type).inc()
+            await self._route_critical_alert(alert_data)
+            
+        return alert_data
 
     def _get_percentile(self, metric: Histogram, percentile: float) -> float:
         """Get percentile value from histogram metric"""
@@ -434,6 +470,25 @@ class PerformanceMonitor:
             return "stable"
         except Exception:
             return "unknown"
+
+    async def _route_critical_alert(self, alert_data: Dict[str, Any]) -> None:
+        """Route critical alerts to appropriate channels"""
+        try:
+            alert_type = alert_data["type"]
+            self.metrics.critical_alerts.labels(type=alert_type).inc()
+            
+            if hasattr(self, "db"):
+                collection = self.db["alerts"]
+                await collection.insert_one(alert_data)
+            
+            self.logger.critical(
+                f"Critical alert [{alert_type}]: {alert_data['message']}\n"
+                f"Metadata: {alert_data['metadata']}\n"
+                f"Source: {alert_data['source']}"
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error routing critical alert: {str(e)}")
 
     def _get_token_volatility(self, token: str) -> float:
         """Calculate token volatility score"""
@@ -519,26 +574,33 @@ class PerformanceMonitor:
         except Exception:
             return 0
 
-    def _get_active_risk_alerts(self) -> List[Dict]:
-        """Get list of active risk alerts"""
+    def _get_active_risk_alerts(self) -> Dict[str, Dict[str, Any]]:
+        """Get active risk alerts with detailed metadata"""
         try:
-            alerts = []
+            alerts: Dict[str, Dict[str, Any]] = {}
             for risk_type in ["market", "liquidity", "volatility"]:
                 utilization = self._get_exposure_utilization(risk_type)
                 if utilization > 0.8:
-                    alerts.append({
-                        "type": risk_type,
+                    severity = "CRITICAL" if utilization > 0.95 else "WARNING"
+                    alerts[risk_type] = {
                         "level": "high" if utilization > 0.95 else "elevated",
-                        "utilization": utilization
-                    })
+                        "severity": severity,
+                        "utilization": utilization,
+                        "metadata": {
+                            "current_value": utilization,
+                            "threshold": 0.8,
+                            "risk_type": risk_type,
+                            "trend": self._get_concentration_trend(risk_type)
+                        }
+                    }
             return alerts
         except Exception:
-            return []
+            return {}
 
-    def get_performance_metrics(self) -> Dict:
+    def get_performance_metrics(self) -> Dict[str, Dict[str, Any]]:
         """Get performance metrics"""
         try:
-            metrics = {
+            metrics: Dict[str, Dict[str, Any]] = {
                 # System metrics
                 "system": {
                     "cpu": {
@@ -701,5 +763,5 @@ class PerformanceMonitor:
                 "api": {},
                 "trading": {},
                 "meme_tokens": {},
-                "risk": {}
+                "risk": {"alerts": []}
             }
