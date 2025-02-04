@@ -5,8 +5,8 @@ from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from config import settings
-from database import (
+from src.backend.config import settings
+from src.backend.database import (
     Agent,
     AgentStatus,
     Signal,
