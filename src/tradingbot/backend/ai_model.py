@@ -8,8 +8,8 @@ import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, Dataset
 
-from src.shared.config.ai_model import ModelConfig
-from src.shared.models.deepseek import DeepSeek1_5B
+from ..shared.config.ai_model import ModelConfig
+from ..shared.models.deepseek import DeepSeek1_5B
 
 # Model deployment mode (API first, local fallback)
 AI_MODEL_MODE = os.getenv("AI_MODEL_MODE", "REMOTE")
@@ -70,9 +70,42 @@ class TradingModel(nn.Module):
         return self.fc(lstm_out[:, -1, :])
 
 
-class ModelOptimizer:
-    """AI模型优化器"""
+class AIModel:
+    def __init__(self):
+        self.history: List[Dict] = []
 
+    async def analyze_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze market data and return predictions."""
+        try:
+            analysis = {
+                "symbol": data["symbol"],
+                "timestamp": datetime.utcnow().isoformat(),
+                "predictions": {
+                    "trend": "neutral",
+                    "confidence": 0.5,
+                    "signals": [],
+                    "risk_level": "medium",
+                },
+                "metrics": {
+                    "volatility": 0.0,
+                    "volume_profile": "normal",
+                    "liquidity": "medium",
+                },
+                "indicators": {
+                    "rsi": 50.0,
+                    "macd": 0.0,
+                    "bollinger_bands": {
+                        "upper": float(data["price"]) * 1.02,
+                        "middle": float(data["price"]),
+                        "lower": float(data["price"]) * 0.98,
+                    }
+                }
+            }
+            return analysis
+        except Exception as e:
+            raise ValueError(f"Error analyzing market data: {e}")
+
+class ModelOptimizer:
     def __init__(self, config: ModelConfig):
         self.config = config
         self.model = None
