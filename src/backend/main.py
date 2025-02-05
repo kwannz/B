@@ -178,7 +178,6 @@ async def websocket_performance(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "performance")
 
 
-
 @app.websocket("/ws/analysis")
 async def websocket_analysis(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "analysis")
@@ -348,7 +347,7 @@ async def update_limit_settings(
         limit_settings = db.query(LimitSettings).filter(
             LimitSettings.user_id == current_user["id"]
         ).first()
-        
+
         if not limit_settings:
             limit_settings = LimitSettings(
                 user_id=current_user["id"],
@@ -358,7 +357,7 @@ async def update_limit_settings(
         else:
             for key, value in settings.model_dump().items():
                 setattr(limit_settings, key, value)
-        
+
         db.commit()
         db.refresh(limit_settings)
         await broadcast_limit_update(limit_settings.model_dump())
@@ -458,6 +457,7 @@ async def get_agent_status(
     except Exception as e:
         logger.error(f"Error getting agent status: {e}")
         raise HTTPException(status_code=500, detail="Failed to get agent status")
+
 
 @app.patch("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
 async def update_agent_status(
