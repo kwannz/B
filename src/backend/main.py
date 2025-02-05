@@ -51,7 +51,6 @@ from src.backend.schemas import (
 )
 from src.backend.shared.models.ollama import OllamaModel
 from src.backend.websocket import (
-    broadcast_agent_status,
     broadcast_limit_update,
     broadcast_order_update,
     broadcast_performance_update,
@@ -179,10 +178,6 @@ async def websocket_performance(websocket: WebSocket) -> None:
     await handle_websocket_connection(websocket, "performance")
 
 
-@app.websocket("/ws/agent_status")
-async def websocket_agent_status(websocket: WebSocket) -> None:
-    await handle_websocket_connection(websocket, "agent_status")
-
 
 @app.websocket("/ws/analysis")
 async def websocket_analysis(websocket: WebSocket) -> None:
@@ -215,11 +210,11 @@ async def get_account_positions(
     try:
         positions = db.query(Position).filter(Position.user_id == current_user["id"]).all()
         positions_data = PositionListResponse(positions=positions)
-        
+
         # Broadcast position updates via WebSocket
         for position in positions:
             await broadcast_position_update(position.model_dump())
-        
+
         return positions_data
     except Exception as e:
         logger.error(f"Error fetching positions: {e}")
@@ -304,19 +299,19 @@ async def get_risk_metrics(
         positions = db.query(Position).filter(
             Position.user_id == current_user["id"]
         ).all()
-        
+
         # Calculate risk metrics
         total_exposure = sum(abs(p.size * p.current_price) for p in positions)
         margin_used = total_exposure * 0.1  # Example: 10% margin requirement
         margin_ratio = margin_used / total_exposure if total_exposure > 0 else 0
         daily_pnl = sum(p.unrealized_pnl for p in positions)
         total_pnl = daily_pnl  # For simplicity, using same value
-        
+
         # Create or update risk metrics
         risk_metrics = db.query(RiskMetrics).filter(
             RiskMetrics.user_id == current_user["id"]
         ).first()
-        
+
         if not risk_metrics:
             risk_metrics = RiskMetrics(
                 user_id=current_user["id"],
@@ -333,7 +328,7 @@ async def get_risk_metrics(
             risk_metrics.margin_ratio = margin_ratio
             risk_metrics.daily_pnl = daily_pnl
             risk_metrics.total_pnl = total_pnl
-        
+
         db.commit()
         db.refresh(risk_metrics)
         await broadcast_risk_update(risk_metrics.model_dump())
@@ -464,6 +459,35 @@ async def get_agent_status(
         logger.error(f"Error getting agent status: {e}")
         raise HTTPException(status_code=500, detail="Failed to get agent status")
 
+@app.patch("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
+async def update_agent_status(
+    agent_type: str, status: AgentStatus, db: Session = Depends(get_db)
+) -> AgentResponse:
+    try:
+        if not agent_type:
+            raise HTTPException(status_code=400, detail="Agent type is required")
+
+        agent = db.query(Agent).filter(Agent.type == agent_type).first()
+        if not agent:
+            raise HTTPException(status_code=404, detail=f"Agent {agent_type} not found")
+
+        agent.status = status
+        agent.last_updated = datetime.utcnow()
+        try:
+            db.commit()
+            db.refresh(agent)
+        except Exception as db_error:
+            db.rollback()
+            logger.error(f"Database error updating agent status: {db_error}")
+            raise HTTPException(status_code=500, detail="Failed to update agent status")
+
+        return agent
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating agent status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update agent status")
+
 
 @app.post("/api/v1/agents/{agent_type}/start", response_model=AgentResponse)
 async def start_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentResponse:
@@ -489,7 +513,6 @@ async def start_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentRe
             logger.error(f"Database error starting agent: {db_error}")
             raise HTTPException(status_code=500, detail="Failed to start agent")
 
-        await broadcast_agent_status(agent_type, "running")
         return agent
     except HTTPException:
         raise
@@ -521,7 +544,6 @@ async def stop_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentRes
             logger.error(f"Database error stopping agent: {db_error}")
             raise HTTPException(status_code=500, detail="Failed to stop agent")
 
-        await broadcast_agent_status(agent_type, "stopped")
         return agent
     except HTTPException:
         raise
@@ -538,10 +560,8 @@ async def create_agent(agent: AgentCreate, db: Session = Depends(get_db)) -> Age
 
         existing_agent = db.query(Agent).filter(Agent.type == agent.type).first()
         if existing_agent:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Agent with type {agent.type} already exists"
-            )
+            msg = f"Agent with type {agent.type} already exists"
+            raise HTTPException(status_code=409, detail=msg)
 
         db_agent = Agent(type=agent.type, status=agent.status)
         try:
@@ -553,7 +573,6 @@ async def create_agent(agent: AgentCreate, db: Session = Depends(get_db)) -> Age
             logger.error(f"Database error creating agent: {db_error}")
             raise HTTPException(status_code=500, detail="Failed to create agent")
 
-        await broadcast_agent_status(agent.type, agent.status)
         return db_agent
     except HTTPException:
         raise
@@ -575,7 +594,6 @@ async def delete_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentR
         # Stop agent if running before deletion
         if agent.status == AgentStatus.RUNNING:
             agent.status = AgentStatus.STOPPED
-            await broadcast_agent_status(agent_type, "stopped")
 
         try:
             db.delete(agent)
@@ -585,7 +603,6 @@ async def delete_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentR
             logger.error(f"Database error deleting agent: {db_error}")
             raise HTTPException(status_code=500, detail="Failed to delete agent")
 
-        await broadcast_agent_status(agent_type, "deleted")
         return agent
     except HTTPException:
         raise
@@ -746,9 +763,6 @@ async def get_performance(db: Session = Depends(get_db)) -> PerformanceResponse:
         raise HTTPException(
             status_code=500, detail="Failed to calculate performance metrics"
         )
-
-
-
 
 
 if __name__ == "__main__":
