@@ -22,6 +22,7 @@ type WSConfig struct {
 	ReadTimeout  time.Duration
 	PongWait     time.Duration
 	MaxRetries   int
+	APIKey       string
 }
 
 // WSClient handles WebSocket connections for real-time price updates
@@ -39,6 +40,7 @@ type WSClient struct {
 	pongWait     time.Duration
 	pingPeriod   time.Duration
 	maxRetries   int
+	apiKey       string
 }
 
 // NewWSClient creates a new WebSocket client
@@ -55,6 +57,7 @@ func NewWSClient(wsURL string, logger *zap.Logger, config WSConfig) *WSClient {
 		pongWait:     config.PongWait,
 		pingPeriod:   (config.PongWait * 9) / 10,
 		maxRetries:   config.MaxRetries,
+		apiKey:       config.APIKey,
 	}
 }
 
@@ -68,42 +71,32 @@ func (c *WSClient) Connect(ctx context.Context) error {
 	}
 
 	headers := http.Header{}
-	headers.Add("Origin", "https://pump.fun")
-	headers.Add("Host", "pump.fun")
-	headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-	headers.Add("Accept", "*/*")
-	headers.Add("Accept-Language", "en-US,en;q=0.9")
-	headers.Add("Connection", "Upgrade")
-	headers.Add("Upgrade", "websocket")
-	headers.Add("Sec-WebSocket-Version", "13")
+	headers.Add("X-API-Key", c.apiKey)
+	headers.Add("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
 
 	dialer := websocket.Dialer{
 		HandshakeTimeout: c.dialTimeout,
 		WriteBufferSize:  1024 * 16,
 		ReadBufferSize:   1024 * 16,
 		TLSClientConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true,
 		},
 		EnableCompression: true,
 		Proxy:            http.ProxyFromEnvironment,
 	}
 
 	backoff := time.Second
-	maxBackoff := 30 * time.Second
+	maxBackoff := 60 * time.Second
+	retries := 0
 
-	var lastErr error
-	for retry := 0; retry < c.maxRetries; retry++ {
-		if retry > 0 {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(backoff):
-				backoff = time.Duration(float64(backoff) * 1.5)
-				if backoff > maxBackoff {
-					backoff = maxBackoff
-				}
-			}
-		}
+	for {
+		c.logger.Info("Attempting WebSocket connection",
+			zap.String("url", c.wsURL),
+			zap.Int("retry", retries),
+			zap.Int("max_retries", c.maxRetries),
+			zap.Duration("backoff", backoff),
+			zap.String("api_key_length", fmt.Sprintf("%d", len(c.apiKey))))
 
 		conn, resp, err := dialer.DialContext(ctx, c.wsURL, headers)
 		if err != nil {
@@ -112,12 +105,58 @@ func (c *WSClient) Connect(ctx context.Context) error {
 					zap.Int("status", resp.StatusCode),
 					zap.String("status_text", resp.Status))
 			}
-			lastErr = fmt.Errorf("failed to connect: %w", err)
-			c.logger.Error("websocket connection failed",
-				zap.Error(err),
-				zap.Int("retry", retry),
-				zap.Duration("backoff", backoff))
+			
+			if retries >= c.maxRetries {
+				return fmt.Errorf("max retries reached: %w", err)
+			}
+			
+			retries++
+			time.Sleep(backoff)
+			backoff = time.Duration(float64(backoff) * 1.5)
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
 			continue
+		}
+
+		c.logger.Info("WebSocket connection established",
+			zap.String("url", c.wsURL))
+
+		// Send new token subscription
+		newTokenMsg := struct {
+			Method string `json:"method"`
+			APIKey string `json:"api_key"`
+		}{
+			Method: "subscribeNewToken",
+			APIKey: c.apiKey,
+		}
+		
+		if err := conn.WriteJSON(newTokenMsg); err != nil {
+			c.logger.Error("Failed to send new token subscription",
+				zap.Error(err))
+			conn.Close()
+			continue
+		}
+
+		// Send trade subscription for each symbol
+		for symbol := range c.symbols {
+			tradeMsg := struct {
+				Method string   `json:"method"`
+				Keys   []string `json:"keys"`
+				APIKey string   `json:"api_key"`
+			}{
+				Method: "subscribeTokenTrade",
+				Keys:   []string{symbol},
+				APIKey: c.apiKey,
+			}
+			
+			if err := conn.WriteJSON(tradeMsg); err != nil {
+				c.logger.Error("Failed to send trade subscription",
+					zap.Error(err),
+					zap.String("symbol", symbol))
+				conn.Close()
+				continue
+			}
 		}
 
 		conn.SetReadDeadline(time.Now().Add(c.readTimeout))
@@ -126,15 +165,17 @@ func (c *WSClient) Connect(ctx context.Context) error {
 			return conn.SetReadDeadline(time.Now().Add(c.pongWait))
 		})
 
+		c.mu.Lock()
 		c.conn = conn
+		c.mu.Unlock()
 
+		// Start message handler and keepalive routines
 		go c.handleMessages()
 		go c.keepAlive(ctx)
 
+		c.logger.Info("Started message handler and keepalive routines")
 		return nil
 	}
-
-	return fmt.Errorf("max retries exceeded: %w", lastErr)
 }
 
 // Subscribe subscribes to price updates for symbols
@@ -152,14 +193,19 @@ func (c *WSClient) Subscribe(symbols []string) error {
 		}
 
 		msg := struct {
-			Type   string `json:"type"`
-			Symbol string `json:"symbol"`
+			Method string   `json:"method"`
+			Keys   []string `json:"keys"`
+			APIKey string   `json:"api_key"`
 		}{
-			Type:   "subscribe",
-			Symbol: symbol,
+			Method: "subscribeTokenTrade",
+			Keys:   []string{symbol},
+			APIKey: c.apiKey,
 		}
 
 		if err := c.conn.WriteJSON(msg); err != nil {
+			c.logger.Error("Failed to subscribe",
+				zap.String("symbol", symbol),
+				zap.Error(err))
 			return fmt.Errorf("failed to subscribe to %s: %w", symbol, err)
 		}
 
@@ -220,10 +266,36 @@ func (c *WSClient) keepAlive(ctx context.Context) {
 func (c *WSClient) handleMessages() {
 	defer close(c.updates)
 
+	reconnectTicker := time.NewTicker(5 * time.Second)
+	defer reconnectTicker.Stop()
+
 	for {
 		select {
 		case <-c.done:
 			return
+		case <-reconnectTicker.C:
+			c.mu.Lock()
+			if c.conn == nil {
+				ctx := context.Background()
+				if err := c.Connect(ctx); err != nil {
+					c.logger.Error("Failed to reconnect", zap.Error(err))
+					c.mu.Unlock()
+					continue
+				}
+				
+				// Resubscribe to existing symbols
+				symbols := make([]string, 0, len(c.symbols))
+				for symbol := range c.symbols {
+					symbols = append(symbols, symbol)
+				}
+				c.mu.Unlock()
+				
+				if err := c.Subscribe(symbols); err != nil {
+					c.logger.Error("Failed to resubscribe", zap.Error(err))
+				}
+				continue
+			}
+			c.mu.Unlock()
 		default:
 			c.conn.SetReadDeadline(time.Now().Add(c.readTimeout))
 			_, msg, err := c.conn.ReadMessage()
@@ -237,38 +309,92 @@ func (c *WSClient) handleMessages() {
 					c.conn = nil
 				}
 				c.mu.Unlock()
-				return
+				continue
 			}
 
 			var data struct {
 				Method string `json:"method"`
 				Data   struct {
-					Symbol    string  `json:"symbol"`
-					Price     float64 `json:"price"`
-					Volume    float64 `json:"volume"`
-					Timestamp int64   `json:"timestamp"`
+					Address    string  `json:"address"`
+					Price      float64 `json:"price"`
+					Volume     float64 `json:"volume"`
+					Time       int64   `json:"time"`
+					TxHash     string  `json:"txHash"`
+					BlockTime  int64   `json:"blockTime"`
+					Error      string  `json:"error,omitempty"`
+					TokenName  string  `json:"tokenName,omitempty"`
+					MarketCap  float64 `json:"marketCap,omitempty"`
+					TotalSupply float64 `json:"totalSupply,omitempty"`
 				} `json:"data"`
+				Error string `json:"error,omitempty"`
+				Status string `json:"status,omitempty"`
 			}
 
+			c.logger.Info("Received WebSocket message",
+				zap.String("raw_message", string(msg)),
+				zap.String("connection_status", "active"))
+
 			if err := json.Unmarshal(msg, &data); err != nil {
-				c.logger.Error("Failed to parse WebSocket message", zap.Error(err))
+				c.logger.Error("Failed to parse WebSocket message", 
+					zap.Error(err),
+					zap.String("raw_message", string(msg)))
 				continue
 			}
 
-			if data.Method == "tokenTrade" {
+			if data.Error != "" || (data.Status != "" && data.Status != "success") {
+				c.logger.Error("Received error in WebSocket message",
+					zap.String("error", data.Error),
+					zap.String("status", data.Status))
+				if data.Error == "unauthorized" || data.Error == "invalid_token" {
+					c.mu.Lock()
+					if c.conn != nil {
+						c.conn.Close()
+						c.conn = nil
+					}
+					c.mu.Unlock()
+				}
+				continue
+			}
+
+			switch data.Method {
+			case "trade":
+				c.logger.Debug("Received trade event",
+					zap.String("address", data.Data.Address),
+					zap.String("token_name", data.Data.TokenName),
+					zap.Float64("price", data.Data.Price),
+					zap.Float64("volume", data.Data.Volume),
+					zap.Float64("market_cap", data.Data.MarketCap),
+					zap.Float64("total_supply", data.Data.TotalSupply),
+					zap.String("txHash", data.Data.TxHash))
+
 				update := &types.PriceUpdate{
-					Symbol:    data.Data.Symbol,
-					Price:     data.Data.Price,
-					Volume:    data.Data.Volume,
-					Timestamp: time.Unix(data.Data.Timestamp/1000, 0),
+					Symbol:      data.Data.Address,
+					TokenName:   data.Data.TokenName,
+					Price:      data.Data.Price,
+					Volume:     data.Data.Volume,
+					MarketCap:  data.Data.MarketCap,
+					TotalSupply: data.Data.TotalSupply,
+					Timestamp:  time.Unix(data.Data.BlockTime, 0),
 				}
 
 				select {
 				case c.updates <- update:
+					c.logger.Info("Trade update sent",
+						zap.String("token", data.Data.TokenName),
+						zap.Float64("price", data.Data.Price),
+						zap.Float64("market_cap", data.Data.MarketCap))
 				default:
-					c.logger.Warn("Update channel full", 
-						zap.String("symbol", data.Data.Symbol))
+					c.logger.Warn("Update channel full, dropping trade update",
+						zap.String("token", data.Data.TokenName),
+						zap.Float64("price", data.Data.Price),
+						zap.Float64("market_cap", data.Data.MarketCap))
 				}
+			case "subscribed":
+				c.logger.Info("Successfully subscribed to updates",
+					zap.String("method", data.Method))
+			case "error":
+				c.logger.Error("Subscription error",
+					zap.String("error", data.Data.Error))
 			}
 		}
 	}
