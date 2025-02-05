@@ -52,13 +52,13 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.Order) (*pb.OrderRespon
 		ID:        req.Id,
 		UserID:    req.UserId,
 		Symbol:    req.Symbol,
-		Side:      req.Side,
-		Type:      req.Type,
+		Side:      trading.OrderSide(req.Side),
+		Type:      trading.OrderType(req.Type),
 		Price:     req.Price,
-		Size:      req.Size,
-		Status:    req.Status,
-		CreatedAt: req.CreatedAt,
-		UpdatedAt: req.UpdatedAt,
+		Quantity:  req.Size,
+		Status:    trading.OrderStatus(req.Status),
+		CreatedAt: time.Unix(0, req.CreatedAt),
+		UpdatedAt: time.Unix(0, req.UpdatedAt),
 	}
 
 	if err := s.service.PlaceOrder(ctx, order); err != nil {
@@ -92,13 +92,13 @@ func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Ord
 		Id:        order.ID,
 		UserId:    order.UserID,
 		Symbol:    order.Symbol,
-		Side:      order.Side,
-		Type:      order.Type,
+		Side:      string(order.Side),
+		Type:      string(order.Type),
 		Price:     order.Price,
-		Size:      order.Size,
-		Status:    order.Status,
-		CreatedAt: order.CreatedAt,
-		UpdatedAt: order.UpdatedAt,
+		Size:      order.Quantity,
+		Status:    string(order.Status),
+		CreatedAt: order.CreatedAt.UnixNano(),
+		UpdatedAt: order.UpdatedAt.UnixNano(),
 	}, nil
 }
 
@@ -114,13 +114,13 @@ func (s *Server) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.O
 			Id:        order.ID,
 			UserId:    order.UserID,
 			Symbol:    order.Symbol,
-			Side:      order.Side,
-			Type:      order.Type,
+			Side:      string(order.Side),
+			Type:      string(order.Type),
 			Price:     order.Price,
-			Size:      order.Size,
-			Status:    order.Status,
-			CreatedAt: order.CreatedAt,
-			UpdatedAt: order.UpdatedAt,
+			Size:      order.Quantity,
+			Status:    string(order.Status),
+			CreatedAt: order.CreatedAt.UnixNano(),
+			UpdatedAt: order.UpdatedAt.UnixNano(),
 		}
 	}
 
@@ -133,9 +133,9 @@ func (s *Server) ExecuteTrade(ctx context.Context, req *pb.Trade) (*pb.TradeResp
 		OrderID:   req.OrderId,
 		Symbol:    req.Symbol,
 		Price:     req.Price,
-		Size:      req.Size,
-		Side:      req.Side,
-		Timestamp: req.Timestamp,
+		Quantity:  req.Size,
+		Side:      trading.OrderSide(req.Side),
+		Timestamp: time.Unix(0, req.Timestamp),
 	}
 
 	if err := s.service.ExecuteTrade(ctx, trade); err != nil {
