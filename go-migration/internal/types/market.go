@@ -142,6 +142,23 @@ type MarketDataProvider interface {
 
 	// GetHistoricalPrices returns historical price data for a symbol
 	GetHistoricalPrices(ctx context.Context, symbol string, interval string, limit int) ([]PriceUpdate, error)
+
+	// GetBondingCurve returns the bonding curve information for a token
+	GetBondingCurve(ctx context.Context, symbol string) (*BondingCurve, error)
+
+	// SubscribeNewTokens subscribes to new token listings
+	SubscribeNewTokens(ctx context.Context) (<-chan *TokenInfo, error)
+}
+
+// TokenInfo represents information about a token
+type TokenInfo struct {
+	Symbol     string    `json:"symbol"`
+	Name       string    `json:"name"`
+	MarketCap  float64   `json:"market_cap"`
+	Volume     float64   `json:"volume"`
+	Supply     int64     `json:"supply"`
+	MaxSupply  int64     `json:"max_supply"`
+	LaunchTime time.Time `json:"launch_time"`
 }
 
 // Interval represents a time interval for historical data
