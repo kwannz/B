@@ -10,7 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/devinjacknz/tradingbot/internal/types"
+	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
 // Provider implements MarketDataProvider interface for Pump.fun
@@ -137,7 +137,7 @@ func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, inter
 	return updates, nil
 }
 
-// GetBondingCurve retrieves bonding curve information for a token
+// GetBondingCurve implements MarketDataProvider interface
 func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.BondingCurve, error) {
 	url := fmt.Sprintf("%s/api/v1/bonding-curve/%s", p.baseURL, symbol)
 
@@ -167,6 +167,55 @@ func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.B
 	return &curve, nil
 }
 
+// SubscribeNewTokens implements MarketDataProvider interface
+func (p *Provider) SubscribeNewTokens(ctx context.Context) (<-chan *types.TokenInfo, error) {
+	updates := make(chan *types.TokenInfo, 100)
+
+	go func() {
+		defer close(updates)
+
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				url := fmt.Sprintf("%s/api/v1/new-tokens", p.baseURL)
+				req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+				if err != nil {
+					p.logger.Error("Failed to create request", zap.Error(err))
+					continue
+				}
+
+				resp, err := p.client.Do(req)
+				if err != nil {
+					p.logger.Error("Failed to get new tokens", zap.Error(err))
+					continue
+				}
+
+				var tokens []types.TokenInfo
+				if err := json.NewDecoder(resp.Body).Decode(&tokens); err != nil {
+					p.logger.Error("Failed to decode response", zap.Error(err))
+					resp.Body.Close()
+					continue
+				}
+				resp.Body.Close()
+
+				for _, token := range tokens {
+					select {
+					case updates <- &token:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	return updates, nil
+}
 // Close closes the provider and its WebSocket client
 func (p *Provider) Close() error {
 	p.mu.Lock()
