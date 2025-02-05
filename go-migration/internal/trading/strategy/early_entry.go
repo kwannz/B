@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/market/pump"
@@ -26,19 +27,19 @@ func NewEarlyEntryStrategy(config *EarlyEntryConfig, provider *pump.Provider, lo
 }
 
 func (s *EarlyEntryStrategy) Evaluate(ctx context.Context, token *types.TokenInfo) (bool, error) {
-	if token.MarketCap > s.config.MaxMarketCap {
+	if token.MarketCap.GreaterThan(s.config.MaxMarketCap) {
 		s.logger.Debug("Token market cap above threshold",
 			zap.String("symbol", token.Symbol),
-			zap.Float64("market_cap", token.MarketCap),
-			zap.Float64("threshold", s.config.MaxMarketCap))
+			zap.String("market_cap", token.MarketCap.String()),
+			zap.String("threshold", s.config.MaxMarketCap.String()))
 		return false, nil
 	}
 
-	if token.Volume < s.config.VolumeThreshold {
+	if token.Volume.LessThan(s.config.VolumeThreshold) {
 		s.logger.Debug("Token volume below threshold",
 			zap.String("symbol", token.Symbol),
-			zap.Float64("volume", token.Volume),
-			zap.Float64("threshold", s.config.VolumeThreshold))
+			zap.String("volume", token.Volume.String()),
+			zap.String("threshold", s.config.VolumeThreshold.String()))
 		return false, nil
 	}
 
@@ -47,20 +48,20 @@ func (s *EarlyEntryStrategy) Evaluate(ctx context.Context, token *types.TokenInf
 		return false, err
 	}
 
-	liquidity := curve.BasePrice * float64(curve.Supply)
-	if liquidity < s.config.MinLiquidity {
+	liquidity := curve.BasePrice.Mul(decimal.NewFromInt(curve.Supply))
+	if liquidity.LessThan(s.config.MinLiquidity) {
 		s.logger.Debug("Token liquidity below threshold",
 			zap.String("symbol", token.Symbol),
-			zap.Float64("liquidity", liquidity),
-			zap.Float64("threshold", s.config.MinLiquidity))
+			zap.String("liquidity", liquidity.String()),
+			zap.String("threshold", s.config.MinLiquidity.String()))
 		return false, nil
 	}
 
 	s.logger.Info("Token qualifies for early entry",
 		zap.String("symbol", token.Symbol),
-		zap.Float64("market_cap", token.MarketCap),
-		zap.Float64("volume", token.Volume),
-		zap.Float64("liquidity", liquidity))
+		zap.String("market_cap", token.MarketCap.String()),
+		zap.String("volume", token.Volume.String()),
+		zap.String("liquidity", liquidity.String()))
 
 	return true, nil
 }

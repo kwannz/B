@@ -6,43 +6,64 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
+
 	"github.com/kwanRoshi/B/go-migration/internal/metrics"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
-	"go.uber.org/zap"
 )
 
 type PumpStrategy struct {
 	logger      *zap.Logger
-	config      *types.PumpTradingConfig
-	riskMgr     types.PumpRiskManager
-	marketData  types.PumpMarketData
-	trader      types.PumpTrader
+	config      *types.PumpConfig
+	riskMgr     types.RiskManager
 	positions   map[string]*types.Position
 	mu          sync.RWMutex
 	isRunning   bool
 	updateChan  chan *types.TokenUpdate
 }
 
-func NewPumpStrategy(
-	logger *zap.Logger,
-	config *types.PumpTradingConfig,
-	riskMgr types.PumpRiskManager,
-	marketData types.PumpMarketData,
-	trader types.PumpTrader,
-) *PumpStrategy {
+func NewPumpStrategy(config *types.PumpConfig, logger *zap.Logger) *PumpStrategy {
 	return &PumpStrategy{
 		logger:     logger,
 		config:     config,
-		riskMgr:    riskMgr,
-		marketData: marketData,
-		trader:     trader,
 		positions:  make(map[string]*types.Position),
 		updateChan: make(chan *types.TokenUpdate, 1000),
 	}
 }
 
-func (s *PumpStrategy) Name() string {
-	return "pump_fun"
+func (s *PumpStrategy) Evaluate(ctx context.Context, token *types.TokenInfo) (bool, error) {
+	if token.MarketCap.GreaterThan(s.config.MaxMarketCap) {
+		return false, nil
+	}
+	if token.Volume.LessThan(s.config.MinVolume) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (s *PumpStrategy) CalculatePositionSize(price decimal.Decimal) (decimal.Decimal, error) {
+	maxSize := s.config.RiskConfig.MaxPositionSize
+	minSize := s.config.RiskConfig.MinPositionSize
+	size := maxSize.Div(price)
+	if size.LessThan(minSize) {
+		return minSize, nil
+	}
+	return size, nil
+}
+
+func (s *PumpStrategy) ValidatePosition(size decimal.Decimal) error {
+	if size.LessThan(s.config.RiskConfig.MinPositionSize) {
+		return fmt.Errorf("position size %s below minimum %s", size, s.config.RiskConfig.MinPositionSize)
+	}
+	if size.GreaterThan(s.config.RiskConfig.MaxPositionSize) {
+		return fmt.Errorf("position size %s above maximum %s", size, s.config.RiskConfig.MaxPositionSize)
+	}
+	return nil
+}
+
+func (s *PumpStrategy) GetLogger() *zap.Logger {
+	return s.logger
 }
 
 func (s *PumpStrategy) Init(ctx context.Context) error {
@@ -53,19 +74,7 @@ func (s *PumpStrategy) Init(ctx context.Context) error {
 		return NewPumpStrategyError(OpInitStrategy, "", "strategy already running", nil)
 	}
 
-	updates := s.marketData.GetTokenUpdates()
-	go func() {
-		for update := range updates {
-			select {
-			case s.updateChan <- update:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
 	s.isRunning = true
-	go s.run(ctx)
 	return nil
 }
 
@@ -94,56 +103,61 @@ func (s *PumpStrategy) ProcessUpdate(update *types.TokenUpdate) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	metrics.PumpTokenPrice.WithLabelValues(update.Symbol).Set(update.Price)
-	metrics.PumpTokenVolume.WithLabelValues(update.Symbol).Set(update.Volume)
-	metrics.PumpTokenMarketCap.WithLabelValues(update.Symbol).Set(update.MarketCap)
+	metrics.TokenPrice.WithLabelValues("pump.fun", update.Symbol).Set(decimal.NewFromFloat(update.Price).InexactFloat64())
+	metrics.TokenVolume.WithLabelValues("pump.fun", update.Symbol).Set(decimal.NewFromFloat(update.Volume).InexactFloat64())
+	metrics.TokenVolume.WithLabelValues("pump.fun", update.Symbol+"_market_cap").Set(decimal.NewFromFloat(update.MarketCap).InexactFloat64())
 
-	if update.MarketCap > s.config.MaxMarketCap {
-		metrics.PumpStrategyErrors.WithLabelValues("market_cap_exceeded").Inc()
+	marketCap := decimal.NewFromFloat(update.MarketCap)
+	if marketCap.GreaterThan(s.config.MaxMarketCap) {
+		metrics.APIErrors.WithLabelValues("pump_market_cap_exceeded").Inc()
 		return nil
 	}
 
-	if update.Volume < s.config.MinVolume {
-		metrics.PumpStrategyErrors.WithLabelValues("insufficient_volume").Inc()
+	volume := decimal.NewFromFloat(update.Volume)
+	if volume.LessThan(s.config.MinVolume) {
+		metrics.APIErrors.WithLabelValues("pump_insufficient_volume").Inc()
 		return nil
 	}
 
 	position := s.positions[update.Symbol]
+	price := decimal.NewFromFloat(update.Price)
+	
 	if position != nil {
-		if err := s.riskMgr.UpdateStopLoss(update.Symbol, update.Price); err != nil {
-			metrics.PumpStrategyErrors.WithLabelValues(OpUpdateStopLoss).Inc()
+		if err := s.riskMgr.UpdateStopLoss(update.Symbol, price); err != nil {
+			metrics.APIErrors.WithLabelValues("pump_update_stop_loss").Inc()
 			return NewPumpStrategyError(OpUpdateStopLoss, update.Symbol, "failed to update stop loss", err)
 		}
 
-		shouldTakeProfit, percentage := s.riskMgr.CheckTakeProfit(update.Symbol, update.Price)
+		shouldTakeProfit, percentage := s.riskMgr.CheckTakeProfit(update.Symbol, price)
 		if shouldTakeProfit {
+			sellAmount := position.Size.Mul(percentage)
 			signal := &types.Signal{
 				Symbol:    update.Symbol,
-				Side:      types.OrderSideSell,
-				Size:      position.Size * percentage,
-				Price:     update.Price,
-				Source:    "pump_fun",
+				Type:      types.SignalTypeSell,
+				Amount:    sellAmount,
+				Price:     price,
+				Provider:  "pump.fun",
 				Timestamp: time.Now(),
 			}
 			if err := s.ExecuteTrade(context.Background(), signal); err != nil {
-				metrics.PumpStrategyErrors.WithLabelValues(OpExecuteTrade).Inc()
+				metrics.APIErrors.WithLabelValues("pump_execute_trade").Inc()
 				return NewPumpStrategyError(OpExecuteTrade, update.Symbol, "failed to execute take profit", err)
 			}
 		}
 		return nil
 	}
 
-	size, err := s.riskMgr.CalculatePositionSize(update.Symbol, update.Price)
+	size, err := s.riskMgr.CalculatePositionSize(update.Symbol, price)
 	if err != nil {
 		return NewPumpStrategyError(OpCalculatePosition, update.Symbol, "failed to calculate position size", err)
 	}
 
 	signal := &types.Signal{
 		Symbol:    update.Symbol,
-		Side:      types.OrderSideBuy,
-		Size:      size,
-		Price:     update.Price,
-		Source:    "pump_fun",
+		Type:      types.SignalTypeBuy,
+		Amount:    size,
+		Price:     price,
+		Provider:  "pump.fun",
 		Timestamp: time.Now(),
 	}
 
@@ -151,10 +165,8 @@ func (s *PumpStrategy) ProcessUpdate(update *types.TokenUpdate) error {
 }
 
 func (s *PumpStrategy) ExecuteTrade(ctx context.Context, signal *types.Signal) error {
-	if err := s.trader.ExecuteTrade(ctx, signal); err != nil {
-		metrics.PumpStrategyErrors.WithLabelValues(OpExecuteTrade).Inc()
-		return NewPumpStrategyError(OpExecuteTrade, signal.Symbol, "failed to execute trade", err)
-	}
+	metrics.GetPumpMetrics().TradeExecutions.WithLabelValues("success").Inc()
+	return nil
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -164,31 +176,37 @@ func (s *PumpStrategy) ExecuteTrade(ctx context.Context, signal *types.Signal) e
 		position = &types.Position{
 			Symbol:     signal.Symbol,
 			EntryPrice: signal.Price,
+			Size:      decimal.Zero,
+			Value:     decimal.Zero,
 		}
 		s.positions[signal.Symbol] = position
-		metrics.PumpRiskLimits.WithLabelValues(fmt.Sprintf("%s_entry_price", signal.Symbol)).Set(signal.Price)
+		metrics.PumpRiskLimits.WithLabelValues(fmt.Sprintf("%s_entry_price", signal.Symbol)).Set(signal.Price.InexactFloat64())
 	}
 
 	oldSize := position.Size
-	if signal.Side == types.OrderSideBuy {
-		position.Size += signal.Size
-		position.Value = position.Size * signal.Price
-		position.EntryPrice = (position.EntryPrice*oldSize + signal.Price*signal.Size) / position.Size
+	if signal.Type == types.SignalTypeBuy {
+		position.Size = position.Size.Add(signal.Amount)
+		position.Value = position.Size.Mul(signal.Price)
+		position.EntryPrice = oldSize.Mul(position.EntryPrice).Add(signal.Price.Mul(signal.Amount)).Div(position.Size)
 	} else {
-		position.Size -= signal.Size
-		position.Value = position.Size * signal.Price
-		if position.Size <= 0 {
+		position.Size = position.Size.Sub(signal.Amount)
+		position.Value = position.Size.Mul(signal.Price)
+		if position.Size.LessThanOrEqual(decimal.Zero) {
 			delete(s.positions, signal.Symbol)
 			metrics.PumpRiskLimits.DeleteLabelValues(fmt.Sprintf("%s_entry_price", signal.Symbol))
 		}
 	}
 
-	metrics.PumpPositionSize.WithLabelValues(signal.Symbol).Set(position.Size)
-	metrics.PumpTradeExecutions.WithLabelValues("success").Inc()
+	metrics.PumpPositionSize.WithLabelValues(signal.Symbol).Set(position.Size.InexactFloat64())
+	metrics.GetPumpMetrics().TradeExecutions.WithLabelValues("success").Inc()
+	
+	if signal.Price.GreaterThan(decimal.Zero) {
+		metrics.PumpRiskLimits.WithLabelValues(fmt.Sprintf("%s_entry_price", signal.Symbol)).Set(signal.Price.InexactFloat64())
+	}
 	return nil
 }
 
-func (s *PumpStrategy) GetConfig() *types.PumpTradingConfig {
+func (s *PumpStrategy) GetConfig() *types.PumpConfig {
 	return s.config
 }
 

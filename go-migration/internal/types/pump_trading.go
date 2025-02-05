@@ -3,14 +3,15 @@ package types
 import (
 	"context"
 	"time"
+	"github.com/shopspring/decimal"
 )
 
 type PumpTradingConfig struct {
-	MaxMarketCap     float64       `yaml:"max_market_cap"`
-	MinVolume        float64       `yaml:"min_volume"`
-	WebSocket        WSConfig      `yaml:"websocket"`
-	Risk            RiskConfig    `yaml:"risk"`
-	ProfitTaking    []ProfitLevel `yaml:"profit_taking"`
+	MaxMarketCap     decimal.Decimal `yaml:"max_market_cap"`
+	MinVolume        decimal.Decimal `yaml:"min_volume"`
+	WebSocket        WSConfig        `yaml:"websocket"`
+	Risk             RiskConfig      `yaml:"risk"`
+	TakeProfitLevels []ProfitLevel   `yaml:"take_profit_levels"`
 }
 
 type WSConfig struct {
@@ -22,20 +23,9 @@ type WSConfig struct {
 	MaxRetries      int           `yaml:"max_retries"`
 }
 
-type RiskConfig struct {
-	MaxPositionSize float64    `yaml:"max_position_size"`
-	MinPositionSize float64    `yaml:"min_position_size"`
-	StopLoss       StopLoss   `yaml:"stop_loss"`
-}
-
-type StopLoss struct {
-	Initial  float64 `yaml:"initial"`
-	Trailing float64 `yaml:"trailing"`
-}
-
-type ProfitLevel struct {
-	Level      float64 `yaml:"level"`
-	Percentage float64 `yaml:"percentage"`
+type StopLossConfig struct {
+	Initial  decimal.Decimal `yaml:"initial"`
+	Trailing decimal.Decimal `yaml:"trailing"`
 }
 
 type PumpTrader interface {
@@ -47,18 +37,18 @@ type PumpTrader interface {
 }
 
 type PumpMarketData interface {
-	GetTokenPrice(ctx context.Context, symbol string) (float64, error)
-	GetTokenVolume(ctx context.Context, symbol string) (float64, error)
-	GetBondingCurve(ctx context.Context, symbol string) (*TokenBondingCurve, error)
+	GetTokenPrice(ctx context.Context, symbol string) (decimal.Decimal, error)
+	GetTokenVolume(ctx context.Context, symbol string) (decimal.Decimal, error)
+	GetBondingCurve(ctx context.Context, symbol string) (*BondingCurve, error)
 	SubscribeNewTokens(ctx context.Context) (<-chan *TokenInfo, error)
 	GetTokenUpdates() <-chan *TokenUpdate
 }
 
 type PumpRiskManager interface {
-	ValidatePosition(symbol string, size float64) error
-	CalculatePositionSize(symbol string, price float64) (float64, error)
-	UpdateStopLoss(symbol string, price float64) error
-	CheckTakeProfit(symbol string, price float64) (bool, float64)
+	ValidatePosition(symbol string, size decimal.Decimal) error
+	CalculatePositionSize(symbol string, price decimal.Decimal) (decimal.Decimal, error)
+	UpdateStopLoss(symbol string, price decimal.Decimal) error
+	CheckTakeProfit(symbol string, price decimal.Decimal) (bool, decimal.Decimal)
 }
 
 type PumpStrategy interface {

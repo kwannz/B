@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"go.uber.org/zap"
 )
 
@@ -12,24 +13,32 @@ type Engine struct {
 	logger     *zap.Logger
 	config     Config
 	storage    Storage
-	positions  map[string]*Position
-	orders     map[string]*Order
+	positions  map[string]*types.Position
+	orders     map[string]*types.Order
 	mu         sync.RWMutex
+	totalValue float64
 }
 
 // NewEngine creates a new trading engine
 func NewEngine(config Config, logger *zap.Logger, storage Storage) *Engine {
 	return &Engine{
-		logger:    logger,
-		config:    config,
-		storage:   storage,
-		positions: make(map[string]*Position),
-		orders:    make(map[string]*Order),
+		logger:     logger,
+		config:     config,
+		storage:    storage,
+		positions:  make(map[string]*types.Position),
+		orders:     make(map[string]*types.Order),
+		totalValue: 0,
 	}
 }
 
+func (e *Engine) GetTotalValue() float64 {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.totalValue
+}
+
 // PlaceOrder places a new order
-func (e *Engine) PlaceOrder(order *Order) error {
+func (e *Engine) PlaceOrder(order *types.Order) error {
 	// Validate order
 	if err := e.validateOrder(order); err != nil {
 		return err
@@ -53,14 +62,14 @@ func (e *Engine) CancelOrder(orderID string) error {
 		return fmt.Errorf("order not found: %s", orderID)
 	}
 
-	order.Status = OrderStatusCanceled
+	order.Status = types.OrderStatusCanceled
 	delete(e.orders, orderID)
 
 	return e.storage.SaveOrder(order)
 }
 
 // GetOrder returns an order by ID
-func (e *Engine) GetOrder(orderID string) (*Order, error) {
+func (e *Engine) GetOrder(orderID string) (*types.Order, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
@@ -72,11 +81,11 @@ func (e *Engine) GetOrder(orderID string) (*Order, error) {
 }
 
 // GetOrders returns all orders for a user
-func (e *Engine) GetOrders(userID string) ([]*Order, error) {
+func (e *Engine) GetOrders(userID string) ([]*types.Order, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	var orders []*Order
+	var orders []*types.Order
 	for _, order := range e.orders {
 		if order.UserID == userID {
 			orders = append(orders, order)
@@ -86,18 +95,18 @@ func (e *Engine) GetOrders(userID string) ([]*Order, error) {
 }
 
 // GetPosition returns current position for a symbol
-func (e *Engine) GetPosition(symbol string) *Position {
+func (e *Engine) GetPosition(symbol string) *types.Position {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.positions[symbol]
 }
 
 // GetPositions returns all current positions
-func (e *Engine) GetPositions() []*Position {
+func (e *Engine) GetPositions() []*types.Position {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	positions := make([]*Position, 0, len(e.positions))
+	positions := make([]*types.Position, 0, len(e.positions))
 	for _, pos := range e.positions {
 		positions = append(positions, pos)
 	}
@@ -106,7 +115,7 @@ func (e *Engine) GetPositions() []*Position {
 
 // Internal methods
 
-func (e *Engine) validateOrder(order *Order) error {
+func (e *Engine) validateOrder(order *types.Order) error {
 	if order.Quantity < e.config.MinOrderSize {
 		return fmt.Errorf("order size too small: %f < %f",
 			order.Quantity, e.config.MinOrderSize)

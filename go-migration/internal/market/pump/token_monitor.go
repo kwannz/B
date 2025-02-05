@@ -10,6 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kwanRoshi/B/go-migration/internal/metrics"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
@@ -119,7 +120,7 @@ func (tm *TokenMonitor) fetchNewTokens(ctx context.Context) ([]*types.TokenUpdat
 		
 		resp, err := tm.client.Do(req)
 		if err != nil {
-			metrics.PumpAPIErrors.WithLabelValues("fetch_new_tokens").Inc()
+			metrics.APIErrors.WithLabelValues("token_monitor_fetch").Inc()
 			lastErr = fmt.Errorf("failed to fetch new tokens: %w", err)
 			tm.logger.Error("failed to fetch new tokens", 
 				zap.Error(err),
@@ -130,7 +131,7 @@ func (tm *TokenMonitor) fetchNewTokens(ctx context.Context) ([]*types.TokenUpdat
 		defer resp.Body.Close()
 		
 		if resp.StatusCode != http.StatusOK {
-			metrics.PumpAPIErrors.WithLabelValues("fetch_new_tokens").Inc()
+			metrics.APIErrors.WithLabelValues("fetch_new_tokens").Inc()
 			lastErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 			tm.logger.Error("unexpected status code",
 				zap.Int("status_code", resp.StatusCode),
@@ -143,7 +144,7 @@ func (tm *TokenMonitor) fetchNewTokens(ctx context.Context) ([]*types.TokenUpdat
 		}
 		
 		if err := json.NewDecoder(resp.Body).Decode(&updates); err != nil {
-			metrics.PumpAPIErrors.WithLabelValues("fetch_new_tokens").Inc()
+			metrics.APIErrors.WithLabelValues("fetch_new_tokens").Inc()
 			lastErr = fmt.Errorf("failed to decode response: %w", err)
 			tm.logger.Error("failed to decode response",
 				zap.Error(err),
@@ -152,7 +153,7 @@ func (tm *TokenMonitor) fetchNewTokens(ctx context.Context) ([]*types.TokenUpdat
 		}
 		
 		// Update metrics for successful fetch
-		metrics.PumpNewTokens.Add(float64(len(updates)))
+		metrics.NewTokensTotal.Add(float64(len(updates)))
 		return updates, nil
 	}
 	

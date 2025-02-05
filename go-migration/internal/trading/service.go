@@ -3,6 +3,7 @@ package trading
 import (
 	"context"
 
+	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"go.uber.org/zap"
 )
 
@@ -21,7 +22,7 @@ func NewService(engine *Engine, logger *zap.Logger) *Service {
 }
 
 // PlaceOrder implements TradingEngine interface
-func (s *Service) PlaceOrder(ctx context.Context, order *Order) error {
+func (s *Service) PlaceOrder(ctx context.Context, order *types.Order) error {
 	return s.engine.PlaceOrder(order)
 }
 
@@ -31,12 +32,12 @@ func (s *Service) CancelOrder(ctx context.Context, orderID string) error {
 }
 
 // GetOrder implements TradingEngine interface
-func (s *Service) GetOrder(ctx context.Context, orderID string) (*Order, error) {
+func (s *Service) GetOrder(ctx context.Context, orderID string) (*types.Order, error) {
 	return s.engine.GetOrder(orderID)
 }
 
 // GetOrders implements TradingEngine interface
-func (s *Service) GetOrders(ctx context.Context, userID string) ([]*Order, error) {
+func (s *Service) GetOrders(ctx context.Context, userID string) ([]*types.Order, error) {
 	return s.engine.GetOrders(userID)
 }
 
@@ -51,7 +52,7 @@ func (s *Service) GetTrades(ctx context.Context, userID string) ([]*Trade, error
 }
 
 // GetPosition implements TradingEngine interface
-func (s *Service) GetPosition(ctx context.Context, userID, symbol string) (*Position, error) {
+func (s *Service) GetPosition(ctx context.Context, userID, symbol string) (*types.Position, error) {
 	pos := s.engine.GetPosition(symbol)
 	if pos == nil {
 		return nil, nil
@@ -60,7 +61,7 @@ func (s *Service) GetPosition(ctx context.Context, userID, symbol string) (*Posi
 }
 
 // GetPositions implements TradingEngine interface
-func (s *Service) GetPositions(ctx context.Context, userID string) ([]*Position, error) {
+func (s *Service) GetPositions(ctx context.Context, userID string) ([]*types.Position, error) {
 	return s.engine.GetPositions(), nil
 }
 
