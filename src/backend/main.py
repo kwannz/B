@@ -77,6 +77,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -186,10 +187,12 @@ async def websocket_analysis(websocket: WebSocket) -> None:
 @app.get("/api/v1/account/balance", response_model=AccountResponse)
 async def get_account_balance(
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> AccountResponse:
     try:
-        account = db.query(Account).filter(Account.user_id == current_user["id"]).first()
+        account = (
+            db.query(Account).filter(Account.user_id == current_user["id"]).first()
+        )
         if not account:
             account = Account(user_id=current_user["id"], balance=0.0)
             db.add(account)
@@ -204,10 +207,12 @@ async def get_account_balance(
 @app.get("/api/v1/account/positions", response_model=PositionListResponse)
 async def get_account_positions(
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> PositionListResponse:
     try:
-        positions = db.query(Position).filter(Position.user_id == current_user["id"]).all()
+        positions = (
+            db.query(Position).filter(Position.user_id == current_user["id"]).all()
+        )
         positions_data = PositionListResponse(positions=positions)
 
         # Broadcast position updates via WebSocket
@@ -234,7 +239,7 @@ async def websocket_orders(websocket: WebSocket) -> None:
 async def create_order(
     order: OrderCreate,
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> OrderResponse:
     try:
         order_data = order.model_dump()
@@ -253,7 +258,7 @@ async def create_order(
 @app.get("/api/v1/orders", response_model=OrderListResponse)
 async def list_orders(
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> OrderListResponse:
     try:
         orders = db.query(Order).filter(Order.user_id == current_user["id"]).all()
@@ -267,13 +272,14 @@ async def list_orders(
 async def get_order(
     order_id: int,
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> OrderResponse:
     try:
-        order = db.query(Order).filter(
-            Order.id == order_id,
-            Order.user_id == current_user["id"]
-        ).first()
+        order = (
+            db.query(Order)
+            .filter(Order.id == order_id, Order.user_id == current_user["id"])
+            .first()
+        )
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
         return order
@@ -292,12 +298,12 @@ async def websocket_risk(websocket: WebSocket) -> None:
 @app.get("/api/v1/risk/metrics", response_model=RiskMetricsResponse)
 async def get_risk_metrics(
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> RiskMetricsResponse:
     try:
-        positions = db.query(Position).filter(
-            Position.user_id == current_user["id"]
-        ).all()
+        positions = (
+            db.query(Position).filter(Position.user_id == current_user["id"]).all()
+        )
 
         # Calculate risk metrics
         total_exposure = sum(abs(p.size * p.current_price) for p in positions)
@@ -307,9 +313,11 @@ async def get_risk_metrics(
         total_pnl = daily_pnl  # For simplicity, using same value
 
         # Create or update risk metrics
-        risk_metrics = db.query(RiskMetrics).filter(
-            RiskMetrics.user_id == current_user["id"]
-        ).first()
+        risk_metrics = (
+            db.query(RiskMetrics)
+            .filter(RiskMetrics.user_id == current_user["id"])
+            .first()
+        )
 
         if not risk_metrics:
             risk_metrics = RiskMetrics(
@@ -318,7 +326,7 @@ async def get_risk_metrics(
                 margin_used=margin_used,
                 margin_ratio=margin_ratio,
                 daily_pnl=daily_pnl,
-                total_pnl=total_pnl
+                total_pnl=total_pnl,
             )
             db.add(risk_metrics)
         else:
@@ -341,17 +349,18 @@ async def get_risk_metrics(
 async def update_limit_settings(
     settings: LimitSettingsUpdate,
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> LimitSettingsResponse:
     try:
-        limit_settings = db.query(LimitSettings).filter(
-            LimitSettings.user_id == current_user["id"]
-        ).first()
+        limit_settings = (
+            db.query(LimitSettings)
+            .filter(LimitSettings.user_id == current_user["id"])
+            .first()
+        )
 
         if not limit_settings:
             limit_settings = LimitSettings(
-                user_id=current_user["id"],
-                **settings.model_dump()
+                user_id=current_user["id"], **settings.model_dump()
             )
             db.add(limit_settings)
         else:
@@ -370,12 +379,14 @@ async def update_limit_settings(
 @app.get("/api/v1/risk/limits", response_model=LimitSettingsResponse)
 async def get_limit_settings(
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> LimitSettingsResponse:
     try:
-        limit_settings = db.query(LimitSettings).filter(
-            LimitSettings.user_id == current_user["id"]
-        ).first()
+        limit_settings = (
+            db.query(LimitSettings)
+            .filter(LimitSettings.user_id == current_user["id"])
+            .first()
+        )
 
         if not limit_settings:
             raise HTTPException(status_code=404, detail="Limit settings not found")
@@ -553,7 +564,9 @@ async def stop_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentRes
 
 
 @app.post("/api/v1/agents", response_model=AgentResponse)
-async def create_agent(agent: AgentCreate, db: Session = Depends(get_db)) -> AgentResponse:
+async def create_agent(
+    agent: AgentCreate, db: Session = Depends(get_db)
+) -> AgentResponse:
     try:
         if not agent.type:
             raise HTTPException(status_code=400, detail="Agent type is required")
