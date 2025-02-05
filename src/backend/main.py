@@ -530,6 +530,67 @@ async def stop_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentRes
         raise HTTPException(status_code=500, detail="Failed to stop agent")
 
 
+@app.post("/api/v1/agents", response_model=AgentResponse)
+async def create_agent(agent: AgentCreate, db: Session = Depends(get_db)) -> AgentResponse:
+    try:
+        if not agent.type:
+            raise HTTPException(status_code=400, detail="Agent type is required")
+
+        existing_agent = db.query(Agent).filter(Agent.type == agent.type).first()
+        if existing_agent:
+            raise HTTPException(status_code=409, detail=f"Agent with type {agent.type} already exists")
+
+        db_agent = Agent(type=agent.type, status=agent.status)
+        try:
+            db.add(db_agent)
+            db.commit()
+            db.refresh(db_agent)
+        except Exception as db_error:
+            db.rollback()
+            logger.error(f"Database error creating agent: {db_error}")
+            raise HTTPException(status_code=500, detail="Failed to create agent")
+
+        await broadcast_agent_status(agent.type, agent.status)
+        return db_agent
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating agent: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create agent")
+
+
+@app.delete("/api/v1/agents/{agent_type}", response_model=AgentResponse)
+async def delete_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentResponse:
+    try:
+        if not agent_type:
+            raise HTTPException(status_code=400, detail="Agent type is required")
+
+        agent = db.query(Agent).filter(Agent.type == agent_type).first()
+        if not agent:
+            raise HTTPException(status_code=404, detail=f"Agent {agent_type} not found")
+
+        # Stop agent if running before deletion
+        if agent.status == AgentStatus.RUNNING:
+            agent.status = AgentStatus.STOPPED
+            await broadcast_agent_status(agent_type, "stopped")
+
+        try:
+            db.delete(agent)
+            db.commit()
+        except Exception as db_error:
+            db.rollback()
+            logger.error(f"Database error deleting agent: {db_error}")
+            raise HTTPException(status_code=500, detail="Failed to delete agent")
+
+        await broadcast_agent_status(agent_type, "deleted")
+        return agent
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting agent: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete agent")
+
+
 @app.get("/api/v1/trades", response_model=TradeListResponse)
 async def get_trades(db: Session = Depends(get_db)) -> TradeListResponse:
     try:
