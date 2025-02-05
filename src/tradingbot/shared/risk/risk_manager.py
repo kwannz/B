@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel
 
+from ...api.models.swap_risk import SwapRiskMetrics
+
 from tradingbot.shared.models.cache import CacheConfig, MarketDataCache, RateLimitCache
 from tradingbot.shared.models.database import delete_cache, get_cache, set_cache
 
@@ -276,6 +278,36 @@ class RiskManager:
         try:
             symbol = trade_params.get("symbol", "BTC/USD")
             current_time = time.time()
+
+            # Handle swap-specific risk assessment
+            if trade_params.get("type") == "swap":
+                swap_metrics = await self._assess_swap_risk(trade_params)
+                if swap_metrics.risk_level > Decimal("0.8"):
+                    return RiskAssessment(
+                        is_valid=False,
+                        confidence=float(swap_metrics.confidence_score),
+                        risk_level=float(swap_metrics.risk_level),
+                        max_loss=0.0,
+                        position_size=0.0,
+                        volatility_exposure=float(swap_metrics.volatility_factor),
+                        expected_return=0.0,
+                        risk_reward_ratio=0.0,
+                        market_conditions_alignment=float(swap_metrics.liquidity_score),
+                        recommendations=list(swap_metrics.recommendations.values()),
+                        reason="Swap risk level too high",
+                        market_impact=float(swap_metrics.market_impact),
+                        expected_slippage=float(swap_metrics.expected_slippage),
+                        correlation_factor=float(swap_metrics.correlation_factor),
+                        liquidity_score=float(swap_metrics.liquidity_score),
+                        volume_profile={"volume": float(swap_metrics.volume_24h)},
+                        market_data_source=swap_metrics.market_data_source,
+                        is_stale=swap_metrics.is_stale,
+                        rate_limit_info=swap_metrics.rate_limit_info
+                    )
+                trade_params["market_impact"] = float(swap_metrics.market_impact)
+                trade_params["expected_slippage"] = float(swap_metrics.expected_slippage)
+                trade_params["liquidity_score"] = float(swap_metrics.liquidity_score)
+                trade_params["correlation_factor"] = float(swap_metrics.correlation_factor)
 
             # Basic validation first
             basic_validation = await self._validate_basic_params(trade_params)
@@ -2872,6 +2904,99 @@ class RiskManager:
                     },
                 },
             )
+
+    async def _assess_swap_risk(self, params: Dict[str, Any]) -> SwapRiskMetrics:
+        """Assess risk specifically for swap operations."""
+        try:
+            # Convert numeric inputs to Decimal for precise calculations
+            amount = Decimal(str(params.get("amount", 0)))
+            price = Decimal(str(params.get("price", 0)))
+            dex_liquidity = {k: Decimal(str(v)) for k, v in params.get("dex_liquidity", {}).items()}
+            total_liquidity = Decimal(str(params.get("total_liquidity", 0)))
+            cross_dex_spread = Decimal(str(params.get("cross_dex_spread", 0)))
+            volume_24h = Decimal(str(params.get("volume_24h", 0)))
+            
+            position_value = amount * price
+            if position_value <= 0:
+                return SwapRiskMetrics(
+                    risk_level=Decimal("1.0"),
+                    confidence_score=Decimal("0"),
+                    recommendations={"error": "Invalid position value"}
+                )
+            
+            # Calculate market impact
+            base_impact = (position_value / total_liquidity if total_liquidity > 0 
+                         else Decimal("inf"))
+            volume_scale = min(Decimal("0.5"), 
+                             volume_24h / (position_value * Decimal("1000")))
+            market_impact = (base_impact * volume_scale * Decimal("0.2")).quantize(
+                Decimal("0.000001"))
+            
+            # Calculate slippage
+            base_slippage = market_impact + cross_dex_spread
+            volume_factor = max(
+                Decimal("0.95"),
+                min(Decimal("1.05"), 
+                    volume_24h / (position_value * Decimal("100")))
+            )
+            expected_slippage = (base_slippage / volume_factor).quantize(
+                Decimal("0.000001"))
+            
+            # Calculate liquidity score
+            liquidity_score = min(
+                Decimal("1.0"),
+                total_liquidity / (position_value * Decimal("100"))
+            ).quantize(Decimal("0.01"))
+            
+            # Calculate risk level
+            risk_components = market_impact * Decimal("2") + expected_slippage * Decimal("5")
+            risk_level = min(Decimal("0.9"), max(Decimal("0.1"), risk_components))
+            
+            correlation = Decimal(str(await self._is_correlated(params)))
+            
+            return SwapRiskMetrics(
+                dex_liquidity=dex_liquidity,
+                total_liquidity=total_liquidity,
+                cross_dex_spread=cross_dex_spread,
+                volume_24h=volume_24h,
+                market_impact=market_impact,
+                expected_slippage=expected_slippage,
+                price_impact=market_impact,
+                liquidity_score=liquidity_score,
+                volatility_factor=Decimal(str(params.get("volatility", 1.0))),
+                correlation_factor=correlation,
+                risk_level=risk_level,
+                confidence_score=Decimal("0.85"),
+                market_data_source=params.get("market_data_source", "jupiter"),
+                is_stale=params.get("is_stale", False),
+                rate_limit_info=await self._check_rate_limit(f"swap:{params.get('symbol', 'unknown')}"),
+                recommendations=self._get_swap_recommendations(locals())
+            )
+        except Exception as e:
+            logger.error(f"Error in swap risk assessment: {e}")
+            return SwapRiskMetrics(
+                risk_level=Decimal("1.0"),
+                confidence_score=Decimal("0"),
+                recommendations={"error": str(e)}
+            )
+
+    def _get_swap_recommendations(self, metrics: Dict[str, Any]) -> Dict[str, str]:
+        """Generate recommendations for swap operations."""
+        recommendations = {}
+        
+        if metrics["market_impact"] > Decimal("0.01"):
+            recommendations["market_impact"] = f"High market impact ({metrics['market_impact']:.3%}). Consider splitting order."
+            
+        if metrics["expected_slippage"] > Decimal("0.01"):
+            recommendations["slippage"] = f"High expected slippage ({metrics['expected_slippage']:.3%}). Use limit orders."
+            
+        if metrics["liquidity_score"] < Decimal("0.5"):
+            recommendations["liquidity"] = f"Low liquidity score ({metrics['liquidity_score']:.2f}). Consider reducing order size."
+            
+        if metrics["correlation_factor"] > Decimal("0.7"):
+            recommendations["correlation"] = f"High correlation ({metrics['correlation_factor']:.2f}). Consider portfolio diversification."
+            
+        return recommendations
 
     async def _is_correlated(self, params: Dict[str, Any]) -> float:
         symbol = params.get("symbol", "")

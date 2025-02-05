@@ -51,6 +51,43 @@ RISK_EXPOSURE = Gauge(
     ["market"]
 )
 
+# Swap Metrics
+SWAP_COUNT = Counter(
+    "tradingbot_swaps_total",
+    "Total number of swaps executed",
+    ["status", "market"]
+)
+
+SWAP_VOLUME = Counter(
+    "tradingbot_swap_volume_total", 
+    "Total swap volume in base currency",
+    ["market"]
+)
+
+SWAP_LATENCY = Histogram(
+    "tradingbot_swap_latency_seconds",
+    "Time taken to execute swaps",
+    ["market"]
+)
+
+SWAP_SLIPPAGE = Histogram(
+    "tradingbot_swap_slippage_percent",
+    "Slippage percentage for executed swaps",
+    ["market"]
+)
+
+SWAP_RISK_LEVEL = Gauge(
+    "tradingbot_swap_risk_level",
+    "Current risk level for swap operations",
+    ["market"]
+)
+
+SWAP_LIQUIDITY = Gauge(
+    "tradingbot_swap_liquidity",
+    "Available liquidity for swap operations",
+    ["market", "dex"]
+)
+
 def record_trade(market: str, status: str, volume: float, latency: float):
     """Record trade metrics."""
     TRADE_COUNT.labels(status=status, market=market).inc()
@@ -70,3 +107,22 @@ def update_market_metrics(market: str, price: float, volume: float):
 def update_risk_metrics(market: str, exposure: float):
     """Update risk-related metrics."""
     RISK_EXPOSURE.labels(market=market).set(exposure)
+
+def record_swap(
+    market: str,
+    status: str,
+    volume: float,
+    latency: float,
+    slippage: float,
+    risk_level: float,
+    liquidity: Dict[str, float]
+):
+    """Record swap-related metrics."""
+    SWAP_COUNT.labels(status=status, market=market).inc()
+    SWAP_VOLUME.labels(market=market).inc(volume)
+    SWAP_LATENCY.labels(market=market).observe(latency)
+    SWAP_SLIPPAGE.labels(market=market).observe(slippage)
+    SWAP_RISK_LEVEL.labels(market=market).set(risk_level)
+    
+    for dex, amount in liquidity.items():
+        SWAP_LIQUIDITY.labels(market=market, dex=dex).set(amount)
