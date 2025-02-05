@@ -25,7 +25,9 @@ func main() {
 	defer logger.Sync()
 
 	logger.Info("Starting real-time trading verification")
-	apiKey := "2zYNtr7JxRkppBS4mWkCUAok8cmyMZqSsLt92kvyAUFseij2ubShVqzkhy8mWcG8J2rSjMNiGcFrtAXAr7Mp3QZ1"
+	apiKey := os.Getenv("PUMP_FUN_API_KEY")
+	if apiKey == "" {
+		logger.Fatal("PUMP_FUN_API_KEY environment variable is required")
 	
 	logger.Info("Initializing pump.fun trading components",
 		zap.String("api_key", apiKey[:8]+"..."))

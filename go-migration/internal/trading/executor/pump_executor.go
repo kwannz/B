@@ -232,8 +232,9 @@ func (e *PumpExecutor) verifyAPIKey() error {
 		return fmt.Errorf("API key not configured")
 	}
 	
-	if e.apiKey != "2zYNtr7JxRkppBS4mWkCUAok8cmyMZqSsLt92kvyAUFseij2ubShVqzkhy8mWcG8J2rSjMNiGcFrtAXAr7Mp3QZ1" {
-		return fmt.Errorf("invalid API key")
+	// Verify API key is present and valid format
+	if !strings.HasPrefix(e.apiKey, "pump_") {
+		return fmt.Errorf("invalid API key format")
 	}
 	
 	metrics.APIKeyUsage.WithLabelValues("pump.fun", "verification").Inc()

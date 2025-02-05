@@ -8,7 +8,7 @@ import (
 
 func main() {
 	secrets := &config.Secrets{
-		PumpFunKey: "2zYNtr7JxRkppBS4mWkCUAok8cmyMZqSsLt92kvyAUFseij2ubShVqzkhy8mWcG8J2rSjMNiGcFrtAXAr7Mp3QZ1",
+		PumpFunKey: os.Getenv("PUMP_FUN_API_KEY"),
 	}
 
 	if err := config.SaveSecrets(secrets); err != nil {
