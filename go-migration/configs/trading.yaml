@@ -1,0 +1,40 @@
+trading:
+  early_entry:
+    max_market_cap: 30000  # $30,000 threshold for early entry
+    min_liquidity: 5000    # Minimum liquidity requirement
+    volume_threshold: 1000  # Minimum 24h volume
+
+  batch_trading:
+    stages:
+      - percentage: 20
+        target_multiple: 2
+      - percentage: 25
+        target_multiple: 3
+      - percentage: 20
+        target_multiple: 5
+
+  risk_management:
+    position_sizing:
+      max_position_size: 0.1  # 10% of portfolio
+      min_position_size: 0.01 # 1% of portfolio
+    stop_loss:
+      initial: 0.15  # 15% stop loss
+      trailing: 0.10 # 10% trailing stop
+    take_profit:
+      levels: [2.0, 3.0, 5.0]  # Corresponding to batch trading stages
+
+  technical_analysis:
+    timeframes: ["30m", "1h"]
+    indicators:
+      rsi:
+        period: 14
+        overbought: 70
+        oversold: 30
+      moving_averages:
+        fast_period: 9
+        slow_period: 21
+
+  monitoring:
+    price_update_interval: "1s"
+    volume_update_interval: "5s"
+    metrics_update_interval: "15s"
