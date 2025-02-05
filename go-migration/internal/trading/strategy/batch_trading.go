@@ -3,10 +3,18 @@ package strategy
 import (
 	"context"
 
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
+
+type BatchTradingConfig struct {
+	Stages []struct {
+		TargetMultiple decimal.Decimal `yaml:"target_multiple"`
+		Percentage     decimal.Decimal `yaml:"percentage"`
+	} `yaml:"stages"`
+}
 
 type BatchTradingStrategy struct {
 	config *BatchTradingConfig
@@ -24,19 +32,20 @@ func (s *BatchTradingStrategy) CalculateExits(position *types.Position) []types.
 	var exits []types.TakeProfit
 	remainingSize := position.Size
 
+	hundred := decimal.NewFromInt(100)
 	for _, stage := range s.config.Stages {
-		size := position.Size * (stage.Percentage / 100.0)
-		if size > remainingSize {
+		size := position.Size.Mul(stage.Percentage.Div(hundred))
+		if size.GreaterThan(remainingSize) {
 			size = remainingSize
 		}
 
 		exits = append(exits, types.TakeProfit{
-			Price: position.EntryPrice * stage.TargetMultiple,
+			Price: position.EntryPrice.Mul(stage.TargetMultiple),
 			Size:  size,
 		})
 
-		remainingSize -= size
-		if remainingSize <= 0 {
+		remainingSize = remainingSize.Sub(size)
+		if remainingSize.LessThanOrEqual(decimal.Zero) {
 			break
 		}
 	}
@@ -45,18 +54,18 @@ func (s *BatchTradingStrategy) CalculateExits(position *types.Position) []types.
 }
 
 func (s *BatchTradingStrategy) UpdatePosition(ctx context.Context, position *types.Position) error {
-	if position.Size <= 0 {
+	if position.Size.LessThanOrEqual(decimal.Zero) {
 		return nil
 	}
 
 	exits := s.CalculateExits(position)
 	for _, exit := range exits {
-		if position.CurrentPrice >= exit.Price {
+		if position.CurrentPrice.GreaterThanOrEqual(exit.Price) {
 			s.logger.Info("Take profit triggered",
 				zap.String("symbol", position.Symbol),
-				zap.Float64("price", position.CurrentPrice),
-				zap.Float64("target", exit.Price),
-				zap.Float64("size", exit.Size))
+				zap.String("price", position.CurrentPrice.String()),
+				zap.String("target", exit.Price.String()),
+				zap.String("size", exit.Size.String()))
 		}
 	}
 

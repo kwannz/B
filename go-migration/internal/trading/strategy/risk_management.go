@@ -2,8 +2,8 @@ package strategy
 
 import (
 	"context"
-	"math"
 
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/types"
@@ -21,50 +21,54 @@ func NewRiskManagementStrategy(config *RiskManagementConfig, logger *zap.Logger)
 	}
 }
 
-func (s *RiskManagementStrategy) CalculatePositionSize(portfolioValue float64, price float64) float64 {
-	maxSize := portfolioValue * s.config.PositionSizing.MaxPositionSize
-	minSize := portfolioValue * s.config.PositionSizing.MinPositionSize
+func (s *RiskManagementStrategy) CalculatePositionSize(portfolioValue, price decimal.Decimal) decimal.Decimal {
+	maxSize := portfolioValue.Mul(s.config.PositionSizing.MaxPositionSize)
+	minSize := portfolioValue.Mul(s.config.PositionSizing.MinPositionSize)
 	
 	size := maxSize
-	if size < minSize {
+	if size.LessThan(minSize) {
 		size = minSize
 	}
 	
-	return math.Floor(size/price) * price
+	return size.Div(price).Floor().Mul(price)
 }
 
-func (s *RiskManagementStrategy) UpdateStopLoss(position *types.Position) *types.StopLoss {
-	if position.Size <= 0 {
+func (s *RiskManagementStrategy) UpdateStopLoss(position *types.Position) *types.ActiveStopLoss {
+	if position.Size.LessThanOrEqual(decimal.Zero) {
 		return nil
 	}
 
-	initialStop := position.EntryPrice * (1 - s.config.StopLoss.Initial)
-	trailingStop := position.CurrentPrice * (1 - s.config.StopLoss.Trailing)
+	one := decimal.NewFromInt(1)
+	initialStop := position.EntryPrice.Mul(one.Sub(s.config.StopLoss.Initial))
+	trailingStop := position.CurrentPrice.Mul(one.Sub(s.config.StopLoss.Trailing))
 	
-	stopPrice := math.Max(initialStop, trailingStop)
+	stopPrice := initialStop
+	if trailingStop.GreaterThan(initialStop) {
+		stopPrice = trailingStop
+	}
 	
-	return &types.StopLoss{
-		Price: stopPrice,
-		Size:  position.Size,
+	return &types.ActiveStopLoss{
+		StopPrice: stopPrice,
+		Position:  position,
 	}
 }
 
 func (s *RiskManagementStrategy) CheckStopLoss(ctx context.Context, position *types.Position) (bool, error) {
-	if position.Size <= 0 {
+	if position.Size.LessThanOrEqual(decimal.Zero) {
 		return false, nil
 	}
 
-	stopLoss := s.UpdateStopLoss(position)
-	if stopLoss == nil {
+	activeStopLoss := s.UpdateStopLoss(position)
+	if activeStopLoss == nil {
 		return false, nil
 	}
 
-	if position.CurrentPrice <= stopLoss.Price {
+	if position.CurrentPrice.LessThanOrEqual(activeStopLoss.StopPrice) {
 		s.logger.Info("Stop loss triggered",
 			zap.String("symbol", position.Symbol),
-			zap.Float64("current_price", position.CurrentPrice),
-			zap.Float64("stop_price", stopLoss.Price),
-			zap.Float64("size", stopLoss.Size))
+			zap.String("current_price", position.CurrentPrice.String()),
+			zap.String("stop_price", activeStopLoss.StopPrice.String()),
+			zap.String("size", position.Size.String()))
 		return true, nil
 	}
 
@@ -72,25 +76,26 @@ func (s *RiskManagementStrategy) CheckStopLoss(ctx context.Context, position *ty
 }
 
 func (s *RiskManagementStrategy) GetTakeProfitLevels(position *types.Position) []types.TakeProfit {
-	if position.Size <= 0 {
+	if position.Size.LessThanOrEqual(decimal.Zero) {
 		return nil
 	}
 
 	var levels []types.TakeProfit
 	remainingSize := position.Size
-	sizePerLevel := position.Size / float64(len(s.config.TakeProfitLevels))
+	levelCount := decimal.NewFromInt(int64(len(s.config.TakeProfitLevels)))
+	sizePerLevel := position.Size.Div(levelCount)
 
 	for _, multiple := range s.config.TakeProfitLevels {
-		if remainingSize <= 0 {
+		if remainingSize.LessThanOrEqual(decimal.Zero) {
 			break
 		}
 
-		size := math.Min(sizePerLevel, remainingSize)
+		size := decimal.Min(sizePerLevel, remainingSize)
 		levels = append(levels, types.TakeProfit{
-			Price: position.EntryPrice * multiple,
+			Price: position.EntryPrice.Mul(multiple),
 			Size:  size,
 		})
-		remainingSize -= size
+		remainingSize = remainingSize.Sub(size)
 	}
 
 	return levels

@@ -2,8 +2,6 @@ package analysis
 
 import (
 	"fmt"
-	"math"
-
 	"github.com/shopspring/decimal"
 )
 

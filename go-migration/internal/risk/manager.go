@@ -3,9 +3,9 @@ package risk
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/types"
@@ -13,18 +13,22 @@ import (
 
 // Limits defines risk management limits
 type Limits struct {
-	MaxPositionSize  float64 `json:"max_position_size"`
-	MaxDrawdown      float64 `json:"max_drawdown"`
-	MaxDailyLoss     float64 `json:"max_daily_loss"`
-	MaxLeverage      float64 `json:"max_leverage"`
-	MinMarginLevel   float64 `json:"min_margin_level"`
-	MaxConcentration float64 `json:"max_concentration"`
+	MaxPositionSize  decimal.Decimal `json:"max_position_size"`
+	MaxDrawdown      decimal.Decimal `json:"max_drawdown"`
+	MaxDailyLoss     decimal.Decimal `json:"max_daily_loss"`
+	MaxLeverage      decimal.Decimal `json:"max_leverage"`
+	MinMarginLevel   decimal.Decimal `json:"min_margin_level"`
+	MaxConcentration decimal.Decimal `json:"max_concentration"`
 }
 
 // Manager handles risk management
 type Manager struct {
 	logger *zap.Logger
 	limits Limits
+}
+
+func (m *Manager) GetLimits() Limits {
+	return m.limits
 }
 
 // NewManager creates a new risk manager
@@ -38,9 +42,9 @@ func NewManager(limits Limits, logger *zap.Logger) *Manager {
 // CheckOrderRisk checks if an order complies with risk limits
 func (m *Manager) CheckOrderRisk(ctx context.Context, order *types.Order) error {
 	// Check order size
-	if order.Quantity > m.limits.MaxPositionSize {
-		return fmt.Errorf("order size exceeds limit: %f > %f",
-			order.Quantity, m.limits.MaxPositionSize)
+	if order.Size.GreaterThan(m.limits.MaxPositionSize) {
+		return fmt.Errorf("order size exceeds limit: %s > %s",
+			order.Size.String(), m.limits.MaxPositionSize.String())
 	}
 
 	// TODO: Implement more order risk checks
@@ -51,21 +55,50 @@ func (m *Manager) CheckOrderRisk(ctx context.Context, order *types.Order) error 
 	return nil
 }
 
+// ValidatePositionSize validates if a position size is within limits
+func (m *Manager) ValidatePositionSize(symbol string, size float64) error {
+	if size <= 0 {
+		return fmt.Errorf("position size must be positive")
+	}
+
+	sizeDecimal := decimal.NewFromFloat(size)
+	if sizeDecimal.GreaterThan(m.limits.MaxPositionSize) {
+		return fmt.Errorf("position size %s exceeds limit %s", sizeDecimal.String(), m.limits.MaxPositionSize.String())
+	}
+
+	return nil
+}
+
+// ValidateNewPosition validates if a new position can be opened
+func (m *Manager) ValidateNewPosition(ctx context.Context, symbol string, size decimal.Decimal, price decimal.Decimal) error {
+	if size.IsZero() {
+		return fmt.Errorf("position size cannot be zero")
+	}
+
+	if size.Abs().GreaterThan(m.limits.MaxPositionSize) {
+		return fmt.Errorf("position size %s exceeds limit %s", size.String(), m.limits.MaxPositionSize.String())
+	}
+
+	return nil
+}
+
 // CheckPositionRisk checks if a position complies with risk limits
 func (m *Manager) CheckPositionRisk(ctx context.Context, position *types.Position) error {
 	// Check position size
-	if math.Abs(position.Quantity) > m.limits.MaxPositionSize {
-		return fmt.Errorf("position size exceeds limit: %f > %f",
-			math.Abs(position.Quantity), m.limits.MaxPositionSize)
+	if position.Size.Abs().GreaterThan(m.limits.MaxPositionSize) {
+		return fmt.Errorf("position size exceeds limit: %s > %s",
+			position.Size.Abs().String(), m.limits.MaxPositionSize.String())
 	}
 
 	// Check drawdown
-	if position.UnrealizedPnL < 0 {
-		drawdown := math.Abs(position.UnrealizedPnL) /
-			(math.Abs(position.AvgPrice * position.Quantity))
-		if drawdown > m.limits.MaxDrawdown {
-			return fmt.Errorf("drawdown exceeds limit: %f > %f",
-				drawdown, m.limits.MaxDrawdown)
+	if position.UnrealizedPnL.IsNegative() {
+		positionValue := position.Size.Mul(position.EntryPrice).Abs()
+		if !positionValue.IsZero() {
+			drawdown := position.UnrealizedPnL.Abs().Div(positionValue)
+			if drawdown.GreaterThan(m.limits.MaxDrawdown) {
+				return fmt.Errorf("drawdown exceeds limit: %s > %s",
+					drawdown.String(), m.limits.MaxDrawdown.String())
+			}
 		}
 	}
 
@@ -80,15 +113,16 @@ func (m *Manager) CheckPositionRisk(ctx context.Context, position *types.Positio
 // CheckAccountRisk checks overall account risk
 func (m *Manager) CheckAccountRisk(ctx context.Context, metrics *types.RiskMetrics) error {
 	// Check daily loss
-	if metrics.DailyPnL < -m.limits.MaxDailyLoss {
-		return fmt.Errorf("daily loss exceeds limit: %f < -%f",
-			metrics.DailyPnL, m.limits.MaxDailyLoss)
+	maxLossNeg := m.limits.MaxDailyLoss.Neg()
+	if metrics.DailyPnL.LessThan(maxLossNeg) {
+		return fmt.Errorf("daily loss exceeds limit: %s < %s",
+			metrics.DailyPnL.String(), maxLossNeg.String())
 	}
 
 	// Check margin level
-	if metrics.MarginLevel < m.limits.MinMarginLevel {
-		return fmt.Errorf("margin level below limit: %f < %f",
-			metrics.MarginLevel, m.limits.MinMarginLevel)
+	if metrics.MarginLevel.LessThan(m.limits.MinMarginLevel) {
+		return fmt.Errorf("margin level below limit: %s < %s",
+			metrics.MarginLevel.String(), m.limits.MinMarginLevel.String())
 	}
 
 	// TODO: Implement more account risk checks
@@ -108,15 +142,16 @@ func (m *Manager) CalculateMetrics(ctx context.Context, positions []*types.Posit
 
 	// Calculate metrics from positions
 	for _, pos := range positions {
-		positionValue := math.Abs(pos.Quantity * pos.AvgPrice)
-		metrics.UsedMargin += positionValue * 0.1 // Example margin requirement
-		metrics.TotalEquity += positionValue + pos.UnrealizedPnL
-		metrics.DailyPnL += pos.UnrealizedPnL + pos.RealizedPnL
+		positionValue := pos.Size.Mul(pos.EntryPrice).Abs()
+		marginReq := positionValue.Mul(decimal.NewFromFloat(0.1)) // Example margin requirement
+		metrics.UsedMargin = metrics.UsedMargin.Add(marginReq)
+		metrics.TotalEquity = metrics.TotalEquity.Add(positionValue).Add(pos.UnrealizedPnL)
+		metrics.DailyPnL = metrics.DailyPnL.Add(pos.UnrealizedPnL).Add(pos.RealizedPnL)
 	}
 
-	metrics.AvailableMargin = metrics.TotalEquity - metrics.UsedMargin
-	if metrics.UsedMargin > 0 {
-		metrics.MarginLevel = metrics.TotalEquity / metrics.UsedMargin * 100
+	metrics.AvailableMargin = metrics.TotalEquity.Sub(metrics.UsedMargin)
+	if !metrics.UsedMargin.IsZero() {
+		metrics.MarginLevel = metrics.TotalEquity.Div(metrics.UsedMargin).Mul(decimal.NewFromInt(100))
 	}
 
 	return metrics, nil

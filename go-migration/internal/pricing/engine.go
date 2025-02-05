@@ -38,7 +38,7 @@ type Engine struct {
 	validator  *Validator
 	indicators []analysis.IndicatorCalculator
 	history    map[string]*types.PriceHistory
-	signals    chan *types.Signal
+	signals    chan *types.MarketSignal
 	mu         sync.RWMutex
 }
 
@@ -102,7 +102,7 @@ func (e *Engine) ProcessUpdate(update *types.PriceUpdate) error {
 }
 
 // GetSignals returns the signal channel
-func (e *Engine) GetSignals() <-chan *types.Signal {
+func (e *Engine) GetSignals() <-chan *types.MarketSignal {
 	return e.signals
 }
 
@@ -168,7 +168,7 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 		if ind.Name() == "RSI" {
 			value := ind.Value()
 			if value <= 30 {
-				return &types.Signal{
+				return &types.MarketSignal{
 					Symbol:     symbol,
 					Type:       "entry",
 					Direction:  "long",
@@ -179,7 +179,7 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 				}
 			}
 			if value >= 70 {
-				return &types.Signal{
+				return &types.MarketSignal{
 					Symbol:     symbol,
 					Type:       "entry",
 					Direction:  "short",
@@ -200,7 +200,7 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 			signal := params["signal"].(float64)
 
 			if value > signal {
-				return &types.Signal{
+				return &types.MarketSignal{
 					Symbol:     symbol,
 					Type:       "entry",
 					Direction:  "long",
@@ -211,7 +211,7 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 				}
 			}
 			if value < signal {
-				return &types.Signal{
+				return &types.MarketSignal{
 					Symbol:     symbol,
 					Type:       "entry",
 					Direction:  "short",
@@ -233,7 +233,7 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 			middle := params["middle"].(float64)
 
 			if current.Price <= lower {
-				return &types.Signal{
+				return &types.MarketSignal{
 					Symbol:     symbol,
 					Type:       "entry",
 					Direction:  "long",
@@ -244,7 +244,7 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 				}
 			}
 			if current.Price >= upper {
-				return &types.Signal{
+				return &types.MarketSignal{
 					Symbol:     symbol,
 					Type:       "entry",
 					Direction:  "short",
