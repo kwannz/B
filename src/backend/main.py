@@ -376,10 +376,10 @@ async def get_limit_settings(
         limit_settings = db.query(LimitSettings).filter(
             LimitSettings.user_id == current_user["id"]
         ).first()
-        
+
         if not limit_settings:
             raise HTTPException(status_code=404, detail="Limit settings not found")
-            
+
         return limit_settings
     except HTTPException:
         raise
