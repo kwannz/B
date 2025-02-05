@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +27,7 @@ from src.backend.database import (
 )
 from src.backend.schemas import (
     AccountResponse,
+    AgentCreate,
     AgentListResponse,
     AgentResponse,
     LimitSettingsResponse,
@@ -51,7 +52,6 @@ from src.backend.schemas import (
 from src.backend.shared.models.ollama import OllamaModel
 from src.backend.websocket import (
     broadcast_agent_status,
-    broadcast_analysis,
     broadcast_limit_update,
     broadcast_order_update,
     broadcast_performance_update,
@@ -219,7 +219,7 @@ async def get_account_positions(
         # Broadcast position updates via WebSocket
         for position in positions:
             await broadcast_position_update(position.model_dump())
-            
+        
         return positions_data
     except Exception as e:
         logger.error(f"Error fetching positions: {e}")
@@ -538,7 +538,10 @@ async def create_agent(agent: AgentCreate, db: Session = Depends(get_db)) -> Age
 
         existing_agent = db.query(Agent).filter(Agent.type == agent.type).first()
         if existing_agent:
-            raise HTTPException(status_code=409, detail=f"Agent with type {agent.type} already exists")
+            raise HTTPException(
+                status_code=409,
+                detail=f"Agent with type {agent.type} already exists"
+            )
 
         db_agent = Agent(type=agent.type, status=agent.status)
         try:
