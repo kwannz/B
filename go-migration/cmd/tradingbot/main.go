@@ -123,16 +123,26 @@ func main() {
 		logger.Fatal("Failed to parse trading config", zap.Error(err))
 	}
 
-	// Initialize trading executor
-	secrets, err := config.LoadSecrets()
-	if err != nil {
-		logger.Fatal("Failed to load secrets", zap.Error(err))
+	// Initialize real-time trading executor with API key
+	apiKey := os.Getenv("PUMP_FUN_API_KEY")
+	if apiKey == "" {
+		logger.Fatal("PUMP_FUN_API_KEY environment variable is required")
+	
+	limits := risk.Limits{
+		MaxPositionSize:  1000.0,
+		MaxDrawdown:      0.1,
+		MaxDailyLoss:     100.0,
+		MaxLeverage:      1.0,
+		MinMarginLevel:   1.5,
+		MaxConcentration: 0.2,
 	}
-
-	tradingExecutor := executor.NewTradingExecutor(&tradingCfg, pumpProvider, metrics.NewPumpMetrics(), logger)
-	if err := tradingExecutor.Start(ctx); err != nil {
-		logger.Fatal("Failed to start trading executor", zap.Error(err))
+	riskManager := risk.NewManager(limits, logger)
+	
+	realTimeExecutor := executor.NewRealtimeExecutor(logger, pumpProvider, riskManager, apiKey)
+	if err := realTimeExecutor.Start(ctx); err != nil {
+		logger.Fatal("Failed to start real-time executor", zap.Error(err))
 	}
+	defer realTimeExecutor.Stop()
 
 	// Initialize monitoring service
 	monitoringService := monitoring.NewService(pumpProvider, metrics.NewPumpMetrics(), logger)
