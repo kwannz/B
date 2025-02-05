@@ -69,7 +69,13 @@ func (c *WSClient) Connect(ctx context.Context) error {
 
 	headers := http.Header{}
 	headers.Add("Origin", "https://pump.fun")
+	headers.Add("Host", "pump.fun")
 	headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	headers.Add("Accept", "*/*")
+	headers.Add("Accept-Language", "en-US,en;q=0.9")
+	headers.Add("Connection", "Upgrade")
+	headers.Add("Upgrade", "websocket")
+	headers.Add("Sec-WebSocket-Version", "13")
 
 	dialer := websocket.Dialer{
 		HandshakeTimeout: c.dialTimeout,
