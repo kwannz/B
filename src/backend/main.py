@@ -100,11 +100,22 @@ app.add_middleware(
 )
 
 
-# Initialize databases
+# Initialize services
 @app.on_event("startup")
 async def startup_event() -> None:
+    # Initialize databases
     init_db()  # Initialize PostgreSQL
     init_mongodb()  # Initialize MongoDB collections
+    
+    # Start monitoring service
+    from tradingbot.api.monitoring.service import monitoring_service
+    await monitoring_service.start()
+
+@app.on_event("shutdown")
+async def shutdown_event() -> None:
+    # Stop monitoring service
+    from tradingbot.api.monitoring.service import monitoring_service
+    await monitoring_service.stop()
 
 
 # Market Analysis endpoint
