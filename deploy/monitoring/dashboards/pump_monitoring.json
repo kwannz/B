@@ -1,0 +1,90 @@
+{
+  "title": "Pump.fun Monitoring",
+  "panels": [
+    {
+      "title": "New Tokens",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "rate(pump_new_tokens_total[5m])",
+          "legendFormat": "New Tokens / 5m"
+        }
+      ]
+    },
+    {
+      "title": "Token Prices",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "pump_token_price",
+          "legendFormat": "{{symbol}}"
+        }
+      ]
+    },
+    {
+      "title": "Trading Volume (24h)",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "pump_token_volume_24h",
+          "legendFormat": "{{symbol}}"
+        }
+      ]
+    },
+    {
+      "title": "WebSocket Connections",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "pump_websocket_connections"
+        }
+      ]
+    },
+    {
+      "title": "API Errors",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "rate(pump_api_errors_total[5m])",
+          "legendFormat": "{{operation}}"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 30,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  }
+}

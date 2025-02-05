@@ -44,15 +44,81 @@ func (c *WSClient) Connect(ctx context.Context) error {
 		return nil
 	}
 
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, c.wsURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to connect to WebSocket: %w", err)
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 10 * time.Second,
+		WriteBufferSize:  1024 * 16,
+		ReadBufferSize:   1024 * 16,
 	}
-	c.conn = conn
 
-	go c.handleMessages()
+	backoff := time.Second
+	maxBackoff := 30 * time.Second
+	maxRetries := 3
 
-	return nil
+	var lastErr error
+	for retry := 0; retry < maxRetries; retry++ {
+		if retry > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(backoff):
+				backoff = time.Duration(float64(backoff) * 1.5)
+				if backoff > maxBackoff {
+					backoff = maxBackoff
+				}
+			}
+		}
+
+		conn, _, err := dialer.DialContext(ctx, c.wsURL, nil)
+		if err != nil {
+			metrics.PumpAPIErrors.WithLabelValues("websocket_connect").Inc()
+			lastErr = fmt.Errorf("failed to connect: %w", err)
+			c.logger.Error("websocket connection failed",
+				zap.Error(err),
+				zap.Int("retry", retry),
+				zap.Duration("backoff", backoff))
+			continue
+		}
+
+		c.conn = conn
+		metrics.PumpWebsocketConnections.Inc()
+
+		// Start message handler and keepalive
+		go c.handleMessages()
+		go c.keepAlive(ctx)
+
+		return nil
+	}
+
+	return fmt.Errorf("max retries exceeded: %w", lastErr)
+}
+
+func (c *WSClient) keepAlive(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			c.mu.Lock()
+			if c.conn == nil {
+				c.mu.Unlock()
+				return
+			}
+
+			if err := c.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+				c.logger.Error("failed to write ping message", zap.Error(err))
+				metrics.PumpAPIErrors.WithLabelValues("websocket_ping").Inc()
+				c.conn.Close()
+				c.conn = nil
+				metrics.PumpWebsocketConnections.Dec()
+				c.mu.Unlock()
+				return
+			}
+			c.mu.Unlock()
+		}
+	}
 }
 
 // Subscribe subscribes to price updates for symbols
@@ -120,7 +186,15 @@ func (c *WSClient) handleMessages() {
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					c.logger.Error("WebSocket read error", zap.Error(err))
+					metrics.PumpAPIErrors.WithLabelValues("websocket_read").Inc()
 				}
+				c.mu.Lock()
+				if c.conn != nil {
+					c.conn.Close()
+					c.conn = nil
+					metrics.PumpWebsocketConnections.Dec()
+				}
+				c.mu.Unlock()
 				return
 			}
 
@@ -134,6 +208,7 @@ func (c *WSClient) handleMessages() {
 
 			if err := json.Unmarshal(msg, &data); err != nil {
 				c.logger.Error("Failed to parse WebSocket message", zap.Error(err))
+				metrics.PumpAPIErrors.WithLabelValues("websocket_parse").Inc()
 				continue
 			}
 
@@ -143,6 +218,10 @@ func (c *WSClient) handleMessages() {
 				Volume:    data.Volume,
 				Timestamp: time.Unix(data.Timestamp/1000, 0),
 			}
+
+			// Update metrics
+			metrics.PumpTokenPrice.WithLabelValues(data.Symbol).Set(data.Price)
+			metrics.PumpTokenVolume.WithLabelValues(data.Symbol).Set(data.Volume)
 
 			select {
 			case c.updates <- update:

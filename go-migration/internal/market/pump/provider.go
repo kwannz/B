@@ -15,11 +15,12 @@ import (
 
 // Provider implements MarketDataProvider interface for Pump.fun
 type Provider struct {
-	logger   *zap.Logger
-	client   *http.Client
-	baseURL  string
-	wsClient *WSClient
-	mu       sync.RWMutex
+	logger       *zap.Logger
+	client       *http.Client
+	baseURL      string
+	wsClient     *WSClient
+	tokenMonitor *TokenMonitor
+	mu           sync.RWMutex
 }
 
 // Config represents Pump.fun provider configuration
@@ -36,8 +37,9 @@ func NewProvider(config Config, logger *zap.Logger) *Provider {
 		client: &http.Client{
 			Timeout: time.Duration(config.TimeoutSec) * time.Second,
 		},
-		baseURL:  config.BaseURL,
-		wsClient: NewWSClient(config.WebSocketURL, logger),
+		baseURL:      config.BaseURL,
+		wsClient:     NewWSClient(config.WebSocketURL, logger),
+		tokenMonitor: NewTokenMonitor(config.BaseURL, logger),
 	}
 }
 
@@ -133,6 +135,36 @@ func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, inter
 	}
 
 	return updates, nil
+}
+
+// GetBondingCurve retrieves bonding curve information for a token
+func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.BondingCurve, error) {
+	url := fmt.Sprintf("%s/api/v1/bonding-curve/%s", p.baseURL, symbol)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get bonding curve: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var curve types.BondingCurve
+	if err := json.NewDecoder(resp.Body).Decode(&curve); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Update metrics
+	metrics.PumpBondingCurvePrice.WithLabelValues(symbol).Set(curve.CurrentPrice)
+
+	return &curve, nil
 }
 
 // Close closes the provider and its WebSocket client

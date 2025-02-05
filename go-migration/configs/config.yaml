@@ -59,8 +59,10 @@ market:
       ws_url: "wss://api.mainnet-beta.solana.com"
       request_timeout: 10s
     pump:
-      base_url: "https://pump.fun/api"
-      ws_url: "wss://pump.fun/ws"
+      base_url: "https://rpc.api-pump.fun"
+      ws_url: "wss://rpc.api-pump.fun/ws"
+      new_tokens_endpoint: "/api/v1/new-tokens"
+      bonding_curve_endpoint: "/api/v1/bonding-curve"
       request_timeout: 10s
 
 pricing:
