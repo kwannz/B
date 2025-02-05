@@ -3,7 +3,8 @@ Dependency injection module for the Trading Bot API
 """
 
 from datetime import datetime
-from typing import AsyncGenerator, Optional
+import logging
+from typing import AsyncGenerator, Generator, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -11,10 +12,18 @@ from jose import JWTError, jwt
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from prometheus_client import Counter, Histogram
 from redis import asyncio as aioredis
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from ..models.user import User
 from .config import Settings
 from .exceptions import AuthenticationError, CacheError, DatabaseError
+
+logger = logging.getLogger(__name__)
+
+# Initialize SQLAlchemy
+engine = create_engine(Settings().DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Load settings
 settings = Settings()
@@ -34,14 +43,39 @@ REQUEST_LATENCY = Histogram(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
 
-# Database connection
-async def get_database() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
-    """Get database connection."""
+# Database connections
+def get_db() -> Generator[Session, None, None]:
+    """Get SQLAlchemy database session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def init_db() -> None:
+    """Initialize SQLAlchemy database."""
+    from sqlalchemy.ext.declarative import declarative_base
+    Base = declarative_base()
+    Base.metadata.create_all(bind=engine)
+
+def init_mongodb() -> None:
+    """Initialize MongoDB collections."""
+    client = AsyncIOMotorClient(Settings().MONGODB_URL)
+    db = client[Settings().MONGODB_NAME]
+    # Ensure indexes are created
+    db.users.create_index("email", unique=True)
+    db.trades.create_index([("user_id", 1), ("created_at", -1)])
+    db.orders.create_index([("user_id", 1), ("status", 1)])
+    client.close()
+
+async def get_mongodb() -> AsyncIOMotorDatabase:
+    """Get MongoDB database connection."""
     try:
         client = AsyncIOMotorClient(settings.MONGODB_URL)
         db = client[settings.MONGODB_NAME]
-        yield db
+        return db
     except Exception as e:
+        logger.error(f"MongoDB connection error: {e}")
         raise DatabaseError(f"Failed to connect to database: {str(e)}")
     finally:
         client.close()
@@ -66,12 +100,12 @@ async def get_redis() -> AsyncGenerator[aioredis.Redis, None]:
 # User authentication
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: AsyncIOMotorDatabase = Depends(get_database),
+    db: AsyncIOMotorDatabase = Depends(get_mongodb),
 ) -> User:
     """Get current authenticated user."""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-        user_id: str = payload.get("sub")
+        user_id = str(payload.get("sub"))
         if user_id is None:
             raise AuthenticationError("Could not validate credentials")
 
