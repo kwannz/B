@@ -17,11 +17,15 @@ import (
 	"github.com/kwanRoshi/B/go-migration/internal/market"
 	"github.com/kwanRoshi/B/go-migration/internal/market/pump"
 	"github.com/kwanRoshi/B/go-migration/internal/market/solana"
+	"github.com/kwanRoshi/B/go-migration/internal/metrics"
+	"github.com/kwanRoshi/B/go-migration/internal/monitoring"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"github.com/kwanRoshi/B/go-migration/internal/pricing"
 	"github.com/kwanRoshi/B/go-migration/internal/storage/mongodb"
 	"github.com/kwanRoshi/B/go-migration/internal/trading"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/executor"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/grpc"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/strategy"
 	"github.com/kwanRoshi/B/go-migration/internal/ws"
 )
 
@@ -112,6 +116,29 @@ func main() {
 
 	// Start signal processing
 	go handleSignals(ctx, logger, pricingEngine)
+
+	// Load trading configuration
+	var tradingCfg strategy.TradingConfig
+	if err := viper.UnmarshalKey("trading", &tradingCfg); err != nil {
+		logger.Fatal("Failed to parse trading config", zap.Error(err))
+	}
+
+	// Initialize trading executor
+	secrets, err := config.LoadSecrets()
+	if err != nil {
+		logger.Fatal("Failed to load secrets", zap.Error(err))
+	}
+
+	tradingExecutor := executor.NewTradingExecutor(&tradingCfg, pumpProvider, metrics.NewPumpMetrics(), logger)
+	if err := tradingExecutor.Start(ctx); err != nil {
+		logger.Fatal("Failed to start trading executor", zap.Error(err))
+	}
+
+	// Initialize monitoring service
+	monitoringService := monitoring.NewService(pumpProvider, metrics.NewPumpMetrics(), logger)
+	if err := monitoringService.Start(ctx); err != nil {
+		logger.Fatal("Failed to start monitoring service", zap.Error(err))
+	}
 
 	// Initialize trading engine
 	tradingConfig := trading.Config{
