@@ -311,6 +311,8 @@ class LimitSettings(Base):  # type: ignore[misc, valid-type]
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+
+
 class Agent(Base):  # type: ignore[misc, valid-type]
     __tablename__ = "agents"
 
