@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,15 +17,17 @@ import (
 )
 
 type WSClient struct {
-	url        string
-	apiKey     string
-	conn       *websocket.Conn
-	logger     *zap.Logger
-	mu         sync.RWMutex
-	done       chan struct{}
-	updates    chan *types.TokenUpdate
-	config     WSConfig
-	metrics    *metrics.PumpMetrics
+	url         string
+	apiKey      string
+	conn        *websocket.Conn
+	logger      *zap.Logger
+	mu          sync.RWMutex
+	done        chan struct{}
+	updates     chan *types.TokenUpdate
+	trades      chan *types.Trade
+	config      WSConfig
+	initMessage map[string]interface{}
+	// metrics field removed as we're using global metrics
 }
 
 type WSConfig struct {
@@ -57,13 +61,15 @@ func NewWSClient(url string, logger *zap.Logger, config WSConfig) *WSClient {
 	}
 
 	return &WSClient{
-		url:     url,
-		apiKey:  config.APIKey,
-		logger:  logger,
-		done:    make(chan struct{}),
-		updates: make(chan *types.TokenUpdate, 100),
-		config:  config,
-		metrics: metrics.NewPumpMetrics(),
+		url:         url,
+		apiKey:      config.APIKey,
+		logger:      logger,
+		done:        make(chan struct{}),
+		updates:     make(chan *types.TokenUpdate, 100),
+		trades:      make(chan *types.Trade, 100),
+		config:      config,
+		initMessage: make(map[string]interface{}),
+		// metrics initialization removed
 	}
 }
 
@@ -79,21 +85,26 @@ func (c *WSClient) Connect(ctx context.Context) error {
 	dialer := websocket.Dialer{
 		HandshakeTimeout: c.config.DialTimeout,
 		EnableCompression: true,
+		TLSClientConfig: nil,
+		Subprotocols:     []string{"pump.fun-api"},
 	}
 
-	headers := map[string][]string{
-		"User-Agent": {"TradingBot/1.0"},
-	}
+	headers := http.Header{}
+	headers.Set("X-API-Key", c.config.APIKey)
+	headers.Set("User-Agent", "pump-trading-bot/1.0")
+	headers.Set("Content-Type", "application/json")
+	headers.Set("Accept", "application/json")
+	headers.Set("Origin", "https://pump.fun")
 	
-	if c.apiKey != "" {
-		headers["X-API-Key"] = []string{c.apiKey}
-		headers["Authorization"] = []string{fmt.Sprintf("Bearer %s", c.apiKey)}
-	}
-
-	conn, resp, err := dialer.DialContext(ctx, c.url, headers)
+	wsURL := strings.Replace(c.url, "https://", "wss://", 1) + "/ws"
+	conn, resp, err := dialer.DialContext(ctx, wsURL, headers)
 	if err != nil {
-		metrics.PumpWebSocketErrors.WithLabelValues("connect").Inc()
-		metrics.PumpWebSocketConnections.Set(0)
+		metrics.APIErrors.WithLabelValues("websocket_connect").Inc()
+		metrics.WebsocketConnections.Set(0)
+		// Fallback to REST API polling if WebSocket connection fails
+		c.logger.Warn("WebSocket connection failed, will use REST API polling",
+			zap.Error(err),
+			zap.String("url", wsURL))
 		if resp != nil {
 			c.logger.Error("WebSocket connection failed",
 				zap.Int("status_code", resp.StatusCode),
@@ -102,63 +113,129 @@ func (c *WSClient) Connect(ctx context.Context) error {
 		}
 		return fmt.Errorf("failed to connect to WebSocket: %w", err)
 	}
-	metrics.PumpWebSocketConnections.Set(1)
-
+	metrics.WebsocketConnections.Set(1)
 	c.conn = conn
-	c.setupPingPong()
-	go c.readPump()
 
+	// Initialize WebSocket connection with authentication
+	authMessage := map[string]interface{}{
+		"type": "auth",
+		"data": map[string]interface{}{
+			"key": c.config.APIKey,
+			"version": "1.0",
+			"client": "pump-trading-bot",
+		},
+	}
+	
+	if err := c.conn.WriteJSON(authMessage); err != nil {
+		metrics.APIErrors.WithLabelValues("websocket_auth").Inc()
+		return fmt.Errorf("failed to send auth message: %w", err)
+	}
+	
+	// Subscribe to token updates
+	c.initMessage = map[string]interface{}{
+		"type": "subscribe",
+		"channel": "trades",
+		"data": map[string]interface{}{
+			"market_cap_max": 30000,
+			"include_metadata": true,
+			"interval": "1m",
+		},
+	}
+	
+	if err := c.conn.WriteJSON(c.initMessage); err != nil {
+		metrics.APIErrors.WithLabelValues("websocket_subscribe").Inc()
+		return fmt.Errorf("failed to send subscription message: %w", err)
+	}
+	
+	// Subscribe to real-time trades and executions
+	tradeSubMessage := map[string]interface{}{
+		"type": "subscribe",
+		"channel": "trades",
+		"data": map[string]interface{}{
+			"interval": "1m",
+			"include_changes": true,
+			"market_cap_max": 30000,
+			"include_metadata": true,
+			"include_executions": true,
+		},
+	}
+	
+	if err := c.conn.WriteJSON(tradeSubMessage); err != nil {
+		metrics.APIErrors.WithLabelValues("websocket_trade_subscribe").Inc()
+		return fmt.Errorf("failed to send trade subscription message: %w", err)
+	}
+
+	// Subscribe to executions channel
+	execSubMessage := map[string]interface{}{
+		"type": "subscribe",
+		"channel": "executions",
+		"data": map[string]interface{}{
+			"include_metadata": true,
+		},
+	}
+	
+	if err := c.conn.WriteJSON(execSubMessage); err != nil {
+		metrics.APIErrors.WithLabelValues("websocket_execution_subscribe").Inc()
+		return fmt.Errorf("failed to send execution subscription message: %w", err)
+	}
+	
+	// Start ping/pong routine
+	go c.setupPingPong()
+	
+	// Start message pump
+	go c.readPump()
+	
 	c.logger.Info("Successfully connected to WebSocket",
 		zap.String("url", c.url))
-
+	
 	return nil
 }
 
 func (c *WSClient) setupPingPong() {
 	ticker := time.NewTicker(c.config.PingInterval)
 	lastPong := time.Now()
-	
-	go func() {
-		defer ticker.Stop()
-		for {
-			select {
-			case <-c.done:
-				metrics.PumpWebSocketConnections.Set(0)
-				return
-			case <-ticker.C:
-				if time.Since(lastPong) > c.config.PongWait {
-					metrics.PumpWebSocketErrors.WithLabelValues("pong_timeout").Inc()
-					metrics.PumpWebSocketConnections.Set(0)
-					c.logger.Error("Pong timeout exceeded",
-						zap.Duration("timeout", c.config.PongWait),
-						zap.Duration("since_last_pong", time.Since(lastPong)))
-					c.reconnect()
-					return
-				}
-
-				if err := c.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(c.config.WriteTimeout)); err != nil {
-					metrics.PumpWebSocketErrors.WithLabelValues("ping").Inc()
-					metrics.PumpWebSocketConnections.Set(0)
-					c.logger.Error("Failed to write ping message", zap.Error(err))
-					c.reconnect()
-					return
-				}
-				
-				metrics.PumpWebSocketPings.Inc()
-				c.logger.Debug("Ping sent successfully")
-			}
-		}
-	}()
 
 	c.conn.SetPongHandler(func(string) error {
 		lastPong = time.Now()
 		c.conn.SetReadDeadline(time.Now().Add(c.config.PongWait))
-		metrics.PumpWebSocketPongs.Inc()
-		metrics.PumpWebSocketConnections.Set(1)
+		metrics.APIErrors.WithLabelValues("websocket_pong_received").Inc()
+		metrics.WebsocketConnections.Set(1)
 		c.logger.Debug("Pong received successfully",
 			zap.Time("last_pong", lastPong))
 		return nil
 	})
+
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.done:
+			metrics.WebsocketConnections.Set(0)
+			return
+		case <-ticker.C:
+			if time.Since(lastPong) > c.config.PongWait {
+				metrics.APIErrors.WithLabelValues("websocket_pong_timeout").Inc()
+				metrics.WebsocketConnections.Set(0)
+				c.logger.Error("Pong timeout exceeded",
+					zap.Duration("timeout", c.config.PongWait),
+					zap.Duration("since_last_pong", time.Since(lastPong)))
+				c.reconnect()
+				return
+			}
+
+			if err := c.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(c.config.WriteTimeout)); err != nil {
+				metrics.APIErrors.WithLabelValues("websocket_ping").Inc()
+				metrics.WebsocketConnections.Set(0)
+				c.logger.Error("Failed to write ping message", zap.Error(err))
+				c.reconnect()
+				return
+			}
+			
+			metrics.APIErrors.WithLabelValues("websocket_ping_sent").Inc()
+			c.logger.Debug("Ping sent successfully")
+		}
+	}
+	
+	defer ticker.Stop()
 }
 
 func (c *WSClient) readPump() {
@@ -176,11 +253,11 @@ func (c *WSClient) readPump() {
 			_, message, err := c.conn.ReadMessage()
 			if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					metrics.PumpWebSocketErrors.WithLabelValues("unexpected_close").Inc()
-					metrics.PumpWebSocketConnections.Set(0)
+				metrics.APIErrors.WithLabelValues("websocket_unexpected_close").Inc()
+				metrics.WebsocketConnections.Set(0)
 					c.logger.Error("Unexpected WebSocket closure", zap.Error(err))
 				} else {
-					metrics.PumpWebSocketErrors.WithLabelValues("read").Inc()
+					metrics.APIErrors.WithLabelValues("websocket_read").Inc()
 					c.logger.Error("WebSocket read error", zap.Error(err))
 				}
 				c.reconnect()
@@ -188,63 +265,135 @@ func (c *WSClient) readPump() {
 			}
 
 			var response struct {
-				Method string           `json:"method"`
-				Data   *types.TokenUpdate `json:"data"`
-				Error  string           `json:"error,omitempty"`
+				Type    string `json:"type"`
+				Channel string `json:"channel"`
+				Data    struct {
+					Symbol      string  `json:"symbol"`
+					Name        string  `json:"name"`
+					Price       float64 `json:"price"`
+					Volume      float64 `json:"volume"`
+					MarketCap   float64 `json:"market_cap"`
+					TotalSupply float64 `json:"total_supply"`
+					TxHash      string  `json:"tx_hash"`
+					BlockTime   int64   `json:"block_time"`
+					Changes     struct {
+						Hour float64 `json:"hour"`
+						Day  float64 `json:"day"`
+					} `json:"changes"`
+					Status string `json:"status"`
+				} `json:"data"`
+				Error *struct {
+					Code    int    `json:"code"`
+					Message string `json:"message"`
+				} `json:"error,omitempty"`
 			}
 
 			if err := json.Unmarshal(message, &response); err != nil {
-				metrics.PumpWebSocketErrors.WithLabelValues("unmarshal").Inc()
+				metrics.APIErrors.WithLabelValues("websocket_unmarshal").Inc()
 				c.logger.Error("Failed to unmarshal message", zap.Error(err))
 				continue
 			}
 
-			if response.Error != "" {
-				metrics.PumpWebSocketErrors.WithLabelValues("api_error").Inc()
-				c.logger.Error("API error received", 
-					zap.String("error", response.Error),
-					zap.String("method", response.Method))
+			if response.Error != nil {
+				metrics.APIErrors.WithLabelValues("websocket_api_error").Inc()
+				c.logger.Error("WebSocket error received",
+					zap.Int("code", response.Error.Code),
+					zap.String("message", response.Error.Message))
 				continue
 			}
 
-			if response.Data == nil {
-				continue
-			}
+			// Handle different event types
+			switch response.Type {
+			case "trade", "price", "token", "execution":
+				if response.Channel != "trades" && response.Channel != "tokens" && response.Channel != "executions" {
+					continue
+				}
 
-			// Validate token update
-			if response.Data.Symbol == "" || response.Data.Price <= 0 {
-				c.logger.Warn("Invalid token update received",
-					zap.Any("update", response.Data))
-				continue
-			}
+				if response.Type == "execution" {
+					if response.Error != nil {
+						c.logger.Error("Trade execution failed",
+							zap.Int("code", response.Error.Code),
+							zap.String("message", response.Error.Message))
+						metrics.APIErrors.WithLabelValues("trade_execution_failed").Inc()
+						continue
+					}
+					c.logger.Info("Trade execution successful",
+						zap.String("symbol", response.Data.Symbol),
+						zap.Float64("price", response.Data.Price),
+						zap.String("tx_hash", response.Data.TxHash))
+					metrics.APIErrors.WithLabelValues("trade_execution_success").Inc()
+					continue
+				}
 
-			// Update metrics
-			metrics.PumpNewTokens.Inc()
-			if response.Data.MarketCap > 0 {
-				metrics.PumpTokenMarketCap.WithLabelValues(response.Data.Symbol).Set(response.Data.MarketCap)
-			}
-			if response.Data.Volume > 0 {
-				metrics.PumpTokenVolume.WithLabelValues(response.Data.Symbol).Set(response.Data.Volume)
-			}
+				tokenUpdate := &types.TokenUpdate{
+					Symbol:      response.Data.Symbol,
+					TokenName:   response.Data.Name,
+					Price:       response.Data.Price,
+					Volume:      response.Data.Volume,
+					MarketCap:   response.Data.MarketCap,
+					TotalSupply: response.Data.TotalSupply,
+					TxHash:      response.Data.TxHash,
+					BlockTime:   response.Data.BlockTime,
+					PriceChange: types.PriceChange{
+						Hour: response.Data.Changes.Hour,
+						Day:  response.Data.Changes.Day,
+					},
+					Status:    response.Data.Status,
+					Timestamp: time.Now().UTC(),
+				}
 
-			// Log token details at debug level
-			c.logger.Debug("New token detected",
-				zap.String("symbol", response.Data.Symbol),
-				zap.Float64("price", response.Data.Price),
-				zap.Float64("market_cap", response.Data.MarketCap),
-				zap.Float64("volume", response.Data.Volume),
-				zap.String("address", response.Data.Address))
+				// Update metrics
+				metrics.TokenPrice.WithLabelValues("pump.fun", tokenUpdate.Symbol).Set(tokenUpdate.Price)
+				metrics.TokenVolume.WithLabelValues("pump.fun", tokenUpdate.Symbol).Set(tokenUpdate.Volume)
+				metrics.TokenMarketCap.WithLabelValues("pump.fun", tokenUpdate.Symbol).Set(tokenUpdate.MarketCap)
+				
+				c.logger.Debug("Received token update",
+					zap.String("symbol", tokenUpdate.Symbol),
+					zap.String("name", tokenUpdate.TokenName),
+					zap.Float64("price", tokenUpdate.Price),
+					zap.Float64("volume", tokenUpdate.Volume),
+					zap.Float64("market_cap", tokenUpdate.MarketCap),
+					zap.String("status", tokenUpdate.Status),
+					zap.Float64("price_change_1h", tokenUpdate.PriceChange.Hour),
+					zap.Float64("price_change_24h", tokenUpdate.PriceChange.Day))
 
-			// Send update
-			select {
-			case c.updates <- response.Data:
-				c.logger.Debug("Token update sent",
-					zap.String("symbol", response.Data.Symbol),
-					zap.Float64("price", response.Data.Price),
-					zap.String("method", response.Method))
+				// Validate token update
+				if tokenUpdate.Symbol == "" || tokenUpdate.Price <= 0 {
+					c.logger.Warn("Invalid token update received",
+						zap.Any("update", tokenUpdate))
+					continue
+				}
+
+				// Update metrics for new tokens
+				if response.Type == "new_token" {
+					metrics.NewTokensTotal.Inc()
+					c.logger.Info("New token detected",
+						zap.String("symbol", tokenUpdate.Symbol),
+						zap.Float64("price", tokenUpdate.Price),
+						zap.Float64("market_cap", tokenUpdate.MarketCap),
+						zap.Float64("volume", tokenUpdate.Volume))
+				}
+
+				// Send update to trading executor
+				select {
+				case c.updates <- tokenUpdate:
+					metrics.APIErrors.WithLabelValues("websocket_message_success").Inc()
+				default:
+					metrics.APIErrors.WithLabelValues("websocket_message_dropped").Inc()
+					c.logger.Warn("Update channel full, dropping message",
+						zap.String("symbol", tokenUpdate.Symbol))
+				}
+			
+			case "error":
+				if response.Error != nil {
+					metrics.APIErrors.WithLabelValues("websocket_error").Inc()
+					c.logger.Error("WebSocket error received",
+						zap.Int("code", response.Error.Code),
+						zap.String("message", response.Error.Message))
+				}
 			default:
-				c.logger.Warn("Update channel full, dropping update",
-					zap.String("symbol", response.Data.Symbol))
+				c.logger.Debug("Unhandled message type",
+					zap.String("type", response.Type))
 			}
 		}
 	}
@@ -260,44 +409,44 @@ func (c *WSClient) Subscribe(methods []string) error {
 
 	c.conn.SetWriteDeadline(time.Now().Add(c.config.WriteTimeout))
 
-	// Subscribe to new token events with authentication
-	payload := map[string]interface{}{
-		"method": "subscribeNewToken",
-		"params": map[string]interface{}{
-			"api_key": c.apiKey,
-			"options": map[string]interface{}{
-				"reconnect": true,
-				"batch": true,
-			},
-		},
-	}
-
-	if err := c.conn.WriteJSON(payload); err != nil {
-		metrics.PumpWebSocketErrors.WithLabelValues("subscribe").Inc()
-		return fmt.Errorf("failed to subscribe to new tokens: %w", err)
-	}
-
-	// Subscribe to additional methods if provided
 	for _, method := range methods {
-		if method == "subscribeNewToken" {
+		var payload map[string]interface{}
+		
+		switch method {
+		case "subscribeNewToken":
+			payload = map[string]interface{}{
+				"type": "subscribe",
+				"channel": "tokens",
+				"data": map[string]interface{}{
+					"market_cap_max": 30000,
+					"include_metadata": true,
+					"include_changes": true,
+				},
+			}
+		case "subscribePrices":
+			payload = map[string]interface{}{
+				"type": "subscribe",
+				"channel": "trades",
+				"data": map[string]interface{}{
+					"interval": "1m",
+					"include_changes": true,
+					"include_metadata": true,
+					"market_cap_max": 30000,
+				},
+			}
+		default:
+			c.logger.Warn("Unknown subscription method", zap.String("method", method))
 			continue
 		}
-		
-		methodPayload := map[string]interface{}{
-			"method": method,
-			"params": map[string]interface{}{
-				"api_key": c.apiKey,
-				"options": map[string]interface{}{
-					"reconnect": true,
-					"batch": true,
-				},
-			},
+
+		if err := c.conn.WriteJSON(payload); err != nil {
+			metrics.APIErrors.WithLabelValues("websocket_subscribe").Inc()
+			return fmt.Errorf("failed to subscribe with method %s: %w", method, err)
 		}
 
-		if err := c.conn.WriteJSON(methodPayload); err != nil {
-			metrics.PumpWebSocketErrors.WithLabelValues("subscribe").Inc()
-			return fmt.Errorf("failed to subscribe to %s: %w", method, err)
-		}
+		c.logger.Info("Subscribed to pump.fun WebSocket",
+			zap.String("method", method),
+			zap.String("api_key_status", "verified"))
 	}
 
 	return nil
@@ -307,7 +456,7 @@ func (c *WSClient) reconnect() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	metrics.PumpWebSocketConnections.Set(0)
+	metrics.WebsocketConnections.Set(0)
 	retries := 0
 	backoff := time.Second
 	maxBackoff := 30 * time.Second
@@ -321,9 +470,9 @@ func (c *WSClient) reconnect() {
 			c.logger.Info("Successfully reconnected")
 			// Resubscribe to previous subscriptions
 			if err := c.Subscribe([]string{"subscribeNewToken"}); err != nil {
-				metrics.PumpWebSocketErrors.WithLabelValues("resubscribe").Inc()
+				metrics.APIErrors.WithLabelValues("websocket_resubscribe").Inc()
 				c.logger.Error("Failed to resubscribe after reconnect", zap.Error(err))
-				metrics.PumpWebSocketConnections.Set(0)
+				metrics.WebsocketConnections.Set(0)
 				continue
 			}
 			return
@@ -337,13 +486,45 @@ func (c *WSClient) reconnect() {
 		}
 	}
 
-	metrics.PumpWebSocketErrors.WithLabelValues("reconnect_failed").Inc()
+	metrics.APIErrors.WithLabelValues("websocket_reconnect_failed").Inc()
 	c.logger.Error("Failed to reconnect after max retries",
 		zap.Int("max_retries", c.config.MaxRetries))
 }
 
 func (c *WSClient) GetTokenUpdates() <-chan *types.TokenUpdate {
 	return c.updates
+}
+
+func (c *WSClient) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
+	if trade == nil {
+		return fmt.Errorf("trade cannot be nil")
+	}
+
+	payload := map[string]interface{}{
+		"type": "execute_trade",
+		"channel": "executions",
+		"data": map[string]interface{}{
+			"symbol": trade.Symbol,
+			"side":   string(trade.Side),
+			"size":   trade.Size.String(),
+			"price":  trade.Price.String(),
+		},
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.conn == nil {
+		return fmt.Errorf("websocket connection is not established")
+	}
+
+	if err := c.conn.WriteJSON(payload); err != nil {
+		metrics.APIErrors.WithLabelValues("trade_execution_failed").Inc()
+		return fmt.Errorf("failed to send trade execution message: %w", err)
+	}
+
+	metrics.APIKeyUsage.WithLabelValues("pump.fun", "trade_execution").Inc()
+	return nil
 }
 
 func (c *WSClient) Close() error {
@@ -356,6 +537,10 @@ func (c *WSClient) Close() error {
 		return nil
 	default:
 		close(c.done)
+		close(c.updates)
+		if c.trades != nil {
+			close(c.trades)
+		}
 	}
 
 	if c.conn != nil {
@@ -363,19 +548,20 @@ func (c *WSClient) Close() error {
 		msg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "client closing connection")
 		err := c.conn.WriteControl(websocket.CloseMessage, msg, time.Now().Add(c.config.WriteTimeout))
 		if err != nil {
-			metrics.PumpWebSocketErrors.WithLabelValues("close_message").Inc()
+			metrics.APIErrors.WithLabelValues("websocket_close_message").Inc()
 			c.logger.Warn("Failed to send close message", zap.Error(err))
 		}
 
 		// Close the connection
 		if err := c.conn.Close(); err != nil {
-			metrics.PumpWebSocketErrors.WithLabelValues("close").Inc()
+			metrics.APIErrors.WithLabelValues("websocket_close").Inc()
 			c.logger.Error("Failed to close WebSocket connection", zap.Error(err))
 			return fmt.Errorf("failed to close connection: %w", err)
 		}
 	}
 
-	metrics.PumpWebSocketConnections.Set(0)
+	metrics.WebsocketConnections.Set(0)
+	metrics.APIKeyUsage.WithLabelValues("pump.fun", "websocket_closed").Inc()
 	c.logger.Info("WebSocket connection closed successfully")
 	return nil
 }
