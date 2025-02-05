@@ -38,6 +38,7 @@ from tradingbot.api.core.deps import (
     init_mongodb,
     get_mongodb,
 )
+from tradingbot.api.routes import swap
 from tradingbot.api.services.responses import (
     AccountResponse,
     AgentListResponse,
@@ -88,6 +89,9 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
+
+# Include routers
+app.include_router(swap.router, prefix="/api/v1/swap", tags=["swap"])
 
 # Enable CORS
 app.add_middleware(
