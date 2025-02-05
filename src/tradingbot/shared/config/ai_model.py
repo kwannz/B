@@ -1,4 +1,5 @@
 import os
+import torch
 from dataclasses import dataclass
 
 AI_MODEL_MODE = os.getenv("AI_MODEL_MODE", "LOCAL")
@@ -32,6 +33,21 @@ MAX_RETRIES = int(os.getenv("DEEPSEEK_MAX_RETRIES", "3"))
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))
 RETRY_DELAY = float(os.getenv("DEEPSEEK_RETRY_DELAY", "2.0"))
 
+
+@dataclass
+class ModelConfig:
+    model_name: str
+    batch_size: int = 32
+    learning_rate: float = 0.001
+    epochs: int = 100
+    hidden_size: int = 128
+    num_layers: int = 2
+    dropout: float = 0.2
+    sequence_length: int = 60
+    train_test_split: float = 0.8
+    validation_split: float = 0.1
+    early_stopping_patience: int = 10
+    device: str = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 @dataclass
 class DeepSeekModelConfig:
