@@ -110,7 +110,7 @@ class GMGNClient:
             if "data" not in quote or "raw_tx" not in quote["data"]:
                 return {"error": "Invalid quote response"}
                 
-            tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swap_tx"])
+            tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
             # Parse and sign transaction with wallet
             tx = Transaction.from_bytes(tx_buf)
             tx.sign([wallet])  # Sign with provided wallet
