@@ -24,6 +24,11 @@ type Provider struct {
 	dexSources []string // List of supported DEXs (e.g. "gmgn")
 }
 
+// ExecuteTrade implements MarketDataProvider interface
+func (p *Provider) ExecuteTrade(ctx context.Context, params map[string]interface{}) error {
+	return fmt.Errorf("not implemented for Solana provider")
+}
+
 // Config represents Solana provider configuration
 type Config struct {
 	BaseURL      string   `json:"base_url"`
@@ -207,6 +212,16 @@ func (p *Provider) getHistoricalPricesFromDEX(ctx context.Context, dex, symbol, 
 	}
 
 	return updates, nil
+}
+
+// GetBondingCurve implements MarketDataProvider interface
+func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.BondingCurve, error) {
+	return nil, fmt.Errorf("not implemented for Solana provider")
+}
+
+// SubscribeNewTokens implements MarketDataProvider interface
+func (p *Provider) SubscribeNewTokens(ctx context.Context) (<-chan *types.TokenMarketInfo, error) {
+	return nil, fmt.Errorf("not implemented for Solana provider")
 }
 
 // Helper functions

@@ -39,8 +39,8 @@ type Config struct {
 
 // NewProvider creates a new Pump.fun provider
 func NewProvider(config Config, logger *zap.Logger) *Provider {
-	baseURL := "https://frontend-api.pump.fun"
-	wsURL := "wss://frontend-api.pump.fun/ws"
+	baseURL := "https://api.gmgn.fun"
+	wsURL := "wss://api.gmgn.fun/ws/trades"
 	
 	if config.BaseURL != "" {
 		baseURL = config.BaseURL
@@ -71,7 +71,7 @@ func NewProvider(config Config, logger *zap.Logger) *Provider {
 
 // GetPrice implements MarketDataProvider interface
 func (p *Provider) GetPrice(ctx context.Context, symbol string) (float64, error) {
-	url := fmt.Sprintf("%s/tokens/%s/price", p.baseURL, symbol)
+	url := fmt.Sprintf("%s/api/v1/price/%s", p.baseURL, symbol)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -185,8 +185,8 @@ func (p *Provider) SubscribePrices(ctx context.Context, symbols []string) (<-cha
 }
 
 // GetHistoricalPrices implements MarketDataProvider interface
-func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, interval string, limit int) ([]*types.PriceUpdate, error) {
-	url := fmt.Sprintf("%s/tokens/%s/history?interval=%s&limit=%d",
+func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, interval string, limit int) ([]types.PriceUpdate, error) {
+	url := fmt.Sprintf("%s/api/v1/historical/%s?interval=%s&limit=%d",
 		p.baseURL, symbol, interval, limit)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -225,9 +225,9 @@ func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, inter
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	updates := make([]*types.PriceUpdate, len(result.Data))
+	updates := make([]types.PriceUpdate, len(result.Data))
 	for i, item := range result.Data {
-		updates[i] = &types.PriceUpdate{
+		updates[i] = types.PriceUpdate{
 			Symbol:    symbol,
 			Price:     decimal.NewFromFloat(item.Price),
 			Volume:    decimal.NewFromFloat(item.Volume),
@@ -242,7 +242,7 @@ func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, inter
 
 // GetBondingCurve implements MarketDataProvider interface
 func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.BondingCurve, error) {
-	url := fmt.Sprintf("%s/tokens/%s/bonding-curve", p.baseURL, symbol)
+	url := fmt.Sprintf("%s/api/v1/gmgn/quote?symbol=%s", p.baseURL, symbol)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -283,7 +283,7 @@ func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.B
 
 // GetNewTokens fetches new tokens from the API
 func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenMarketInfo, error) {
-	url := fmt.Sprintf("%s/trades/latest", p.baseURL)
+	url := fmt.Sprintf("%s/api/v1/price/list", p.baseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -479,6 +479,18 @@ func (p *Provider) ExecuteOrder(ctx context.Context, symbol string, orderType ty
 
 	metrics.PumpTradeExecutions.WithLabelValues("success").Inc()
 	return nil
+}
+
+// ExecuteTrade implements MarketDataProvider interface
+func (p *Provider) ExecuteTrade(ctx context.Context, params map[string]interface{}) error {
+	symbol := params["symbol"].(string)
+	orderType := types.SignalType(params["type"].(string))
+	amount := params["amount"].(decimal.Decimal)
+	price := params["price"].(decimal.Decimal)
+	stopLoss := params["stop_loss"].(*decimal.Decimal)
+	takeProfits := params["take_profits"].([]decimal.Decimal)
+	
+	return p.ExecuteOrder(ctx, symbol, orderType, amount, price, stopLoss, takeProfits)
 }
 
 // Close closes the provider and its WebSocket client

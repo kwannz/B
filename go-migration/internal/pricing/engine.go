@@ -263,11 +263,13 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 
 func (e *Engine) createIndicator(name string) analysis.IndicatorCalculator {
 	switch name {
-	case "RSI":
+	case "ema":
+		return analysis.NewEMAIndicator(20)
+	case "rsi":
 		return analysis.NewRSIIndicator(14)
-	case "MACD":
+	case "macd":
 		return analysis.NewMACDIndicator(12, 26, 9)
-	case "BB":
+	case "bb":
 		return analysis.NewBollingerBandsIndicator(20, 2)
 	default:
 		e.logger.Warn("Unknown indicator", zap.String("name", name))

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/kwanRoshi/B/go-migration/internal/config"
 )

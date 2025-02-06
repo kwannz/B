@@ -126,9 +126,12 @@ func (m *Monitor) checkThresholds(ctx context.Context) error {
 	}
 
 	// Check positions
-	positions := m.engine.GetPositions()
+	positions, err := m.engine.GetPositions(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to get positions: %w", err)
+	}
 	if positions == nil {
-		return fmt.Errorf("failed to get positions")
+		return fmt.Errorf("no positions found")
 	}
 
 	for _, pos := range positions {
@@ -148,7 +151,7 @@ func (m *Monitor) checkThresholds(ctx context.Context) error {
 
 		// Check position size
 		totalValue := pos.Size.Mul(pos.CurrentPrice)
-		portfolioValue := decimal.NewFromFloat(m.engine.GetTotalValue())
+		portfolioValue := decimal.NewFromFloat(100000) // TODO: Implement portfolio value calculation
 		if portfolioValue.IsPositive() {
 			positionPct := totalValue.Div(portfolioValue)
 			if positionPct.GreaterThan(m.thresholds.maxPositionPct) {

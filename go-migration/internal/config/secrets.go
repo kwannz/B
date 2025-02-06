@@ -16,10 +16,17 @@ type Secrets struct {
 	PumpFunKey string `json:"pump_fun_key"`
 }
 
-var encryptionKey = []byte("tradingbot-secure-32byte-key-here!!")
+func getEncryptionKey() []byte {
+	key := os.Getenv("TRADING_ENCRYPTION_KEY")
+	if key == "" {
+		key = "default-trading-bot-key-2025-02-06"
+	}
+	// Ensure key is exactly 32 bytes
+	return []byte(key[:32])
+} // Exactly 32 bytes
 
 func encrypt(text string) (string, error) {
-	block, err := aes.NewCipher(encryptionKey)
+	block, err := aes.NewCipher(getEncryptionKey())
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +42,7 @@ func encrypt(text string) (string, error) {
 }
 
 func decrypt(cryptoText string) (string, error) {
-	block, err := aes.NewCipher(encryptionKey)
+	block, err := aes.NewCipher(getEncryptionKey())
 	if err != nil {
 		return "", err
 	}

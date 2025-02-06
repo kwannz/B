@@ -3,7 +3,7 @@ import os
 import time
 import pytest
 from datetime import datetime
-from tradingbot.backend.backend.trading_agent.agents.wallet_manager import WalletManager
+from tradingbot.backend.trading_agent.agents.wallet_manager import WalletManager
 from tradingbot.shared.exchange.dex_client import DEXClient
 
 async def execute_continuous_trading(duration_minutes: int = 1, mock_mode: bool = True) -> dict:
@@ -26,11 +26,6 @@ async def execute_continuous_trading(duration_minutes: int = 1, mock_mode: bool 
     
     # Initialize wallet
     wallet_manager = WalletManager()
-    private_key = os.environ.get("walletkey")
-    if not private_key:
-        raise ValueError("Wallet key not found in environment")
-    
-    wallet_manager.initialize_wallet(private_key)
     print(f"Wallet initialized with public key: {wallet_manager.get_public_key()}")
     
     # Initialize DEX client

@@ -29,15 +29,6 @@ type Strategy interface {
 	ExecuteTrade(ctx context.Context, signal *types.Signal) error
 }
 
-type Storage interface {
-	SaveOrder(order *types.Order) error
-	SavePosition(position *types.Position) error
-	GetOrder(orderID string) (*types.Order, error)
-	GetOrders(userID string) ([]*types.Order, error)
-	GetPosition(symbol string) (*types.Position, error)
-	GetPositions(userID string) ([]*types.Position, error)
-}
-
 type Engine struct {
 	logger     *zap.Logger
 	config     Config
@@ -107,6 +98,74 @@ func (e *Engine) ProcessSignal(ctx context.Context, signal *types.Signal) error 
 	}
 
 	return nil
+}
+		config:     config,
+		logger:     logger,
+		storage:    storage,
+		strategies: make(map[string]Strategy),
+		positions:  make(map[string]*Position),
+		orders:     make(map[string]*Order),
+		trades:     make(map[string]*Trade),
+		stop:       make(chan struct{}),
+	}
+}
+
+func (e *Engine) Start(ctx context.Context) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.isRunning {
+		return fmt.Errorf("engine already running")
+	}
+
+	e.isRunning = true
+	e.logger.Info("Trading engine started")
+
+	go e.run(ctx)
+	return nil
+}
+
+func (e *Engine) Stop() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if !e.isRunning {
+		return fmt.Errorf("engine not running")
+	}
+
+	close(e.stop)
+	e.isRunning = false
+	e.logger.Info("Trading engine stopped")
+	return nil
+}
+
+func (e *Engine) run(ctx context.Context) {
+	ticker := time.NewTicker(e.config.UpdateInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-e.stop:
+			return
+		case <-ticker.C:
+			e.updatePositions(ctx)
+		}
+	}
+}
+
+func (e *Engine) updatePositions(ctx context.Context) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	for _, pos := range e.positions {
+		if err := e.storage.SavePosition(pos); err != nil {
+			e.logger.Error("Failed to save position",
+				zap.String("symbol", pos.Symbol),
+				zap.Error(err))
+		}
+	}
 }
 
 func (e *Engine) Start(ctx context.Context) error {
@@ -244,7 +303,7 @@ func (e *Engine) GetPositions(ctx context.Context) ([]*types.Position, error) {
 }
 
 func (e *Engine) validateOrder(order *types.Order) error {
-	size := order.Size
+	size := decimal.NewFromFloat(order.Size)
 	maxSize := decimal.NewFromFloat(e.config.MaxOrderSize)
 	minSize := decimal.NewFromFloat(e.config.MinOrderSize)
 
@@ -254,72 +313,6 @@ func (e *Engine) validateOrder(order *types.Order) error {
 
 	if size.LessThan(minSize) {
 		return fmt.Errorf("order size %v below minimum %v", size, minSize)
-	}
-
-	return nil
-}
-
-func (e *Engine) GetTrades(ctx context.Context) ([]*types.Trade, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	trades := make([]*types.Trade, 0)
-	for _, executor := range e.executors {
-		if tradeHistory, ok := executor.(interface{ GetTradeHistory(context.Context) ([]*types.Trade, error) }); ok {
-			history, err := tradeHistory.GetTradeHistory(ctx)
-			if err != nil {
-				e.logger.Error("Failed to get trade history", zap.Error(err))
-				continue
-			}
-			trades = append(trades, history...)
-		}
-	}
-	return trades, nil
-}
-
-func (e *Engine) GetOrderBook(ctx context.Context, symbol string) (*types.OrderBook, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	// TODO: Implement order book aggregation from providers
-	return &types.OrderBook{
-		Symbol:     symbol,
-		Bids:       make([]types.OrderBookLevel, 0),
-		Asks:       make([]types.OrderBookLevel, 0),
-		UpdateTime: time.Now(),
-	}, nil
-}
-
-func (e *Engine) SubscribeOrderBook(ctx context.Context, symbol string) (<-chan *types.OrderBook, error) {
-	updates := make(chan *types.OrderBook)
-	// TODO: Implement order book subscription
-	return updates, nil
-}
-
-func (e *Engine) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	if trade.Provider == "" {
-		return fmt.Errorf("trade provider not specified")
-	}
-
-	executor, ok := e.executors[trade.Provider]
-	if !ok {
-		return fmt.Errorf("executor %s not found", trade.Provider)
-	}
-
-	signal := &types.Signal{
-		Provider:   trade.Provider,
-		Symbol:     trade.Symbol,
-		Type:       types.SignalType(trade.Side),
-		Amount:     trade.Size,
-		Price:      trade.Price,
-		Timestamp:  trade.Timestamp,
-	}
-
-	if err := executor.ExecuteTrade(ctx, signal); err != nil {
-		return fmt.Errorf("failed to execute trade: %w", err)
 	}
 
 	return nil

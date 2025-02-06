@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
+	"github.com/shopspring/decimal"
 	"google.golang.org/grpc"
 	"go.uber.org/zap"
 
 	pb "github.com/kwanRoshi/B/go-migration/proto"
 	"github.com/kwanRoshi/B/go-migration/internal/trading"
+	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
 type Server struct {
@@ -48,17 +51,27 @@ func (s *Server) Start(port int) error {
 }
 
 func (s *Server) PlaceOrder(ctx context.Context, req *pb.Order) (*pb.OrderResponse, error) {
-	order := &trading.Order{
+	price, err := decimal.NewFromString(req.Price)
+	if err != nil {
+		return nil, fmt.Errorf("invalid price: %w", err)
+	}
+
+	size, err := decimal.NewFromString(req.Size)
+	if err != nil {
+		return nil, fmt.Errorf("invalid size: %w", err)
+	}
+
+	order := &types.Order{
 		ID:        req.Id,
 		UserID:    req.UserId,
 		Symbol:    req.Symbol,
-		Side:      trading.OrderSide(req.Side),
-		Type:      trading.OrderType(req.Type),
-		Price:     req.Price,
-		Quantity:  req.Size,
-		Status:    trading.OrderStatus(req.Status),
-		CreatedAt: time.Unix(0, req.CreatedAt),
-		UpdatedAt: time.Unix(0, req.UpdatedAt),
+		Side:      types.OrderSide(req.Side),
+		Type:      types.OrderType(req.Type),
+		Price:     price,
+		Size:      size,
+		Status:    types.OrderStatus(req.Status),
+		CreatedAt: time.Unix(req.CreatedAt, 0),
+		UpdatedAt: time.Unix(req.UpdatedAt, 0),
 	}
 
 	if err := s.service.PlaceOrder(ctx, order); err != nil {
@@ -94,16 +107,16 @@ func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Ord
 		Symbol:    order.Symbol,
 		Side:      string(order.Side),
 		Type:      string(order.Type),
-		Price:     order.Price,
-		Size:      order.Quantity,
+		Price:     order.Price.String(),
+		Size:      order.Size.String(),
 		Status:    string(order.Status),
-		CreatedAt: order.CreatedAt.UnixNano(),
-		UpdatedAt: order.UpdatedAt.UnixNano(),
+		CreatedAt: order.CreatedAt.Unix(),
+		UpdatedAt: order.UpdatedAt.Unix(),
 	}, nil
 }
 
 func (s *Server) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.OrderList, error) {
-	orders, err := s.service.GetOrders(ctx, req.UserId)
+	orders, err := s.service.GetOrders(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orders: %w", err)
 	}
@@ -116,11 +129,11 @@ func (s *Server) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.O
 			Symbol:    order.Symbol,
 			Side:      string(order.Side),
 			Type:      string(order.Type),
-			Price:     order.Price,
-			Size:      order.Quantity,
+			Price:     order.Price.String(),
+			Size:      order.Size.String(),
 			Status:    string(order.Status),
-			CreatedAt: order.CreatedAt.UnixNano(),
-			UpdatedAt: order.UpdatedAt.UnixNano(),
+			CreatedAt: order.CreatedAt.Unix(),
+			UpdatedAt: order.UpdatedAt.Unix(),
 		}
 	}
 
@@ -128,14 +141,25 @@ func (s *Server) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.O
 }
 
 func (s *Server) ExecuteTrade(ctx context.Context, req *pb.Trade) (*pb.TradeResponse, error) {
-	trade := &trading.Trade{
+	price, err := decimal.NewFromString(req.Price)
+	if err != nil {
+		return nil, fmt.Errorf("invalid price: %w", err)
+	}
+
+	size, err := decimal.NewFromString(req.Size)
+	if err != nil {
+		return nil, fmt.Errorf("invalid size: %w", err)
+	}
+
+	trade := &types.Trade{
 		ID:        req.Id,
 		OrderID:   req.OrderId,
 		Symbol:    req.Symbol,
-		Price:     req.Price,
-		Quantity:  req.Size,
-		Side:      trading.OrderSide(req.Side),
-		Timestamp: time.Unix(0, req.Timestamp),
+		Price:     price,
+		Size:      size,
+		Side:      types.OrderSide(req.Side),
+		Provider:  "pump",
+		Timestamp: time.Unix(req.Timestamp, 0),
 	}
 
 	if err := s.service.ExecuteTrade(ctx, trade); err != nil {
@@ -149,7 +173,7 @@ func (s *Server) ExecuteTrade(ctx context.Context, req *pb.Trade) (*pb.TradeResp
 }
 
 func (s *Server) GetPosition(ctx context.Context, req *pb.GetPositionRequest) (*pb.Position, error) {
-	pos, err := s.service.GetPosition(ctx, req.UserId, req.Symbol)
+	pos, err := s.service.GetPosition(ctx, req.Symbol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get position: %w", err)
 	}
@@ -160,16 +184,16 @@ func (s *Server) GetPosition(ctx context.Context, req *pb.GetPositionRequest) (*
 
 	return &pb.Position{
 		Symbol:        pos.Symbol,
-		Size:          pos.Size,
-		EntryPrice:    pos.EntryPrice,
-		CurrentPrice:  pos.CurrentPrice,
-		UnrealizedPnl: pos.UnrealizedPnL,
-		RealizedPnl:   pos.RealizedPnL,
+		Size:          pos.Size.String(),
+		EntryPrice:    pos.EntryPrice.String(),
+		CurrentPrice:  pos.CurrentPrice.String(),
+		UnrealizedPnl: pos.UnrealizedPnL.String(),
+		RealizedPnl:   pos.RealizedPnL.String(),
 	}, nil
 }
 
 func (s *Server) GetPositions(ctx context.Context, req *pb.GetPositionsRequest) (*pb.PositionList, error) {
-	positions, err := s.service.GetPositions(ctx, req.UserId)
+	positions, err := s.service.GetPositions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get positions: %w", err)
 	}
@@ -178,11 +202,11 @@ func (s *Server) GetPositions(ctx context.Context, req *pb.GetPositionsRequest) 
 	for i, pos := range positions {
 		pbPositions[i] = &pb.Position{
 			Symbol:        pos.Symbol,
-			Size:          pos.Size,
-			EntryPrice:    pos.EntryPrice,
-			CurrentPrice:  pos.CurrentPrice,
-			UnrealizedPnl: pos.UnrealizedPnL,
-			RealizedPnl:   pos.RealizedPnL,
+			Size:          pos.Size.String(),
+			EntryPrice:    pos.EntryPrice.String(),
+			CurrentPrice:  pos.CurrentPrice.String(),
+			UnrealizedPnl: pos.UnrealizedPnL.String(),
+			RealizedPnl:   pos.RealizedPnL.String(),
 		}
 	}
 
@@ -199,22 +223,22 @@ func (s *Server) SubscribeOrderBook(req *pb.SubscribeOrderBookRequest, stream pb
 	for update := range updates {
 		pbUpdate := &pb.OrderBook{
 			Symbol:    update.Symbol,
-			Timestamp: update.Timestamp.UnixNano(),
+			Timestamp: time.Now().UnixNano(),
 		}
 
 		pbUpdate.Bids = make([]*pb.PriceLevel, len(update.Bids))
 		for i, bid := range update.Bids {
 			pbUpdate.Bids[i] = &pb.PriceLevel{
-				Price: bid.Price,
-				Size:  bid.Size,
+				Price: fmt.Sprintf("%f", bid.Price),
+				Size:  fmt.Sprintf("%f", bid.Amount),
 			}
 		}
 
 		pbUpdate.Asks = make([]*pb.PriceLevel, len(update.Asks))
 		for i, ask := range update.Asks {
 			pbUpdate.Asks[i] = &pb.PriceLevel{
-				Price: ask.Price,
-				Size:  ask.Size,
+				Price: fmt.Sprintf("%f", ask.Price),
+				Size:  fmt.Sprintf("%f", ask.Amount),
 			}
 		}
 

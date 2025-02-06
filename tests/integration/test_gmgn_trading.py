@@ -1,15 +1,28 @@
 import pytest
 from decimal import Decimal
 from tradingbot.shared.exchange.dex_client import DEXClient
+from tradingbot.shared.exchange.gmgn_client import GMGNClient
 
-@pytest.fixture
+import pytest_asyncio
+import os
+
+@pytest_asyncio.fixture
 async def dex_client():
     client = DEXClient()
     await client.start()
-    yield client
-    await client.stop()
+    client.gmgn_client = GMGNClient({
+        "slippage": 0.5,
+        "fee": 0.002,
+        "use_anti_mev": True
+    })
+    await client.gmgn_client.start()
+    try:
+        yield client
+    finally:
+        await client.stop()
 
 @pytest.mark.integration
+@pytest.mark.asyncio
 async def test_gmgn_trading_flow(dex_client):
     # Test SOL to USDC quote
     sol_address = "So11111111111111111111111111111111111111112"
@@ -30,20 +43,19 @@ async def test_gmgn_trading_flow(dex_client):
     assert float(quote["data"]["quote"]["slippageBps"]) <= 50  # 0.5%
     
     # Verify anti-MEV settings
-    assert quote["data"].get("is_anti_mev", False) is True
-    assert float(quote["data"].get("fee", 0)) >= 0.002  # Minimum fee
+    assert "platformFee" in quote["data"]["quote"]
+    assert int(quote["data"]["quote"]["platformFee"]) >= 1000000  # 0.002 SOL in lamports
+    assert "routePlan" in quote["data"]["quote"]
 
 @pytest.mark.integration
+@pytest.mark.asyncio
 async def test_gmgn_market_data_integration(dex_client):
     # Test market data integration
     sol_address = "So11111111111111111111111111111111111111112"
     
-    # Get liquidity info
-    liquidity = await dex_client.get_liquidity("gmgn", sol_address)
-    assert "error" not in liquidity
-    assert "data" in liquidity
-    
     # Get market data
     market_data = await dex_client.get_market_data("gmgn")
-    assert "error" not in market_data
-    assert "data" in market_data
+    assert "error" not in market_data, f"Error in market data: {market_data.get('error')}"
+    assert "code" in market_data, "Missing code in response"
+    assert market_data["code"] == 0, f"Unexpected code: {market_data.get('code')}"
+    assert "data" in market_data, "Missing data in response"

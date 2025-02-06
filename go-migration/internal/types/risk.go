@@ -24,6 +24,7 @@ type RiskConfig struct {
 	MaxLeverage        decimal.Decimal `yaml:"max_leverage"`
 	MinMarginLevel     decimal.Decimal `yaml:"min_margin_level"`
 	MaxConcentration   decimal.Decimal `yaml:"max_concentration"`
+	MinFee            *decimal.Decimal `yaml:"min_fee"`
 	StopLoss           struct {
 		Initial  decimal.Decimal `yaml:"initial"`
 		Trailing decimal.Decimal `yaml:"trailing"`

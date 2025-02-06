@@ -76,7 +76,7 @@ func (c *WSClient) Connect(ctx context.Context) error {
 		HandshakeTimeout: c.config.DialTimeout,
 		EnableCompression: true,
 		TLSClientConfig: nil,
-		Subprotocols:     []string{"pump.fun-api"},
+		Subprotocols:     []string{"v1.pump.trading"},
 	}
 
 	headers := http.Header{}
@@ -84,9 +84,9 @@ func (c *WSClient) Connect(ctx context.Context) error {
 	headers.Set("User-Agent", "pump-trading-bot/1.0")
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Accept", "application/json")
-	headers.Set("Origin", "https://pump.fun")
+	headers.Set("Origin", "https://pumpportal.fun")
 	
-	wsURL := strings.Replace(c.url, "https://", "wss://", 1) + "/ws"
+	wsURL := c.url
 	conn, resp, err := dialer.DialContext(ctx, wsURL, headers)
 	if err != nil {
 		metrics.APIErrors.WithLabelValues("websocket_connect").Inc()
@@ -109,10 +109,9 @@ func (c *WSClient) Connect(ctx context.Context) error {
 	// Initialize WebSocket connection with authentication
 	authMessage := map[string]interface{}{
 		"type": "auth",
-		"data": map[string]interface{}{
+		"auth": map[string]interface{}{
 			"key": c.config.APIKey,
 			"version": "1.0",
-			"client": "pump-trading-bot",
 		},
 	}
 	
@@ -121,52 +120,43 @@ func (c *WSClient) Connect(ctx context.Context) error {
 		return fmt.Errorf("failed to send auth message: %w", err)
 	}
 	
-	// Subscribe to token updates
+	// Wait for auth response
+	_, message, err := c.conn.ReadMessage()
+	if err != nil {
+		metrics.APIErrors.WithLabelValues("websocket_auth_response").Inc()
+		return fmt.Errorf("failed to read auth response: %w", err)
+	}
+
+	var authResponse struct {
+		Type    string `json:"type"`
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(message, &authResponse); err != nil {
+		metrics.APIErrors.WithLabelValues("websocket_auth_unmarshal").Inc()
+		return fmt.Errorf("failed to unmarshal auth response: %w", err)
+	}
+
+	if authResponse.Status != "success" {
+		metrics.APIErrors.WithLabelValues("websocket_auth_failed").Inc()
+		return fmt.Errorf("auth failed: %s", authResponse.Message)
+	}
+
+	// Subscribe to market data
 	c.initMessage = map[string]interface{}{
 		"type": "subscribe",
-		"channel": "trades",
+		"channel": "market",
 		"data": map[string]interface{}{
-			"market_cap_max": 30000,
-			"include_metadata": true,
 			"interval": "1m",
+			"include_trades": true,
+			"include_orderbook": true,
+			"include_metadata": true,
 		},
 	}
 	
 	if err := c.conn.WriteJSON(c.initMessage); err != nil {
 		metrics.APIErrors.WithLabelValues("websocket_subscribe").Inc()
 		return fmt.Errorf("failed to send subscription message: %w", err)
-	}
-	
-	// Subscribe to real-time trades and executions
-	tradeSubMessage := map[string]interface{}{
-		"type": "subscribe",
-		"channel": "trades",
-		"data": map[string]interface{}{
-			"interval": "1m",
-			"include_changes": true,
-			"market_cap_max": 30000,
-			"include_metadata": true,
-			"include_executions": true,
-		},
-	}
-	
-	if err := c.conn.WriteJSON(tradeSubMessage); err != nil {
-		metrics.APIErrors.WithLabelValues("websocket_trade_subscribe").Inc()
-		return fmt.Errorf("failed to send trade subscription message: %w", err)
-	}
-
-	// Subscribe to executions channel
-	execSubMessage := map[string]interface{}{
-		"type": "subscribe",
-		"channel": "executions",
-		"data": map[string]interface{}{
-			"include_metadata": true,
-		},
-	}
-	
-	if err := c.conn.WriteJSON(execSubMessage); err != nil {
-		metrics.APIErrors.WithLabelValues("websocket_execution_subscribe").Inc()
-		return fmt.Errorf("failed to send execution subscription message: %w", err)
 	}
 	
 	// Start ping/pong routine
@@ -294,26 +284,12 @@ func (c *WSClient) readPump() {
 
 			// Handle different event types
 			switch response.Type {
-			case "trade", "price", "token", "execution":
-				if response.Channel != "trades" && response.Channel != "tokens" && response.Channel != "executions" {
+			case "market", "token":
+				if response.Channel != "market" && response.Channel != "tokens" {
 					continue
 				}
 
-				if response.Type == "execution" {
-					if response.Error != nil {
-						c.logger.Error("Trade execution failed",
-							zap.Int("code", response.Error.Code),
-							zap.String("message", response.Error.Message))
-						metrics.APIErrors.WithLabelValues("trade_execution_failed").Inc()
-						continue
-					}
-					c.logger.Info("Trade execution successful",
-						zap.String("symbol", response.Data.Symbol),
-						zap.Float64("price", response.Data.Price),
-						zap.String("tx_hash", response.Data.TxHash))
-					metrics.APIErrors.WithLabelValues("trade_execution_success").Inc()
-					continue
-				}
+				// Market data only, no execution handling
 
 				tokenUpdate := &types.TokenUpdate{
 					Symbol:      response.Data.Symbol,
@@ -399,46 +375,41 @@ func (c *WSClient) Subscribe(methods []string) error {
 
 	c.conn.SetWriteDeadline(time.Now().Add(c.config.WriteTimeout))
 
-	for _, method := range methods {
-		var payload map[string]interface{}
-		
-		switch method {
-		case "subscribeNewToken":
-			payload = map[string]interface{}{
-				"type": "subscribe",
-				"channel": "tokens",
-				"data": map[string]interface{}{
-					"market_cap_max": 30000,
-					"include_metadata": true,
-					"include_changes": true,
-				},
-			}
-		case "subscribePrices":
-			payload = map[string]interface{}{
-				"type": "subscribe",
-				"channel": "trades",
-				"data": map[string]interface{}{
-					"interval": "1m",
-					"include_changes": true,
-					"include_metadata": true,
-					"market_cap_max": 30000,
-				},
-			}
-		default:
-			c.logger.Warn("Unknown subscription method", zap.String("method", method))
-			continue
-		}
-
-		if err := c.conn.WriteJSON(payload); err != nil {
-			metrics.APIErrors.WithLabelValues("websocket_subscribe").Inc()
-			return fmt.Errorf("failed to subscribe with method %s: %w", method, err)
-		}
-
-		c.logger.Info("Subscribed to pump.fun WebSocket",
-			zap.String("method", method),
-			zap.String("api_key_status", "verified"))
+	payload := map[string]interface{}{
+		"type": "subscribe",
+		"channel": "market",
+		"data": map[string]interface{}{
+			"symbols": methods,
+			"interval": "1m",
+			"include_trades": true,
+			"include_orderbook": true,
+			"include_metadata": true,
+		},
 	}
 
+	if err := c.conn.WriteJSON(payload); err != nil {
+		metrics.APIErrors.WithLabelValues("websocket_subscribe").Inc()
+		return fmt.Errorf("failed to send subscription message: %w", err)
+	}
+
+	if len(methods) > 0 && methods[0] == "subscribeNewToken" {
+		tokenPayload := map[string]interface{}{
+			"type": "subscribe",
+			"channel": "tokens",
+			"data": map[string]interface{}{
+				"interval": "1m",
+				"include_metadata": true,
+			},
+		}
+
+		if err := c.conn.WriteJSON(tokenPayload); err != nil {
+			metrics.APIErrors.WithLabelValues("websocket_token_subscribe").Inc()
+			return fmt.Errorf("failed to send token subscription message: %w", err)
+		}
+	}
+
+	c.logger.Info("Subscribed to PumpPortal WebSocket",
+		zap.Strings("methods", methods))
 	return nil
 }
 
@@ -486,35 +457,7 @@ func (c *WSClient) GetTokenUpdates() <-chan *types.TokenUpdate {
 }
 
 func (c *WSClient) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
-	if trade == nil {
-		return fmt.Errorf("trade cannot be nil")
-	}
-
-	payload := map[string]interface{}{
-		"type": "execute_trade",
-		"channel": "executions",
-		"data": map[string]interface{}{
-			"symbol": trade.Symbol,
-			"side":   string(trade.Side),
-			"size":   trade.Size.String(),
-			"price":  trade.Price.String(),
-		},
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.conn == nil {
-		return fmt.Errorf("websocket connection is not established")
-	}
-
-	if err := c.conn.WriteJSON(payload); err != nil {
-		metrics.APIErrors.WithLabelValues("trade_execution_failed").Inc()
-		return fmt.Errorf("failed to send trade execution message: %w", err)
-	}
-
-	metrics.APIKeyUsage.WithLabelValues("pump.fun", "trade_execution").Inc()
-	return nil
+	return fmt.Errorf("trading not supported via WebSocket, use HTTPS API instead")
 }
 
 func (c *WSClient) Close() error {
