@@ -121,9 +121,14 @@ class GMGNClient:
             message_bytes = bytes(tx.message)
             signature = wallet.sign_message(message_bytes)
             signature_bytes = bytes(signature)
-            tx.signatures = [bytes([x for x in signature_bytes[:64]])]
+            print(f"\nSignature bytes length: {len(signature_bytes)}")
+            print(f"First 64 bytes: {[x for x in signature_bytes[:64]]}")
+            tx.signatures = [[x for x in signature_bytes[:64]]]
             signed_tx = base64.b64encode(bytes(tx)).decode()
-            print(f"\nSigned transaction length: {len(signed_tx)}")
+            print(f"Signed transaction length: {len(signed_tx)}")
+            print(f"Transaction signatures: {tx.signatures}")
+            print(f"Original transaction length: {len(tx_buf)}")
+            print(f"Signed transaction bytes: {[x for x in bytes(tx)[:64]]}")
             
             # Submit transaction with anti-MEV protection if enabled
             endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
