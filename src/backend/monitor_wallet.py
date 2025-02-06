@@ -16,14 +16,12 @@ async def monitor_wallet_and_trades():
         wallet = WalletManager()
         key = os.environ.get("walletkey")
         if not key:
-            logger.error("walletkey not set")
+            logger.error("Missing required configuration")
             return
             
-        address = str(wallet._keypair.pubkey())
         balance = await wallet.get_balance()
-        
-        logger.info(f"Wallet Address: {address}")
-        logger.info(f"Current Balance: {balance} SOL")
+        if balance is not None:
+            logger.info("Service initialized")
     except Exception as e:
         logger.error(f"Failed to initialize wallet: {e}")
         return
