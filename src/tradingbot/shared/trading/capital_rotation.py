@@ -2,8 +2,7 @@ import logging
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from ..exchange.dex_client import DEXClient
-from ..exchange.dex_client import TradeType
+from ..exchange.dex_client import DEXClient, TradeType
 
 logger = logging.getLogger(__name__)
 
