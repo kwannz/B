@@ -3,7 +3,7 @@ import base64
 from decimal import Decimal
 import aiohttp
 import os
-from solders.transaction import Transaction
+from solders.transaction import Transaction, VersionedTransaction
 
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
@@ -112,7 +112,7 @@ class GMGNClient:
                 
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
             # Parse and sign transaction with wallet
-            tx = Transaction.from_bytes(tx_buf)
+            tx = VersionedTransaction.from_bytes(tx_buf)
             tx.sign([wallet])  # Sign with wallet keypair
             signed_tx = base64.b64encode(bytes(tx)).decode()
             
