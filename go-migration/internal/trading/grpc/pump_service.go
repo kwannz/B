@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/kwanRoshi/B/go-migration/internal/metrics"
 	"github.com/kwanRoshi/B/go-migration/internal/trading"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/executor"
@@ -18,47 +19,48 @@ import (
 type PumpTradingService struct {
 	pb.UnimplementedTradingServiceServer
 	logger    *zap.Logger
-	executor  *executor.PumpExecutor
+	executor  executor.TradingExecutor
 	riskMgr   types.RiskManager
-	service   *trading.Service
 }
 
-func NewPumpTradingService(logger *zap.Logger, executor *executor.PumpExecutor, riskMgr types.RiskManager, service *trading.Service) *PumpTradingService {
+func NewPumpTradingService(logger *zap.Logger, executor executor.TradingExecutor, riskMgr types.RiskManager) *PumpTradingService {
 	return &PumpTradingService{
 		logger:   logger,
 		executor: executor,
 		riskMgr:  riskMgr,
-		service:  service,
 	}
 }
 
-func (s *PumpTradingService) PlaceOrder(ctx context.Context, order *pb.Order) (*pb.OrderResponse, error) {
-	return s.service.PlaceOrder(ctx, order)
-}
-
-func (s *PumpTradingService) CancelOrder(ctx context.Context, req *pb.CancelOrderRequest) (*pb.OrderResponse, error) {
-	return s.service.CancelOrder(ctx, req)
-}
-
-func (s *PumpTradingService) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Order, error) {
-	return s.service.GetOrder(ctx, req)
-}
-
-func (s *PumpTradingService) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.OrderList, error) {
-	return s.service.GetOrders(ctx, req)
-}
-
 func (s *PumpTradingService) ExecuteTrade(ctx context.Context, trade *pb.Trade) (*pb.TradeResponse, error) {
+	size, err := decimal.NewFromString(trade.Size)
+	if err != nil {
+		return &pb.TradeResponse{
+			TradeId: trade.Id,
+			Status:  "failed",
+			Message: fmt.Sprintf("invalid size: %v", err),
+		}, nil
+	}
+
+	price, err := decimal.NewFromString(trade.Price)
+	if err != nil {
+		return &pb.TradeResponse{
+			TradeId: trade.Id,
+			Status:  "failed",
+			Message: fmt.Sprintf("invalid price: %v", err),
+		}, nil
+	}
+
 	signal := &types.Signal{
 		Symbol:    trade.Symbol,
-		Size:      trade.Size,
-		Price:     trade.Price,
+		Size:      size,
+		Price:     price,
 		Timestamp: time.Unix(trade.Timestamp, 0),
 	}
 
 	if err := s.executor.ExecuteTrade(ctx, signal); err != nil {
 		metrics.PumpTradeExecutions.WithLabelValues("grpc_failed").Inc()
 		return &pb.TradeResponse{
+			TradeId: trade.Id,
 			Status:  "failed",
 			Message: fmt.Sprintf("failed to execute trade: %v", err),
 		}, nil
@@ -103,8 +105,4 @@ func (s *PumpTradingService) GetPositions(ctx context.Context, req *pb.GetPositi
 	return &pb.PositionList{
 		Positions: pbPositions,
 	}, nil
-}
-
-func (s *PumpTradingService) SubscribeOrderBook(req *pb.SubscribeOrderBookRequest, stream pb.TradingService_SubscribeOrderBookServer) error {
-	return s.service.SubscribeOrderBook(req, stream)
 }
