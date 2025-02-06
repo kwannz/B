@@ -75,6 +75,35 @@ async def get_trades():
     except Exception as e:
         return {"error": "Database error", "detail": str(e)}
 
+@app.get("/api/v1/risk/metrics")
+async def get_risk_metrics():
+    try:
+        positions = await app.state.db.positions.find().to_list(None)
+        total_exposure = sum(float(p["size"]) * float(p["current_price"]) for p in positions)
+        margin_used = total_exposure * 0.1  # 10% margin requirement
+        daily_pnl = sum(float(p["unrealized_pnl"]) for p in positions)
+        
+        risk_metrics = {
+            "total_exposure": total_exposure,
+            "margin_used": margin_used,
+            "daily_pnl": daily_pnl,
+            "timestamp": datetime.utcnow()
+        }
+        await app.state.db.risk_metrics.update_one(
+            {"timestamp": {"$gte": datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)}},
+            {"$set": risk_metrics},
+            upsert=True
+        )
+        return risk_metrics
+    except Exception as e:
+        logger.error(f"Error calculating risk metrics: {e}")
+        return {
+            "total_exposure": 0.0,
+            "margin_used": 0.0,
+            "daily_pnl": 0.0,
+            "timestamp": datetime.utcnow()
+        }
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -101,5 +130,5 @@ async def websocket_endpoint(websocket: WebSocket):
                     })
             await websocket.send_json({"status": "received", "timestamp": datetime.utcnow().isoformat()})
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        logger.error(f"WebSocket error: {e}")
         await websocket.close()
