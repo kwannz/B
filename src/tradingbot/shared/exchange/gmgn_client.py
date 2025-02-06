@@ -118,9 +118,17 @@ class GMGNClient:
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
             # Parse transaction and prepare for signing
             tx = VersionedTransaction.from_bytes(tx_buf)
+            message_bytes = bytes(tx.message)
             
-            # Sign the transaction directly with the wallet
-            tx.sign([wallet])
+            # Sign the message and prepare signature
+            signature = wallet.sign_message(message_bytes)
+            sig_bytes = bytes(signature)[:64]
+            sig_array = [int(x) for x in sig_bytes]  # Convert to list of integers
+            
+            # Create a new transaction with our signature
+            tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
+            tx.signatures = []  # Clear any existing signatures
+            tx.signatures.append(sig_array)  # Add our signature as list of integers
             
             # Verify signature before sending
             try:
@@ -131,13 +139,16 @@ class GMGNClient:
                 print(f"Public key: {wallet.pubkey()}")
                 print(f"Transaction message: {tx.message}")
                 print(f"Transaction version: {tx.version}")
-                print(f"Transaction signatures: {[bytes(s).hex() for s in tx.signatures]}")
+                print(f"Transaction signatures: {[bytes(bytearray(s)).hex() for s in tx.signatures]}")
+                print(f"Signature type: {type(tx.signatures[0])}")
+                print(f"Signature length: {len(tx.signatures[0])}")
             
             # Encode and submit transaction
             signed_tx = base64.b64encode(bytes(tx)).decode()
             print(f"\nTransaction details:")
             print(f"- Transaction length: {len(signed_tx)}")
-            print(f"- Transaction signatures: {[bytes(s).hex() for s in tx.signatures]}")
+            print(f"- Message length: {len(message_bytes)}")
+            print(f"- Transaction signatures: {[bytes(bytearray(s)).hex() for s in tx.signatures]}")
             
             # Submit transaction with anti-MEV protection if enabled
             endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
