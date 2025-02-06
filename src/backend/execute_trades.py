@@ -8,6 +8,9 @@ from solders.keypair import Keypair
 from tradingbot.backend.trading_agent.agents.wallet_manager import WalletManager
 from tradingbot.shared.exchange.gmgn_client import GMGNClient
 from tradingbot.shared.exchange.jupiter_client import JupiterClient
+from tradingbot.shared.exchange.solscan_client import SolscanClient
+from tradingbot.shared.exchange.price_aggregator import PriceAggregator
+from tradingbot.shared.exchange.solscan_client import SolscanClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,12 +47,18 @@ async def execute_trades():
             logger.error(f"Failed to initialize wallet: {e}")
             return
 
-        # Initialize Jupiter client for market data
-        jupiter_client = JupiterClient({
-            "slippage_bps": 200,  # 2% slippage
-            "retry_count": 3,
-            "retry_delay": 1000,  # 1s initial delay
-            "min_success_rate": 0.8
+        # Initialize price aggregator for market data
+        price_aggregator = PriceAggregator({
+            "jupiter": {
+                "slippage_bps": 200,  # 2% slippage
+                "retry_count": 3,
+                "retry_delay": 1000
+            },
+            "solscan": {
+                "api_key": os.getenv("SOLSCAN_API_KEY")
+            },
+            "max_price_diff": 0.05,
+            "circuit_breaker": 0.10
         })
         
         # Initialize GMGN client for trading execution
@@ -64,7 +73,7 @@ async def execute_trades():
         })
         
         try:
-            await jupiter_client.start()
+            await price_aggregator.start()
             await trading_client.start()
             logger.info("Trading clients initialized successfully")
         except Exception as e:
@@ -90,20 +99,32 @@ async def execute_trades():
                     token_in = "So11111111111111111111111111111111111111112"  # SOL token address
                     token_out = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC token address
                     
-                    # Get market data from Jupiter API
-                    market_data = await jupiter_client.get_quote(
-                        input_mint=token_in,
-                        output_mint=token_out,
-                        amount=int(position_size * 1e9)  # Convert SOL to lamports
+                    # Get aggregated market data
+                    market_data = await price_aggregator.get_aggregated_price(
+                        token_in=token_in,
+                        token_out=token_out,
+                        amount=position_size
                     )
+                    
                     if "error" in market_data:
-                        logger.error(f"Failed to get market data from Jupiter: {market_data['error']}")
-                        await asyncio.sleep(60)
+                        logger.error(f"Failed to get market data: {market_data['error']}")
+                        if "Circuit breaker triggered" in market_data.get("error", ""):
+                            logger.error(f"Price difference: {market_data.get('price_diff', 0):.2%}")
+                            logger.error(f"Jupiter: {market_data.get('jupiter_price', 0)}, Solscan: {market_data.get('solscan_price', 0)}")
+                            await asyncio.sleep(300)  # Wait longer for price stabilization
+                        else:
+                            await asyncio.sleep(60)
                         continue
                         
-                    # Calculate price from Jupiter quote
-                    price = float(market_data["outAmount"]) / (float(market_data["inAmount"]) * 1e3)  # Convert to USDC/SOL
-                    logger.info(f"Got price from Jupiter: {price} USDC/SOL")
+                    if market_data.get("price_diff", 0) > 0.05:
+                        logger.warning(f"Large price difference detected: {market_data['price_diff']:.2%}")
+                        logger.warning(f"Jupiter: {market_data['price']}, Solscan: {market_data['validation_price']}")
+                        
+                    quote = market_data["quote"]
+                        
+                    # Use validated price from aggregator
+                    price = market_data["price"]
+                    logger.info(f"Using validated price: {price} USDC/SOL (diff: {market_data.get('price_diff', 0):.2%})")
                     
                     # Get quote for the trade with retry logic
                     retry_count = 3
@@ -222,8 +243,8 @@ async def execute_trades():
     finally:
         if trading_client:
             await trading_client.stop()
-        if jupiter_client:
-            await jupiter_client.stop()
+        if price_aggregator:
+            await price_aggregator.stop()
         mongo_client.close()
         logger.info("Trade execution stopped, resources cleaned up")
 
