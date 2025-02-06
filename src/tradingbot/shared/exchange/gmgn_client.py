@@ -123,25 +123,26 @@ class GMGNClient:
             # Sign the message and prepare signature
             signature = wallet.sign_message(message_bytes)
             sig_bytes = bytes(signature)[:64]
-            sig_array = [int(x) for x in sig_bytes]  # Convert to list of integers
             
             # Create a new transaction with our signature
             tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
             tx.signatures = []  # Clear any existing signatures
-            tx.signatures.append(sig_array)  # Add our signature as list of integers
+            tx.signatures.append(list(sig_bytes))  # Add our signature as list of bytes
             
-            # Verify signature before sending
-            try:
-                tx.verify()
+            # Verify signature using public key and message hash
+            pubkey_bytes = bytes(wallet.pubkey())
+            message_hash = Hash.default().update(message_bytes).finalize()
+            sig = Signature.from_bytes(sig_bytes)
+            is_valid = sig.verify(pubkey_bytes, message_hash)
+            
+            if is_valid:
                 print("\nTransaction signature verified successfully")
-            except Exception as e:
-                print(f"\nTransaction signature verification failed: {e}")
+            else:
+                print("\nTransaction signature verification failed")
                 print(f"Public key: {wallet.pubkey()}")
                 print(f"Transaction message: {tx.message}")
                 print(f"Transaction version: {tx.version}")
                 print(f"Transaction signatures: {[bytes(bytearray(s)).hex() for s in tx.signatures]}")
-                print(f"Signature type: {type(tx.signatures[0])}")
-                print(f"Signature length: {len(tx.signatures[0])}")
             
             # Encode and submit transaction
             signed_tx = base64.b64encode(bytes(tx)).decode()
