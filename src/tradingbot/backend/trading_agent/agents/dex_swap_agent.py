@@ -44,16 +44,14 @@ class DexSwapAgent(BaseTradingAgent):
         ma_slow = ta.sma(prices, length=self.ma_slow)
 
         return {
-            "rsi": rsi.iloc[-1] if not rsi.empty else None,
-            "ma_fast": ma_fast.iloc[-1] if not ma_fast.empty else None,
-            "ma_slow": ma_slow.iloc[-1] if not ma_slow.empty else None,
+            "rsi": float(rsi.iloc[-1]) if rsi is not None and not rsi.empty else None,
+            "ma_fast": float(ma_fast.iloc[-1]) if ma_fast is not None and not ma_fast.empty else None,
+            "ma_slow": float(ma_slow.iloc[-1]) if ma_slow is not None and not ma_slow.empty else None,
             "ma_cross": (
-                (
-                    ma_fast.iloc[-2] < ma_slow.iloc[-2]
-                    and ma_fast.iloc[-1] > ma_slow.iloc[-1]
-                )
-                if not (ma_fast.empty or ma_slow.empty)
-                else False
+                ma_fast is not None and ma_slow is not None and
+                not ma_fast.empty and not ma_slow.empty and
+                float(ma_fast.iloc[-2]) < float(ma_slow.iloc[-2]) and
+                float(ma_fast.iloc[-1]) > float(ma_slow.iloc[-1])
             ),
         }
 
@@ -209,7 +207,7 @@ class DexSwapAgent(BaseTradingAgent):
                         "quote_details": {
                             "price": quote.get("price"),
                             "minimum_out": quote.get("minimum_out"),
-                            "platform": quote.get("platform", "jupiter")
+                            "platform": quote.get("platform", "gmgn")
                         }
                     }
                 )

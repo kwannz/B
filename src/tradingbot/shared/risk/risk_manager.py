@@ -293,7 +293,7 @@ class RiskManager:
                         expected_return=0.0,
                         risk_reward_ratio=0.0,
                         market_conditions_alignment=float(swap_metrics.liquidity_score),
-                        recommendations=list(swap_metrics.recommendations.values()),
+                        recommendations=list(swap_metrics.recommendations.values()) if swap_metrics.recommendations else [],
                         reason="Swap risk level too high",
                         market_impact=float(swap_metrics.market_impact),
                         expected_slippage=float(swap_metrics.expected_slippage),
@@ -2967,7 +2967,7 @@ class RiskManager:
                 correlation_factor=correlation,
                 risk_level=risk_level,
                 confidence_score=Decimal("0.85"),
-                market_data_source=params.get("market_data_source", "jupiter"),
+                market_data_source=params.get("market_data_source", "gmgn"),
                 is_stale=params.get("is_stale", False),
                 rate_limit_info=await self._check_rate_limit(f"swap:{params.get('symbol', 'unknown')}"),
                 recommendations=self._get_swap_recommendations(locals())

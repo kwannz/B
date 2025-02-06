@@ -13,13 +13,18 @@ from .metrics import (
     TRADE_COUNT,
     TRADE_VOLUME
 )
-from ..services.jupiter import jupiter_service
-
 logger = logging.getLogger(__name__)
 
 class MonitoringService:
     def __init__(self):
         self._running = False
+        self.dex_client = None
+
+    async def initialize(self):
+        """Initialize DEX client."""
+        from ...shared.exchange.dex_client import DEXClient
+        self.dex_client = DEXClient()
+        await self.dex_client.start()
         self._task: Optional[asyncio.Task] = None
         
     async def start(self):
@@ -70,11 +75,12 @@ class MonitoringService:
                 # Update market metrics for active markets
                 markets = ["SOL/USDC", "BONK/SOL", "JUP/SOL"]
                 for market in markets:
-                    market_data = await jupiter_service.get_market_data(market)
-                    update_market_metrics(
-                        market=market,
-                        price=market_data.price,
-                        volume=market_data.volume_24h
+                    market_data = await self.dex_client.get_market_data("gmgn", market)
+                    if "error" not in market_data:
+                        update_market_metrics(
+                            market=market,
+                            price=market_data.get("price", 0),
+                            volume=market_data.get("volume_24h", 0)
                     )
                 
                 logger.debug("Metrics updated successfully")
