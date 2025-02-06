@@ -39,8 +39,8 @@ type Config struct {
 
 // NewProvider creates a new Pump.fun provider
 func NewProvider(config Config, logger *zap.Logger) *Provider {
-	baseURL := "https://pumpportal.fun"
-	wsURL := "wss://pumpportal.fun/ws/trades"
+	baseURL := "https://api.gmgn.fun"
+	wsURL := "wss://api.gmgn.fun/ws/trades"
 	
 	if config.BaseURL != "" {
 		baseURL = config.BaseURL
@@ -283,7 +283,7 @@ func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.B
 
 // GetNewTokens fetches new tokens from the API
 func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenMarketInfo, error) {
-	url := fmt.Sprintf("%s/api/v1/price/all", p.baseURL)
+	url := fmt.Sprintf("%s/api/v1/price/list", p.baseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

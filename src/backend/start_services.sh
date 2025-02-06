@@ -11,7 +11,7 @@ check_process() {
 }
 
 # Set environment variables
-export PYTHONPATH=/home/ubuntu/repos/B
+export PYTHONPATH=/home/ubuntu/repos/B/src
 export POSTGRES_DB=tradingbot
 export POSTGRES_USER=postgres
 export POSTGRES_PASSWORD=trading_postgres_pass_123
@@ -20,10 +20,24 @@ export POSTGRES_PORT=5432
 export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
 export PUMP_API_KEY="${walletkey}"
 
-# Start Monitoring Service
-echo "=== Starting Monitoring Service ==="
-cd /home/ubuntu/repos/B/go-migration/cmd/verify_monitor
-go run main.go &
+# Install package in development mode
+cd /home/ubuntu/repos/B/src/tradingbot
+pip install -e . || {
+    echo "Failed to install tradingbot package"
+    exit 1
+}
+
+# Initialize database if needed
+cd /home/ubuntu/repos/B/src/backend
+python init_db.py || {
+    echo "Failed to initialize database"
+    exit 1
+}
+
+# Start Backend API with monitoring
+echo "=== Starting Backend API with Monitoring ==="
+cd /home/ubuntu/repos/B/src/backend
+python -m uvicorn monitor:app --host 0.0.0.0 --port 8001 &
 MONITOR_PID=$!
 
 # Wait for monitor to start
@@ -33,16 +47,16 @@ if ! check_process $MONITOR_PID; then
     exit 1
 fi
 
-# Start Trading Executor
-echo "=== Starting Trading Executor ==="
-cd /home/ubuntu/repos/B/go-migration/cmd/execute_trading
-go run main.go &
-EXECUTOR_PID=$!
+# Start Trading Service
+echo "=== Starting Trading Service ==="
+cd /home/ubuntu/repos/B/src/backend
+python -m uvicorn trading:app --host 0.0.0.0 --port 8002 &
+TRADING_PID=$!
 
-# Wait for executor to start
+# Wait for trading to start
 sleep 5
-if ! check_process $EXECUTOR_PID; then
-    echo "Failed to start Trading Executor"
+if ! check_process $TRADING_PID; then
+    echo "Failed to start Trading Service"
     kill $MONITOR_PID
     exit 1
 fi

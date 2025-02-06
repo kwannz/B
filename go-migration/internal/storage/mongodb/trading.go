@@ -2,6 +2,8 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,6 +17,19 @@ type TradingStorage struct {
 	client *mongo.Client
 	db     string
 	logger *zap.Logger
+}
+
+// Initialize initializes the storage collections
+func (s *TradingStorage) Initialize() error {
+	ctx := context.Background()
+	collections := []string{"orders", "trades", "positions"}
+	for _, col := range collections {
+		err := s.client.Database(s.db).CreateCollection(ctx, col)
+		if err != nil && !strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("failed to create collection %s: %w", col, err)
+		}
+	}
+	return nil
 }
 
 // NewTradingStorage creates a new trading storage

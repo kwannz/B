@@ -88,7 +88,12 @@ from tradingbot.api.services.responses import (
     TradeListResponse,
     TradeResponse,
 )
-from tradingbot.backend.ai_model import AIModel
+HAS_AI_MODEL = False
+try:
+    from tradingbot.backend.ai_model import AIModel
+    HAS_AI_MODEL = True
+except ImportError:
+    AIModel = None
 from tradingbot.api.websocket.handler import (
     broadcast_limit_update,
     broadcast_order_update,
@@ -159,18 +164,21 @@ async def shutdown_event() -> None:
 async def analyze_market(market_data: MarketData) -> dict:
     try:
         logger.info(f"Received market data for analysis: {market_data.symbol}")
-        model = AIModel()
-        analysis_request = {
-            "symbol": market_data.symbol,
-            "price": market_data.price,
-            "volume": market_data.volume,
-            "indicators": market_data.metadata.get("indicators", {}),
-        }
-        try:
-            analysis = await model.analyze_data(analysis_request)
-        except Exception as model_err:
-            logger.error(f"Model error: {model_err}")
-            raise HTTPException(status_code=500, detail="Market analysis failed")
+        if not HAS_AI_MODEL:
+            analysis = {"status": "AI model not available"}
+        else:
+            model = AIModel()
+            analysis_request = {
+                "symbol": market_data.symbol,
+                "price": market_data.price,
+                "volume": market_data.volume,
+                "indicators": market_data.metadata.get("indicators", {}),
+            }
+            try:
+                analysis = await model.analyze_data(analysis_request)
+            except Exception as model_err:
+                logger.error(f"Model error: {model_err}")
+                analysis = {"status": "AI model error", "error": str(model_err)}
 
         try:
             db = await get_mongodb()
