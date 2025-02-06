@@ -164,8 +164,10 @@ class GMGNClient:
                             return {"error": "CloudFlare protection active"}
                         
                         response_data = await response.json()
-                        if response.status == 200 and "data" in response_data and "hash" in response_data["data"]:
-                            return response_data
+                        if response.status == 200:
+                            if "data" in response_data and "hash" in response_data["data"]:
+                                return {"signature": response_data["data"]["hash"]}
+                            return {"error": "Response missing transaction hash"}
                         return {
                             "error": "Failed to submit transaction",
                             "status": response.status,
