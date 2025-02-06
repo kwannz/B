@@ -76,14 +76,17 @@ class MonitoringService:
                 # Update market metrics for active markets
                 markets = ["SOL/USDC", "BONK/SOL", "JUP/SOL"]
                 for market in markets:
+                    market_data = {"error": "No DEX client"}
                     if self.dex_client:
-                        market_data = await self.dex_client.get_market_data(market)
+                        market_data = await self.dex_client.get_market_data("gmgn")
                     if "error" not in market_data:
+                        price = float(market_data.get("price", 0))
+                        volume = float(market_data.get("volume_24h", 0))
                         update_market_metrics(
                             market=market,
-                            price=market_data.get("price", 0),
-                            volume=market_data.get("volume_24h", 0)
-                    )
+                            price=price,
+                            volume=volume
+                        )
                 
                 logger.debug("Metrics updated successfully")
             except Exception as e:
