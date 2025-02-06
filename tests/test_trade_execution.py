@@ -106,12 +106,6 @@ async def test_trade_execution():
             except Exception as e:
                 logger.error(f"Transaction validation error: {e}")
                 return
-                # Get final balance
-                final_balance = await wallet.get_balance()
-                logger.info(f"Final balance: {final_balance} SOL")
-                logger.info(f"Balance change: {final_balance - balance} SOL")
-            else:
-                logger.error(f"Transaction validation failed - status: {status.value[0].confirmation_status}")
                 
         finally:
             await trading_client.stop()
