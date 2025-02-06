@@ -116,16 +116,14 @@ class GMGNClient:
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
             # Parse and sign transaction with wallet
             tx = VersionedTransaction.from_bytes(tx_buf)
-            signature = Signature.from_bytes(wallet.sign_message(bytes(tx.message)))
-            tx.signatures.append(signature)
+            signature_bytes = wallet.sign_message(bytes(tx.message))
+            signature = Signature.from_bytes(signature_bytes)
+            tx.signatures = [signature]
             signed_tx = base64.b64encode(bytes(tx)).decode()
             
             # Submit transaction with anti-MEV protection if enabled
-            endpoint = (
-                "/tx/submit_signed_bundle_transaction" 
-                if self.use_anti_mev else 
-                "/tx/submit_signed_transaction"
-            )
+            endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
+            print(f"\nSubmitting transaction to {self.base_url}{endpoint}")
             
             async with self.session.post(
                 f"{self.base_url}{endpoint}",
