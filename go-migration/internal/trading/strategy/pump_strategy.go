@@ -11,19 +11,20 @@ import (
 
 	"github.com/kwanRoshi/B/go-migration/internal/metrics"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/interfaces"
 )
 
 type PumpStrategy struct {
 	logger      *zap.Logger
 	config      *types.PumpTradingConfig
-	executor    types.PumpExecutor
+	executor    interfaces.Executor
 	positions   map[string]*types.Position
 	mu          sync.RWMutex
 	isRunning   bool
 	updateChan  chan *types.TokenUpdate
 }
 
-func NewPumpStrategy(config *types.PumpTradingConfig, executor types.PumpExecutor, logger *zap.Logger) *PumpStrategy {
+func NewPumpStrategy(config *types.PumpTradingConfig, executor interfaces.Executor, logger *zap.Logger) *PumpStrategy {
 	return &PumpStrategy{
 		logger:     logger,
 		config:     config,
@@ -166,8 +167,6 @@ func (s *PumpStrategy) ProcessUpdate(update *types.TokenUpdate) error {
 }
 
 func (s *PumpStrategy) ExecuteTrade(ctx context.Context, signal *types.Signal) error {
-	return s.executor.ExecuteTrade(ctx, signal)
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

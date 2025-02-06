@@ -4,7 +4,9 @@ import base64
 from decimal import Decimal
 from solana.transaction import Transaction
 
+import pytest
 from tradingbot.shared.exchange.gmgn_client import GMGNClient
+from tradingbot.shared.exchange.dex_client import DEXClient
 
 @pytest.fixture
 async def gmgn_client():

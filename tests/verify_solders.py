@@ -2,12 +2,8 @@ from solders.hash import Hash
 from solders.keypair import Keypair
 from solders.transaction import VersionedTransaction
 
-def verify_solders():
-    """Verify that solders packages can be imported correctly."""
-    print("Successfully imported solders packages:")
-    print("- solders.hash.Hash")
-    print("- solders.keypair.Keypair")
-    print("- solders.transaction.VersionedTransaction")
-
-if __name__ == "__main__":
-    verify_solders()
+def test_verify_solders():
+    """Test that solders packages can be imported correctly."""
+    assert Hash is not None, "Failed to import solders.hash.Hash"
+    assert Keypair is not None, "Failed to import solders.keypair.Keypair"
+    assert VersionedTransaction is not None, "Failed to import solders.transaction.VersionedTransaction"
