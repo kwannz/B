@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/storage"
 	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/market/pump"
@@ -87,7 +88,16 @@ func main() {
 		},
 	}
 
-	engine := trading.NewEngine(logger, riskMgr)
+	tradingConfig := trading.Config{
+		Commission:     0.001,
+		MinOrderSize:   0.1,
+		RiskMultiplier: 1.0,
+		MaxDrawdown:    0.15,
+	}
+
+	storage := storage.NewMemoryStorage()
+	engine := trading.NewEngine(tradingConfig, logger, storage)
+	
 	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskMgr, pumpConfig, apiKey)
 	if err := pumpExecutor.Start(); err != nil {
 		logger.Fatal("Failed to start pump executor", zap.Error(err))
@@ -99,7 +109,8 @@ func main() {
 		logger.Fatal("Failed to initialize pump strategy", zap.Error(err))
 	}
 
-	engine.RegisterStrategy("pump_fun", pumpStrategy)
+	engine.RegisterExecutor("pump_fun", pumpExecutor)
+	engine.RegisterStrategy(pumpStrategy)
 
 	updates := monitor.GetUpdates()
 	signals := make(chan *types.Signal, 100)
@@ -120,8 +131,8 @@ func main() {
 
 	go func() {
 		for signal := range signals {
-			if err := engine.ExecuteStrategyTrade(ctx, pumpStrategy, signal); err != nil {
-				logger.Error("Failed to execute trade",
+			if err := engine.ProcessSignal(ctx, signal); err != nil {
+				logger.Error("Failed to process trading signal",
 					zap.Error(err),
 					zap.String("symbol", signal.Symbol))
 			}
