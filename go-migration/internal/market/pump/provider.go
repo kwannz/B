@@ -71,7 +71,7 @@ func NewProvider(config Config, logger *zap.Logger) *Provider {
 
 // GetPrice implements MarketDataProvider interface
 func (p *Provider) GetPrice(ctx context.Context, symbol string) (float64, error) {
-	url := fmt.Sprintf("%s/api/v1/price/%s", p.baseURL, symbol)
+	url := fmt.Sprintf("%s/api/v1/price/%s/current", p.baseURL, symbol)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -283,7 +283,7 @@ func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.B
 
 // GetNewTokens fetches new tokens from the API
 func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenMarketInfo, error) {
-	url := fmt.Sprintf("%s/api/v1/price/latest", p.baseURL)
+	url := fmt.Sprintf("%s/api/v1/price/all", p.baseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
