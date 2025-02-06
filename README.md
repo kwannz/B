@@ -20,9 +20,9 @@ Before setting up the application, ensure you have the following installed:
 
 - Python 3.12
 - Go 1.23
-- Node.js 16 or higher
-- npm (Node Package Manager)
-- PostgreSQL 12 or higher
+- Node.js 18.19.0 LTS
+- npm 10.2.3
+- PostgreSQL 14.10
 - Docker and Docker Compose
 - Git
 - GitHub CLI (for CI/CD setup)
