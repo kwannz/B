@@ -44,10 +44,13 @@ async def execute_trades():
             return
 
         # Verify initial balance and set trading limits
-        min_balance = 0.1  # Minimum 0.1 SOL required
+        min_balance = 0.01  # Minimum 0.01 SOL required
         if balance < min_balance:
             logger.error(f"Insufficient balance: {balance} SOL (minimum required: {min_balance} SOL)")
             return
+            
+        # Set position size to 10% of balance for smaller trades
+        max_position_size = balance * 0.1
         
         logger.info("Trading system initialized successfully")
 
