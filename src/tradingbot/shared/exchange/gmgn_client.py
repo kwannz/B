@@ -129,20 +129,33 @@ class GMGNClient:
             tx.signatures = []  # Clear any existing signatures
             tx.signatures.append(list(sig_bytes))  # Add our signature as list of bytes
             
-            # Verify signature using public key and message hash
-            pubkey_bytes = bytes(wallet.pubkey())
-            message_hash = Hash.default().update(message_bytes).finalize()
-            sig = Signature.from_bytes(sig_bytes)
-            is_valid = sig.verify(pubkey_bytes, message_hash)
+            # Sign the transaction
+            tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
+            tx.signatures = []  # Clear any existing signatures
+            tx.signatures.append(list(sig_bytes))  # Add our signature as list of bytes
             
-            if is_valid:
-                print("\nTransaction signature verified successfully")
-            else:
-                print("\nTransaction signature verification failed")
-                print(f"Public key: {wallet.pubkey()}")
-                print(f"Transaction message: {tx.message}")
-                print(f"Transaction version: {tx.version}")
-                print(f"Transaction signatures: {[bytes(bytearray(s)).hex() for s in tx.signatures]}")
+            # Encode and submit transaction
+            signed_tx = base64.b64encode(bytes(tx)).decode()
+            
+            # Submit transaction with anti-MEV protection if enabled
+            endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
+            print(f"\nSubmitting transaction to {self.base_url}{endpoint}")
+            
+            async with self.session.post(
+                f"{self.base_url}{endpoint}",
+                json={"signed_tx": signed_tx}
+            ) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    print(f"Transaction submitted successfully: {result}")
+                    return result
+                error_text = await response.text()
+                print(f"Transaction submission failed: {error_text}")
+                return {
+                    "error": "Failed to submit transaction",
+                    "status": response.status,
+                    "message": error_text
+                }
             
             # Encode and submit transaction
             signed_tx = base64.b64encode(bytes(tx)).decode()
