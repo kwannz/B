@@ -8,7 +8,7 @@ from solders.transaction import Transaction
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
         self.session = None
-        self.base_url = "https://api.gmgn.ai/v1/solana"
+        self.base_url = "https://gmgn.ai/defi/router/v1/sol"
         self.api_key = os.environ.get('walletkey')
         self.wallet_pubkey = None  # Will be set during initialization
         self.slippage = Decimal(str(config.get("slippage", "0.5")))
@@ -48,29 +48,32 @@ class GMGNClient:
             
         lamports_amount = int(amount * 1e9)  # Convert SOL to lamports
         params = {
-            "inputMint": token_in,
-            "outputMint": token_out,
+            "fromToken": token_in,
+            "toToken": token_out,
             "amount": str(lamports_amount),
-            "slippageBps": int(float(self.slippage) * 100),  # Convert to basis points
-            "walletAddress": self.wallet_address or "",
-            "useAntiMev": self.use_anti_mev,
-            "feeBps": int(float(self.fee) * 10000)  # Convert to basis points
+            "slippage": str(float(self.slippage)),
+            "antiMEV": str(self.use_anti_mev).lower(),
+            "fee": str(float(self.fee)),
+            "walletAddress": self.wallet_pubkey or ""
         }
         
         try:
-            print(f"\nAttempting to get quote from {self.base_url}/dex/quote")
+            print(f"\nAttempting to get quote from {self.base_url}/swap/quote")
             # Update params with wallet pubkey
             params["wallet_address"] = self.wallet_pubkey or ""
             
             async with self.session.post(
-                f"{self.base_url}/dex/quote",
+                f"{self.base_url}/swap/quote",
                 json=params,
                 headers={
-                    "X-API-Key": self.api_key,
+                    "Authorization": f"Bearer {self.api_key}",
                     "Accept": "application/json",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Origin": "https://gmgn.ai",
+                    "Referer": "https://gmgn.ai/",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                 },
-                ssl=False
+                verify_ssl=False
             ) as response:
                 response_text = await response.text()
                 print(f"\nResponse status: {response.status}")
