@@ -126,8 +126,7 @@ func (m *Monitor) checkThresholds(ctx context.Context) error {
 	}
 
 	// Check positions
-	ctx := context.Background()
-	positions, err := m.engine.GetPositions(ctx)
+	positions, err := m.engine.GetPositions(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to get positions: %w", err)
 	}

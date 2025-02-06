@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
-	"github.com/kwanRoshi/B/go-migration/internal/trading"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/interfaces"
 	"github.com/kwanRoshi/B/go-migration/internal/market"
 )
 
@@ -28,7 +28,7 @@ type Server struct {
 	config     Config
 	upgrader   websocket.Upgrader
 	logger     *zap.Logger
-	engine     trading.TradingEngine
+	engine     interfaces.TradingEngine
 	market     *market.Handler
 	clients    map[*Client]bool
 	register   chan *Client
@@ -44,7 +44,7 @@ type Client struct {
 	userID string
 }
 
-func NewServer(config Config, logger *zap.Logger, engine trading.TradingEngine, market *market.Handler) *Server {
+func NewServer(config Config, logger *zap.Logger, engine interfaces.TradingEngine, market *market.Handler) *Server {
 	return &Server{
 		config: config,
 		upgrader: websocket.Upgrader{

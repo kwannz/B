@@ -12,7 +12,6 @@ import (
 
 	pb "github.com/kwanRoshi/B/go-migration/proto"
 	"github.com/kwanRoshi/B/go-migration/internal/trading"
-	. "github.com/kwanRoshi/B/go-migration/internal/trading"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
@@ -152,13 +151,14 @@ func (s *Server) ExecuteTrade(ctx context.Context, req *pb.Trade) (*pb.TradeResp
 		return nil, fmt.Errorf("invalid size: %w", err)
 	}
 
-	trade := &trading.Trade{
+	trade := &types.Trade{
 		ID:        req.Id,
 		OrderID:   req.OrderId,
 		Symbol:    req.Symbol,
-		Price:     price.InexactFloat64(),
-		Quantity:  size.InexactFloat64(),
-		Side:      OrderSide(req.Side),
+		Price:     price,
+		Size:      size,
+		Side:      types.OrderSide(req.Side),
+		Provider:  "pump",
 		Timestamp: time.Unix(req.Timestamp, 0),
 	}
 
@@ -230,7 +230,7 @@ func (s *Server) SubscribeOrderBook(req *pb.SubscribeOrderBookRequest, stream pb
 		for i, bid := range update.Bids {
 			pbUpdate.Bids[i] = &pb.PriceLevel{
 				Price: fmt.Sprintf("%f", bid.Price),
-				Size:  fmt.Sprintf("%f", bid.Quantity),
+				Size:  fmt.Sprintf("%f", bid.Amount),
 			}
 		}
 
@@ -238,7 +238,7 @@ func (s *Server) SubscribeOrderBook(req *pb.SubscribeOrderBookRequest, stream pb
 		for i, ask := range update.Asks {
 			pbUpdate.Asks[i] = &pb.PriceLevel{
 				Price: fmt.Sprintf("%f", ask.Price),
-				Size:  fmt.Sprintf("%f", ask.Quantity),
+				Size:  fmt.Sprintf("%f", ask.Amount),
 			}
 		}
 
