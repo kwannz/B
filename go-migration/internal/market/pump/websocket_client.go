@@ -403,8 +403,7 @@ func (c *WSClient) Subscribe(methods []string) error {
 		var payload map[string]interface{}
 		
 		switch {
-		case strings.HasPrefix(method, "market."):
-			symbol := strings.TrimPrefix(method, "market.")
+		case strings.Contains(method, "/"):
 			payload = map[string]interface{}{
 				"type": "subscribe",
 				"channel": "trades",
@@ -413,7 +412,7 @@ func (c *WSClient) Subscribe(methods []string) error {
 					"version": "1.0",
 				},
 				"data": map[string]interface{}{
-					"symbol": symbol,
+					"symbol": strings.ReplaceAll(method, "/", "_"),
 					"interval": "1m",
 					"include_changes": true,
 					"include_metadata": true,
