@@ -39,8 +39,8 @@ type Config struct {
 
 // NewProvider creates a new Pump.fun provider
 func NewProvider(config Config, logger *zap.Logger) *Provider {
-	baseURL := "https://pumpportal.fun"
-	wsURL := "wss://pumpportal.fun/ws/market/pump"
+	baseURL := "https://rpc.api-pump.fun"
+	wsURL := "wss://rpc.api-pump.fun/ws"
 	
 	if config.BaseURL != "" {
 		baseURL = config.BaseURL
@@ -71,7 +71,7 @@ func NewProvider(config Config, logger *zap.Logger) *Provider {
 
 // GetPrice implements MarketDataProvider interface
 func (p *Provider) GetPrice(ctx context.Context, symbol string) (float64, error) {
-	url := fmt.Sprintf("%s/api/v1/price/%s/current", p.baseURL, symbol)
+	url := fmt.Sprintf("%s/v1/price/pump/%s", p.baseURL, symbol)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -186,7 +186,7 @@ func (p *Provider) SubscribePrices(ctx context.Context, symbols []string) (<-cha
 
 // GetHistoricalPrices implements MarketDataProvider interface
 func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, interval string, limit int) ([]types.PriceUpdate, error) {
-	url := fmt.Sprintf("%s/api/v1/historical/%s?interval=%s&limit=%d",
+	url := fmt.Sprintf("%s/v1/history/pump/%s?interval=%s&limit=%d",
 		p.baseURL, symbol, interval, limit)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -283,7 +283,7 @@ func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.B
 
 // GetNewTokens fetches new tokens from the API
 func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenMarketInfo, error) {
-	url := fmt.Sprintf("%s/api/v1/price/all", p.baseURL)
+	url := fmt.Sprintf("%s/v1/price/pump/all", p.baseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
