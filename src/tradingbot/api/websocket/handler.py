@@ -25,6 +25,7 @@ class ConnectionManager:
             "risk": set(),
             "analysis": set(),
             "orders": set(),
+            "agent_status": set(),
         }
         self.rate_limits: Dict[str, Dict] = {}
         self.message_queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
@@ -158,23 +159,24 @@ class ConnectionManager:
 
     def _validate_message(self, message: dict) -> bool:
         """验证消息格式和内容"""
-        # 检查基本消息格式
+        # Check basic message format
         if not isinstance(message, dict) or "type" not in message:
             return False
 
-        # 检查消息类型是否有效
+        # Check message type
         valid_types = {
             "trade",
             "position",
             "metrics",
             "test",
             "market",
-            "broadcast",  # 移除invalid类型
+            "broadcast",
+            "ping",  # Add ping type for test messages
         }
         if message["type"] not in valid_types:
             return False
 
-        # 如果没有data字段，添加空的data
+        # Add empty data field if missing
         if "data" not in message:
             message["data"] = {}
 
@@ -251,17 +253,33 @@ manager = ConnectionManager()
 async def handle_websocket(websocket: WebSocket, channel: str):
     await manager.connect(websocket, channel)
     try:
+        # Send initial status for agent_status channel
+        if channel == "agent_status":
+            await websocket.send_json({
+                "type": "agent_status",
+                "data": {
+                    "agent_type": "trading",
+                    "status": "running"
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            })
+
         while True:
             try:
                 data = await websocket.receive_text()
-                # 处理接收到的消息
                 message = json.loads(data)
                 if manager._validate_message(message):
                     logger.debug(f"Received message on channel {channel}: {data}")
+                    if message["type"] == "ping":
+                        await websocket.send_json({
+                            "type": "pong",
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
+                    else:
+                        logger.debug(f"Processing message type: {message['type']}")
                 else:
                     logger.warning(f"Invalid message received on channel {channel}")
             except WebSocketDisconnect:
-                manager.disconnect(websocket, channel)
                 break
             except json.JSONDecodeError:
                 logger.error("Invalid JSON message received")
@@ -274,9 +292,18 @@ async def handle_websocket(websocket: WebSocket, channel: str):
 
 async def broadcast_trade_update(trade_data: dict):
     """广播交易更新"""
+    # Convert numeric values to float for serialization
+    data = trade_data.copy()
+    for key in ['quantity', 'entry_price', 'exit_price', 'take_profit', 'stop_loss', 'leverage']:
+        if key in data and data[key] is not None:
+            try:
+                data[key] = float(data[key])
+            except (TypeError, ValueError):
+                pass
+
     message = {
         "type": "trade",
-        "data": trade_data,
+        "data": data,
         "timestamp": datetime.utcnow().isoformat(),
     }
     await manager.broadcast(message, "trades")

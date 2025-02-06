@@ -16,12 +16,10 @@ class TestServer:
         self.server_task: Optional[asyncio.Task] = None
         self._started = asyncio.Event()
         self._should_exit = False
-
-    async def start(self):
-        config = uvicorn.Config(
-            self.app,
-            host=self.host,
-            port=self.port,
+        self._config = uvicorn.Config(
+            app=app,
+            host=host,
+            port=port,
             log_level="debug",
             reload=False,
             workers=1,
@@ -29,29 +27,30 @@ class TestServer:
             ws_ping_timeout=None,
             loop="asyncio"
         )
-        server = uvicorn.Server(config)
-        server.install_signal_handlers = lambda: None
-        server.should_exit = lambda: self._should_exit
+        self._server = uvicorn.Server(config=self._config)
 
-        async def serve():
-            await server.startup()
+    async def start(self):
+        self._server.install_signal_handlers = lambda: None
+        self._server.should_exit = lambda: self._should_exit
+
+        async def run_server():
             self._started.set()
-            await server.main_loop()
-            await server.shutdown()
+            await asyncio.sleep(0.1)  # Give event loop time to process
+            await self._server.serve()
 
-        self.server_task = asyncio.create_task(serve())
+        self.server_task = asyncio.create_task(run_server())
         await self._started.wait()
-        
+
         # Wait for server to be ready
         retries = 30
         while retries > 0:
             try:
-                client = TestClient(self.app)
-                response = client.get("/health")
-                if response.status_code in (200, 503):
-                    return
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(f"http://{self.host}:{self.port}/health")
+                    if response.status_code in (200, 503):
+                        return
             except Exception as e:
-                logger.error(f"Server startup error: {e}")
+                logger.debug(f"Server not ready yet: {e}")
             retries -= 1
             await asyncio.sleep(0.1)
         raise RuntimeError("Server failed to start")
