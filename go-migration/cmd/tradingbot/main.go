@@ -170,6 +170,14 @@ func main() {
 		APIKey:       apiKey,
 	}
 	
+	wsConfig := ws.Config{
+		Port:           viper.GetInt("server.websocket.port"),
+		PingInterval:   viper.GetDuration("server.websocket.ping_interval"),
+		PongWait:       viper.GetDuration("server.websocket.pong_wait"),
+		WriteWait:      10 * time.Second,
+		MaxMessageSize: 1024 * 1024, // 1MB
+	}
+
 	tradingConfig := &types.PumpTradingConfig{
 		MaxMarketCap: decimal.NewFromFloat(30000),
 		MinVolume:    decimal.NewFromFloat(1000),
