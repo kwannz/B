@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional
 import base64
 from decimal import Decimal
 import aiohttp
-from solana.transaction import VersionedTransaction
+from solana.transaction import Transaction
 
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
@@ -59,7 +59,7 @@ class GMGNClient:
             
         try:
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
-            tx = VersionedTransaction.deserialize(tx_buf)
+            tx = Transaction.deserialize(tx_buf)
             tx.sign([wallet.payer])
             signed_tx = base64.b64encode(tx.serialize()).decode()
             
