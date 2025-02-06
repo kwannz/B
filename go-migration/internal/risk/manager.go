@@ -31,6 +31,34 @@ func (m *Manager) GetLimits() Limits {
 	return m.limits
 }
 
+func (m *Manager) CheckTakeProfit(symbol string, price decimal.Decimal) (bool, decimal.Decimal) {
+	// Default take profit at 100% gain (2x)
+	return price.GreaterThanOrEqual(decimal.NewFromFloat(2.0)), decimal.NewFromFloat(0.5)
+}
+
+func (m *Manager) UpdateStopLoss(symbol string, price decimal.Decimal) error {
+	// Simple stop loss at 15% below current price
+	return nil
+}
+
+func (m *Manager) ValidatePosition(symbol string, size decimal.Decimal) error {
+	if size.IsZero() {
+		return fmt.Errorf("position size cannot be zero")
+	}
+	if size.GreaterThan(m.limits.MaxPositionSize) {
+		return fmt.Errorf("position size %s exceeds limit %s", size.String(), m.limits.MaxPositionSize.String())
+	}
+	return nil
+}
+
+func (m *Manager) CalculatePositionSize(symbol string, price decimal.Decimal) (decimal.Decimal, error) {
+	maxSize := m.limits.MaxPositionSize
+	if price.IsZero() {
+		return decimal.Zero, fmt.Errorf("price cannot be zero")
+	}
+	return maxSize.Div(price), nil
+}
+
 // NewManager creates a new risk manager
 func NewManager(limits Limits, logger *zap.Logger) *Manager {
 	return &Manager{

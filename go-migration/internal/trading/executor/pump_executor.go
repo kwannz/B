@@ -3,7 +3,6 @@ package executor
 import (
     "context"
     "fmt"
-    "strings"
     "sync"
 
     "github.com/shopspring/decimal"
@@ -76,28 +75,40 @@ func (e *PumpExecutor) ExecuteTrade(ctx context.Context, signal *types.Signal) e
         return fmt.Errorf("executor not running")
     }
 
-    // Verify API key
     if err := e.verifyAPIKey(); err != nil {
         metrics.APIErrors.WithLabelValues("api_key_verification").Inc()
         return fmt.Errorf("API key verification failed: %w", err)
     }
 
-    // Validate position against risk limits
-    if err := e.riskMgr.ValidatePosition(signal.Symbol, signal.Amount); err != nil {
+    size, err := e.riskMgr.CalculatePositionSize(signal.Symbol, signal.Price)
+    if err != nil {
+        metrics.PumpTradeExecutions.WithLabelValues("size_calculation_failed").Inc()
+        return fmt.Errorf("position size calculation failed: %w", err)
+    }
+
+    if err := e.riskMgr.ValidatePosition(signal.Symbol, size); err != nil {
         metrics.PumpTradeExecutions.WithLabelValues("risk_rejected").Inc()
         return fmt.Errorf("risk validation failed: %w", err)
     }
 
-    // Calculate stop loss and take profit levels
-    stopLoss := signal.Price.Mul(decimal.NewFromFloat(0.85))  // 15% stop loss
-    takeProfits := []decimal.Decimal{
-        signal.Price.Mul(decimal.NewFromFloat(2.0)),  // 2x take profit (20%)
-        signal.Price.Mul(decimal.NewFromFloat(3.0)),  // 3x take profit (25%)
-        signal.Price.Mul(decimal.NewFromFloat(5.0)),  // 5x take profit (20%)
+    stopLossPercent := decimal.NewFromFloat(0.15)
+    stopLoss := signal.Price.Mul(decimal.NewFromFloat(1).Sub(stopLossPercent))
+
+    takeProfitLevels := []struct {
+        price    decimal.Decimal
+        quantity decimal.Decimal
+    }{
+        {signal.Price.Mul(decimal.NewFromFloat(2.0)), size.Mul(decimal.NewFromFloat(0.20))},
+        {signal.Price.Mul(decimal.NewFromFloat(3.0)), size.Mul(decimal.NewFromFloat(0.25))},
+        {signal.Price.Mul(decimal.NewFromFloat(5.0)), size.Mul(decimal.NewFromFloat(0.20))},
     }
 
-    // Execute trade through provider
-    if err := e.provider.ExecuteOrder(ctx, signal.Symbol, signal.Type, signal.Amount, signal.Price, &stopLoss, takeProfits); err != nil {
+    takeProfits := make([]decimal.Decimal, len(takeProfitLevels))
+    for i, level := range takeProfitLevels {
+        takeProfits[i] = level.price
+    }
+
+    if err := e.provider.ExecuteOrder(ctx, signal.Symbol, signal.Type, size, signal.Price, &stopLoss, takeProfits); err != nil {
         metrics.PumpTradeExecutions.WithLabelValues("failed").Inc()
         return fmt.Errorf("trade execution failed: %w", err)
     }
@@ -124,6 +135,11 @@ func (e *PumpExecutor) ExecuteTrade(ctx context.Context, signal *types.Signal) e
     metrics.PumpTradeExecutions.WithLabelValues("success").Inc()
     metrics.TokenVolume.WithLabelValues("pump.fun", signal.Symbol).Add(signal.Amount.InexactFloat64())
     metrics.PumpPositionSize.WithLabelValues(signal.Symbol).Set(position.Size.InexactFloat64())
+    
+    // Calculate and record unrealized PnL
+    currentPrice := signal.Price
+    unrealizedPnL := position.Size.Mul(currentPrice.Sub(position.EntryPrice))
+    metrics.PumpUnrealizedPnL.WithLabelValues(signal.Symbol).Set(unrealizedPnL.InexactFloat64())
 
     e.logger.Info("trade executed successfully",
         zap.String("symbol", signal.Symbol),
@@ -162,4 +178,8 @@ func (e *PumpExecutor) verifyAPIKey() error {
     
     metrics.APIKeyUsage.WithLabelValues("pump.fun", "verification").Inc()
     return nil
+}
+
+func (e *PumpExecutor) GetRiskManager() types.PumpRiskManager {
+    return e.riskMgr.(types.PumpRiskManager)
 }

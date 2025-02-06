@@ -133,9 +133,9 @@ func (m *Monitor) checkThresholds(ctx context.Context) error {
 
 	for _, pos := range positions {
 		// Check drawdown
-		if pos.UnrealizedPnL < 0 {
-			drawdown := -pos.UnrealizedPnL / (pos.Size * pos.EntryPrice)
-			if drawdown > m.thresholds.maxDrawdown.InexactFloat64() {
+		if pos.UnrealizedPnL.IsNegative() {
+			drawdown := pos.UnrealizedPnL.Neg().Div(pos.Size.Mul(pos.EntryPrice))
+			if drawdown.GreaterThan(m.thresholds.maxDrawdown) {
 				m.sendAlert(&Alert{
 					Type:      AlertDrawdownLimit,
 					Symbol:    pos.Symbol,
@@ -147,10 +147,10 @@ func (m *Monitor) checkThresholds(ctx context.Context) error {
 		}
 
 		// Check position size
-		totalValue := pos.Size * pos.CurrentPrice
-		portfolioValue := m.engine.GetTotalValue()
-		if portfolioValue > 0 {
-			positionPct := totalValue / portfolioValue
+		totalValue := pos.Size.Mul(pos.CurrentPrice)
+		portfolioValue := decimal.NewFromFloat(m.engine.GetTotalValue())
+		if portfolioValue.IsPositive() {
+			positionPct := totalValue.Div(portfolioValue)
 			if positionPct.GreaterThan(m.thresholds.maxPositionPct) {
 				m.sendAlert(&Alert{
 					Type:      AlertPositionLimit,

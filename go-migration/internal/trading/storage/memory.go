@@ -12,12 +12,20 @@ type MemoryStorage struct {
 	mu        sync.RWMutex
 	positions map[string]*types.Position
 	trades    map[string][]*types.Trade
+	orders    map[string]*types.Order
+}
+
+func (s *MemoryStorage) GetOrder(ctx context.Context, orderID string) (*types.Order, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.orders[orderID], nil
 }
 
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
 		positions: make(map[string]*types.Position),
 		trades:    make(map[string][]*types.Trade),
+		orders:    make(map[string]*types.Order),
 	}
 }
 

@@ -38,7 +38,7 @@ type Config struct {
 }
 
 // NewProvider creates a new Pump.fun provider
-func NewProvider(config Config, logger *zap.Logger, wsConfig WSConfig) *Provider {
+func NewProvider(config Config, logger *zap.Logger) *Provider {
 	baseURL := "https://frontend-api.pump.fun"
 	wsURL := "wss://frontend-api.pump.fun/ws"
 	
@@ -55,7 +55,15 @@ func NewProvider(config Config, logger *zap.Logger, wsConfig WSConfig) *Provider
 			Timeout: time.Duration(config.TimeoutSec) * time.Second,
 		},
 		baseURL:      baseURL,
-		wsClient:     NewWSClient(wsURL, logger, wsConfig),
+	wsClient:     NewWSClient(wsURL, logger, types.WSConfig{
+		APIKey:       config.APIKey,
+		DialTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  60 * time.Second,
+		PongWait:     60 * time.Second,
+		PingInterval: 15 * time.Second,
+		MaxRetries:   5,
+	}),
 		tokenMonitor: NewTokenMonitor(baseURL, logger),
 		apiKey:       config.APIKey,
 	}
@@ -90,9 +98,9 @@ func (p *Provider) GetPrice(ctx context.Context, symbol string) (float64, error)
 
 	var result struct {
 		Data struct {
-			Price  float64 `json:"price"`
-			Volume float64 `json:"volume"`
-			Time   int64   `json:"timestamp"`
+			Price  decimal.Decimal `json:"price"`
+			Volume decimal.Decimal `json:"volume"`
+			Time   int64          `json:"timestamp"`
 		} `json:"data"`
 	}
 
@@ -100,7 +108,7 @@ func (p *Provider) GetPrice(ctx context.Context, symbol string) (float64, error)
 		return 0, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return result.Data.Price, nil
+	return result.Data.Price.InexactFloat64(), nil
 }
 
 // SubscribePrices implements MarketDataProvider interface
@@ -274,7 +282,7 @@ func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.B
 }
 
 // GetNewTokens fetches new tokens from the API
-func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenInfo, error) {
+func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenMarketInfo, error) {
 	url := fmt.Sprintf("%s/trades/latest", p.baseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -339,12 +347,12 @@ func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenInfo, error)
 		return nil, fmt.Errorf("API error: %s (code: %d)", response.Error.Message, response.Error.Code)
 	}
 
-	tokens := make([]*types.TokenInfo, 0, len(response.Data))
+	tokens := make([]*types.TokenMarketInfo, 0, len(response.Data))
 	for _, t := range response.Data {
 		if t.MarketCap > 30000 {
 			continue
 		}
-		token := &types.TokenInfo{
+		token := &types.TokenMarketInfo{
 			Symbol:    t.Symbol,
 			Price:     decimal.NewFromFloat(t.Price),
 			Volume:    decimal.NewFromFloat(t.Volume),
@@ -360,8 +368,8 @@ func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenInfo, error)
 }
 
 // SubscribeNewTokens implements MarketDataProvider interface
-func (p *Provider) SubscribeNewTokens(ctx context.Context) (<-chan *types.TokenInfo, error) {
-	updates := make(chan *types.TokenInfo, 100)
+func (p *Provider) SubscribeNewTokens(ctx context.Context) (<-chan *types.TokenMarketInfo, error) {
+	updates := make(chan *types.TokenMarketInfo, 100)
 
 	go func() {
 		defer close(updates)

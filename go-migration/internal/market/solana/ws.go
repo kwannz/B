@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
-
+	"github.com/shopspring/decimal"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
@@ -153,11 +153,11 @@ func (c *WSClient) handleMessages() {
 				continue
 			}
 
-			// Create price update
+			// Create price update with decimal conversion
 			update := &types.PriceUpdate{
 				Symbol:    data.Symbol,
-				Price:     data.Price,
-				Volume:    data.Volume,
+				Price:     decimal.NewFromFloat(data.Price),
+				Volume:    decimal.NewFromFloat(data.Volume),
 				Timestamp: time.Unix(data.Timestamp/1000, 0),
 			}
 

@@ -15,24 +15,25 @@ import (
 
 type PumpStrategy struct {
 	logger      *zap.Logger
-	config      *types.PumpConfig
-	riskMgr     types.RiskManager
+	config      *types.PumpTradingConfig
+	executor    types.PumpExecutor
 	positions   map[string]*types.Position
 	mu          sync.RWMutex
 	isRunning   bool
 	updateChan  chan *types.TokenUpdate
 }
 
-func NewPumpStrategy(config *types.PumpConfig, logger *zap.Logger) *PumpStrategy {
+func NewPumpStrategy(config *types.PumpTradingConfig, executor types.PumpExecutor, logger *zap.Logger) *PumpStrategy {
 	return &PumpStrategy{
 		logger:     logger,
 		config:     config,
+		executor:   executor,
 		positions:  make(map[string]*types.Position),
 		updateChan: make(chan *types.TokenUpdate, 1000),
 	}
 }
 
-func (s *PumpStrategy) Evaluate(ctx context.Context, token *types.TokenInfo) (bool, error) {
+func (s *PumpStrategy) Evaluate(ctx context.Context, token *types.TokenMarketInfo) (bool, error) {
 	if token.MarketCap.GreaterThan(s.config.MaxMarketCap) {
 		return false, nil
 	}
@@ -43,8 +44,8 @@ func (s *PumpStrategy) Evaluate(ctx context.Context, token *types.TokenInfo) (bo
 }
 
 func (s *PumpStrategy) CalculatePositionSize(price decimal.Decimal) (decimal.Decimal, error) {
-	maxSize := s.config.RiskConfig.MaxPositionSize
-	minSize := s.config.RiskConfig.MinPositionSize
+	maxSize := s.config.Risk.MaxPositionSize
+	minSize := s.config.Risk.MinPositionSize
 	size := maxSize.Div(price)
 	if size.LessThan(minSize) {
 		return minSize, nil
@@ -53,11 +54,11 @@ func (s *PumpStrategy) CalculatePositionSize(price decimal.Decimal) (decimal.Dec
 }
 
 func (s *PumpStrategy) ValidatePosition(size decimal.Decimal) error {
-	if size.LessThan(s.config.RiskConfig.MinPositionSize) {
-		return fmt.Errorf("position size %s below minimum %s", size, s.config.RiskConfig.MinPositionSize)
+	if size.LessThan(s.config.Risk.MinPositionSize) {
+		return fmt.Errorf("position size %s below minimum %s", size, s.config.Risk.MinPositionSize)
 	}
-	if size.GreaterThan(s.config.RiskConfig.MaxPositionSize) {
-		return fmt.Errorf("position size %s above maximum %s", size, s.config.RiskConfig.MaxPositionSize)
+	if size.GreaterThan(s.config.Risk.MaxPositionSize) {
+		return fmt.Errorf("position size %s above maximum %s", size, s.config.Risk.MaxPositionSize)
 	}
 	return nil
 }
@@ -123,12 +124,12 @@ func (s *PumpStrategy) ProcessUpdate(update *types.TokenUpdate) error {
 	price := decimal.NewFromFloat(update.Price)
 	
 	if position != nil {
-		if err := s.riskMgr.UpdateStopLoss(update.Symbol, price); err != nil {
+		if err := s.executor.GetRiskManager().UpdateStopLoss(update.Symbol, price); err != nil {
 			metrics.APIErrors.WithLabelValues("pump_update_stop_loss").Inc()
 			return NewPumpStrategyError(OpUpdateStopLoss, update.Symbol, "failed to update stop loss", err)
 		}
 
-		shouldTakeProfit, percentage := s.riskMgr.CheckTakeProfit(update.Symbol, price)
+		shouldTakeProfit, percentage := s.executor.GetRiskManager().CheckTakeProfit(update.Symbol, price)
 		if shouldTakeProfit {
 			sellAmount := position.Size.Mul(percentage)
 			signal := &types.Signal{
@@ -147,7 +148,7 @@ func (s *PumpStrategy) ProcessUpdate(update *types.TokenUpdate) error {
 		return nil
 	}
 
-	size, err := s.riskMgr.CalculatePositionSize(update.Symbol, price)
+	size, err := s.executor.GetRiskManager().CalculatePositionSize(update.Symbol, price)
 	if err != nil {
 		return NewPumpStrategyError(OpCalculatePosition, update.Symbol, "failed to calculate position size", err)
 	}
@@ -165,8 +166,7 @@ func (s *PumpStrategy) ProcessUpdate(update *types.TokenUpdate) error {
 }
 
 func (s *PumpStrategy) ExecuteTrade(ctx context.Context, signal *types.Signal) error {
-	metrics.GetPumpMetrics().TradeExecutions.WithLabelValues("success").Inc()
-	return nil
+	return s.executor.ExecuteTrade(ctx, signal)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -206,10 +206,12 @@ func (s *PumpStrategy) ExecuteTrade(ctx context.Context, signal *types.Signal) e
 	return nil
 }
 
-func (s *PumpStrategy) GetConfig() *types.PumpConfig {
+func (s *PumpStrategy) Name() string {
+	return "pump_fun"
+}
+
+func (s *PumpStrategy) GetConfig() *types.PumpTradingConfig {
 	return s.config
 }
 
-func (s *PumpStrategy) GetRiskManager() types.PumpRiskManager {
-	return s.riskMgr
-}
+// GetRiskManager is removed since it's no longer part of the PumpStrategy interface

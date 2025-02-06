@@ -25,22 +25,12 @@ type WSClient struct {
 	done        chan struct{}
 	updates     chan *types.TokenUpdate
 	trades      chan *types.Trade
-	config      WSConfig
+	config      types.WSConfig
 	initMessage map[string]interface{}
 	// metrics field removed as we're using global metrics
 }
 
-type WSConfig struct {
-	APIKey         string
-	DialTimeout    time.Duration
-	WriteTimeout   time.Duration
-	ReadTimeout    time.Duration
-	PongWait       time.Duration
-	PingInterval   time.Duration
-	MaxRetries     int
-}
-
-func NewWSClient(url string, logger *zap.Logger, config WSConfig) *WSClient {
+func NewWSClient(url string, logger *zap.Logger, config types.WSConfig) *WSClient {
 	if config.PingInterval == 0 {
 		config.PingInterval = 15 * time.Second
 	}
@@ -564,4 +554,14 @@ func (c *WSClient) Close() error {
 	metrics.APIKeyUsage.WithLabelValues("pump.fun", "websocket_closed").Inc()
 	c.logger.Info("WebSocket connection closed successfully")
 	return nil
+}
+
+func (c *WSClient) IsConnected() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.conn != nil
+}
+
+func (c *WSClient) GetTrades() <-chan *types.Trade {
+	return c.trades
 }

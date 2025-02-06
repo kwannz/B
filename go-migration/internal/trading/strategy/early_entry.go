@@ -26,7 +26,7 @@ func NewEarlyEntryStrategy(config *EarlyEntryConfig, provider *pump.Provider, lo
 	}
 }
 
-func (s *EarlyEntryStrategy) Evaluate(ctx context.Context, token *types.TokenInfo) (bool, error) {
+func (s *EarlyEntryStrategy) Evaluate(ctx context.Context, token *types.TokenMarketInfo) (bool, error) {
 	if token.MarketCap.GreaterThan(s.config.MaxMarketCap) {
 		s.logger.Debug("Token market cap above threshold",
 			zap.String("symbol", token.Symbol),

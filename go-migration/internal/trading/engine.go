@@ -1,11 +1,15 @@
 package trading
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
-	"github.com/kwanRoshi/B/go-migration/internal/types"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
+
+	"github.com/kwanRoshi/B/go-migration/internal/trading/executor"
+	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
 // Engine manages trading operations
@@ -15,8 +19,50 @@ type Engine struct {
 	storage    Storage
 	positions  map[string]*types.Position
 	orders     map[string]*types.Order
+	strategies map[string]Strategy
+	executors  map[string]executor.TradingExecutor
 	mu         sync.RWMutex
 	totalValue float64
+}
+
+func (e *Engine) RegisterExecutor(name string, exec executor.TradingExecutor) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	
+	if e.executors == nil {
+		e.executors = make(map[string]executor.TradingExecutor)
+	}
+	e.executors[name] = exec
+}
+
+func (e *Engine) RegisterStrategy(strategy Strategy) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	
+	if e.strategies == nil {
+		e.strategies = make(map[string]Strategy)
+	}
+	e.strategies[strategy.Name()] = strategy
+}
+
+func (e *Engine) ProcessSignal(ctx context.Context, signal *types.Signal) error {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	if signal.Provider == "" {
+		return fmt.Errorf("signal provider not specified")
+	}
+
+	executor, ok := e.executors[signal.Provider]
+	if !ok {
+		return fmt.Errorf("executor %s not found", signal.Provider)
+	}
+
+	if err := executor.ExecuteTrade(ctx, signal); err != nil {
+		return fmt.Errorf("failed to execute trade: %w", err)
+	}
+
+	return nil
 }
 
 // NewEngine creates a new trading engine
@@ -27,6 +73,8 @@ func NewEngine(config Config, logger *zap.Logger, storage Storage) *Engine {
 		storage:    storage,
 		positions:  make(map[string]*types.Position),
 		orders:     make(map[string]*types.Order),
+		strategies: make(map[string]Strategy),
+		executors:  make(map[string]executor.TradingExecutor),
 		totalValue: 0,
 	}
 }
@@ -116,13 +164,16 @@ func (e *Engine) GetPositions() []*types.Position {
 // Internal methods
 
 func (e *Engine) validateOrder(order *types.Order) error {
-	if order.Quantity < e.config.MinOrderSize {
-		return fmt.Errorf("order size too small: %f < %f",
-			order.Quantity, e.config.MinOrderSize)
+	minSize := decimal.NewFromFloat(e.config.MinOrderSize)
+	maxSize := decimal.NewFromFloat(e.config.MaxOrderSize)
+
+	if order.Size.LessThan(minSize) {
+		return fmt.Errorf("order size too small: %v < %v",
+			order.Size, minSize)
 	}
-	if order.Quantity > e.config.MaxOrderSize {
-		return fmt.Errorf("order size too large: %f > %f",
-			order.Quantity, e.config.MaxOrderSize)
+	if order.Size.GreaterThan(maxSize) {
+		return fmt.Errorf("order size too large: %v > %v",
+			order.Size, maxSize)
 	}
 	return nil
 }

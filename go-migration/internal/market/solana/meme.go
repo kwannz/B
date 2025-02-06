@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/types"
@@ -106,8 +107,8 @@ func (c *MemeClient) SubscribePrices(symbols []string) (<-chan *types.PriceUpdat
 				select {
 				case updates <- &types.PriceUpdate{
 					Symbol:    symbol,
-					Price:     price,
-					Volume:    0, // TODO: Calculate volume
+					Price:     decimal.NewFromFloat(price),
+					Volume:    decimal.Zero,
 					Timestamp: time.Now(),
 				}:
 				default:

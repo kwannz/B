@@ -2,26 +2,26 @@ package monitoring
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/market/pump"
 	"github.com/kwanRoshi/B/go-migration/internal/metrics"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
-	"go.uber.org/zap"
 )
 
 type PumpMonitor struct {
 	logger     *zap.Logger
-	provider   pump.Provider
+	provider   *pump.Provider
 	mu         sync.RWMutex
 	tokens     map[string]*types.TokenUpdate
 	tradeable  map[string]bool
 	updateChan chan *types.TokenUpdate
 }
 
-func NewPumpMonitor(logger *zap.Logger, provider pump.Provider) *PumpMonitor {
+func NewPumpMonitor(logger *zap.Logger, provider *pump.Provider) *PumpMonitor {
 	return &PumpMonitor{
 		logger:     logger,
 		provider:   provider,
@@ -32,7 +32,57 @@ func NewPumpMonitor(logger *zap.Logger, provider pump.Provider) *PumpMonitor {
 }
 
 func (m *PumpMonitor) Start(ctx context.Context) error {
-	updates := m.provider.GetTokenUpdates()
+updates := make(chan *types.TokenUpdate, 1000)
+	go func() {
+		tokens, err := m.provider.GetNewTokens(ctx)
+		if err != nil {
+			m.logger.Error("Failed to get initial tokens", zap.Error(err))
+		} else {
+			for _, token := range tokens {
+				select {
+				case updates <- &types.TokenUpdate{
+					Symbol:      token.Symbol,
+					Price:      token.Price.InexactFloat64(),
+					Volume:     token.Volume.InexactFloat64(),
+					MarketCap:  token.MarketCap.InexactFloat64(),
+					Timestamp:  time.Now(),
+				}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				tokens, err := m.provider.GetNewTokens(ctx)
+				if err != nil {
+					m.logger.Error("Failed to get new tokens", zap.Error(err))
+					continue
+				}
+
+				for _, token := range tokens {
+					select {
+					case updates <- &types.TokenUpdate{
+						Symbol:      token.Symbol,
+						Price:      token.Price.InexactFloat64(),
+						Volume:     token.Volume.InexactFloat64(),
+						MarketCap:  token.MarketCap.InexactFloat64(),
+						Timestamp:  time.Now(),
+					}:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}
+	}()
 	
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
@@ -83,12 +133,11 @@ func (m *PumpMonitor) handleUpdate(update *types.TokenUpdate) error {
 	if prev == nil {
 		m.logger.Info("new token detected",
 			zap.String("symbol", update.Symbol),
-			zap.String("name", update.TokenName),
 			zap.Float64("price", update.Price),
 			zap.Float64("market_cap", update.MarketCap),
 			zap.Float64("volume", update.Volume))
 	} else {
-		priceChange := ((update.Price - prev.Price) / prev.Price) * 100
+		priceChange := (update.Price - prev.Price) / prev.Price * 100
 		metrics.TokenPrice.WithLabelValues(update.Symbol).Set(update.Price)
 		
 		if priceChange > 20 || priceChange < -20 {
@@ -101,14 +150,14 @@ func (m *PumpMonitor) handleUpdate(update *types.TokenUpdate) error {
 
 		// Track unrealized PnL if we have a position
 		if m.tradeable[update.Symbol] {
-			pnl := (update.Price - prev.Price) * update.TotalSupply
+			pnl := (update.Price - prev.Price) * float64(update.TotalSupply)
 			metrics.TokenVolume.WithLabelValues(update.Symbol + "_pnl").Set(pnl)
 		}
 	}
 
-	// Update bonding curve metrics if available
-	if update.BasePrice > 0 {
-		metrics.TokenPrice.WithLabelValues("pump.fun", update.Symbol + "_base").Set(update.BasePrice)
+	// Update price metrics
+	if update.Price > 0 {
+		metrics.TokenPrice.WithLabelValues("pump.fun", update.Symbol + "_base").Set(update.Price)
 	}
 
 	m.tokens[update.Symbol] = update
@@ -134,7 +183,9 @@ func (m *PumpMonitor) checkThresholds() {
 		}
 
 		wasEnabled := m.tradeable[symbol]
-		shouldEnable := update.Volume > 1000 && update.MarketCap < 30000
+		minVolume := 1000.0
+		maxMarketCap := 30000.0
+		shouldEnable := update.Volume > minVolume && update.MarketCap < maxMarketCap
 
 		if shouldEnable != wasEnabled {
 			if shouldEnable {

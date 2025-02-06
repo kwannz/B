@@ -108,8 +108,9 @@ func (h *PriceHistory) Clear() {
 	h.LastIndex = 0
 }
 
-// MarketSignal represents a market trading signal
-type MarketSignal struct {
+// LegacyMarketSignal represents an older version of market trading signal
+// Deprecated: Use types.Signal instead
+type LegacyMarketSignal struct {
 	Symbol     string      `json:"symbol"`
 	Type       string      `json:"type"`
 	Direction  string      `json:"direction"`
@@ -152,14 +153,14 @@ type MarketDataProvider interface {
 	GetBondingCurve(ctx context.Context, symbol string) (*BondingCurve, error)
 
 	// SubscribeNewTokens subscribes to new token listings
-	SubscribeNewTokens(ctx context.Context) (<-chan *TokenInfo, error)
+	SubscribeNewTokens(ctx context.Context) (<-chan *TokenMarketInfo, error)
 
 	// ExecuteTrade executes a trade with the given parameters
 	ExecuteTrade(ctx context.Context, params map[string]interface{}) error
 }
 
-// TokenInfo represents information about a token
-type TokenInfo struct {
+// TokenMarketInfo represents market information about a token
+type TokenMarketInfo struct {
 	Symbol     string          `json:"symbol"`
 	Name       string          `json:"name"`
 	MarketCap  decimal.Decimal `json:"market_cap"`
@@ -168,6 +169,7 @@ type TokenInfo struct {
 	Supply     int64          `json:"supply"`
 	MaxSupply  int64          `json:"max_supply"`
 	LaunchTime time.Time      `json:"launch_time"`
+	LastUpdate time.Time      `json:"last_update"`
 }
 
 // BondingCurve moved to bonding_curve.go

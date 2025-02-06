@@ -7,11 +7,15 @@ import (
 )
 
 type PumpTradingConfig struct {
-	MaxMarketCap     decimal.Decimal `yaml:"max_market_cap"`
-	MinVolume        decimal.Decimal `yaml:"min_volume"`
-	WebSocket        WSConfig        `yaml:"websocket"`
-	Risk             RiskConfig      `yaml:"risk"`
-	TakeProfitLevels []ProfitLevel   `yaml:"take_profit_levels"`
+	MaxMarketCap decimal.Decimal `yaml:"max_market_cap"`
+	MinVolume    decimal.Decimal `yaml:"min_volume"`
+	WebSocket    WSConfig        `yaml:"websocket"`
+	Risk         struct {
+		MaxPositionSize decimal.Decimal   `yaml:"max_position_size"`
+		MinPositionSize decimal.Decimal   `yaml:"min_position_size"`
+		StopLossPercent decimal.Decimal   `yaml:"stop_loss_percent"`
+		TakeProfitLevels []decimal.Decimal `yaml:"take_profit_levels"`
+	} `yaml:"risk"`
 }
 
 type WSConfig struct {
@@ -21,6 +25,8 @@ type WSConfig struct {
 	ReadTimeout      time.Duration `yaml:"read_timeout"`
 	PongWait        time.Duration `yaml:"pong_wait"`
 	MaxRetries      int           `yaml:"max_retries"`
+	APIKey          string        `yaml:"api_key"`
+	DialTimeout     time.Duration `yaml:"dial_timeout"`
 }
 
 type StopLossConfig struct {
@@ -28,10 +34,11 @@ type StopLossConfig struct {
 	Trailing decimal.Decimal `yaml:"trailing"`
 }
 
-type PumpTrader interface {
+type PumpExecutor interface {
 	ExecuteTrade(ctx context.Context, signal *Signal) error
 	GetPosition(symbol string) *Position
 	GetPositions() map[string]*Position
+	GetRiskManager() PumpRiskManager
 	Start() error
 	Stop() error
 }
@@ -57,5 +64,4 @@ type PumpStrategy interface {
 	ProcessUpdate(update *TokenUpdate) error
 	ExecuteTrade(ctx context.Context, signal *Signal) error
 	GetConfig() *PumpTradingConfig
-	GetRiskManager() PumpRiskManager
 }

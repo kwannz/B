@@ -2,13 +2,14 @@ package executor
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"sync"
-
-	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
-// Rest of the file content remains the same...
+type TradingExecutor interface {
+	ExecuteTrade(ctx context.Context, signal *types.Signal) error
+	GetPosition(symbol string) *types.Position
+	GetPositions() map[string]*types.Position
+	Start() error
+	Stop() error
+}
