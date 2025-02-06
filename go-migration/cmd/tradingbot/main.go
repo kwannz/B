@@ -27,7 +27,6 @@ import (
 	"github.com/kwanRoshi/B/go-migration/internal/trading/executor"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/grpc"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/risk"
-	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"github.com/kwanRoshi/B/go-migration/internal/ws"
 )
 
@@ -163,7 +162,7 @@ func main() {
 	}
 	riskManager := risk.NewRiskManager(&limits, logger)
 	
-	pumpConfig := pump.Config{
+	var pumpConfig = pump.Config{
 		BaseURL:      viper.GetString("market.providers.pump.base_url"),
 		WebSocketURL: viper.GetString("market.providers.pump.ws_url"),
 		TimeoutSec:   int(viper.GetDuration("market.providers.pump.timeout").Seconds()),
@@ -178,7 +177,7 @@ func main() {
 		MaxMessageSize: 1024 * 1024, // 1MB
 	}
 
-	tradingConfig := &types.PumpTradingConfig{
+	var pumpTradingConfig = &types.PumpTradingConfig{
 		MaxMarketCap: decimal.NewFromFloat(30000),
 		MinVolume:    decimal.NewFromFloat(1000),
 		WebSocket: types.WSConfig{
@@ -205,7 +204,7 @@ func main() {
 			BatchSizes:        []decimal.Decimal{decimal.NewFromFloat(0.5), decimal.NewFromFloat(0.5)},
 		},
 	}
-	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, tradingConfig, apiKey)
+	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, pumpTradingConfig, apiKey)
 	if err := pumpExecutor.Start(); err != nil {
 		logger.Fatal("Failed to start pump.fun executor", zap.Error(err))
 	}
