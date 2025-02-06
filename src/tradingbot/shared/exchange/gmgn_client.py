@@ -13,6 +13,7 @@ from solders.keypair import Keypair
 from solders.transaction import VersionedTransaction
 
 class GMGNClient:
+    """GMGN API client for Solana trading with anti-MEV protection"""
     """GMGN DEX client for executing Solana trades with anti-MEV protection."""
     def __init__(self, config: Dict[str, Any]):
         """Initialize GMGN client with configuration."""
@@ -144,8 +145,7 @@ class GMGNClient:
             transaction.signatures = [signature]
             signed_tx = base64.b64encode(bytes(transaction)).decode()
             
-            endpoint = ("/tx/submit_signed_bundle_transaction" if self.use_anti_mev
-                      else "/tx/submit_signed_transaction")
+            endpoint = "/tx/submit_signed_transaction"
             url = f"{self.base_url}{endpoint}"
 
             for attempt in range(self.cf_retry_count):
