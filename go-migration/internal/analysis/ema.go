@@ -17,12 +17,12 @@ func NewEMAIndicator(period int) *EMAIndicator {
 }
 
 func (i *EMAIndicator) Calculate(history *types.PriceHistory) error {
-	if history == nil || history.Length() < i.period {
+	if history == nil || history.Len() < i.period {
 		return nil
 	}
 
-	prices := make([]float64, history.Length())
-	for j := 0; j < history.Length(); j++ {
+	prices := make([]float64, history.Len())
+	for j := 0; j < history.Len(); j++ {
 		level := history.Get(j)
 		if level != nil {
 			prices[j] = level.Price
