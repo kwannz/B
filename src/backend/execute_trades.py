@@ -53,19 +53,16 @@ async def execute_trades():
 
         while True:
             try:
-                # Get market data
-                market_data = await trading_client.get_market_data()
-                
-                # Calculate position size (1% of balance)
-                position_size = balance * 0.01
-                
                 try:
-                    # Get market data and execute trade
+                    # Get market data and calculate position size
                     market_data = await trading_client.get_market_data()
                     if "error" in market_data:
                         logger.error(f"Failed to get market data: {market_data['error']}")
                         await asyncio.sleep(60)  # Wait before retrying
                         continue
+                    
+                    # Calculate position size (1% of balance)
+                    position_size = balance * 0.01
 
                     # Calculate trade parameters
                     token_in = "So11111111111111111111111111111111111111112"  # SOL token address
