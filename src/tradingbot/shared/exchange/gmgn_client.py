@@ -30,17 +30,18 @@ class GMGNClient:
             
         lamports_amount = int(amount * 1e9)  # Convert SOL to lamports
         params = {
-            "inputToken": token_in,
-            "outputToken": token_out,
+            "fromToken": token_in,
+            "toToken": token_out,
             "amount": str(lamports_amount),
-            "slippageBps": str(int(float(self.slippage) * 100)),  # Convert to basis points
-            "useAntiMev": "true" if self.use_anti_mev else "false",
-            "feeBps": str(int(float(self.fee) * 10000))  # Convert to basis points
+            "slippage": str(float(self.slippage)),
+            "antiMEV": str(self.use_anti_mev).lower(),
+            "fee": str(float(self.fee))
         }
         
         try:
-            async with self.session.get(
-                f"{self.base_url}/tx/get_swap_route", params=params
+            async with self.session.post(
+                f"{self.base_url}/swap/quote",
+                json=params
             ) as response:
                 if response.status == 200:
                     return await response.json()
@@ -59,7 +60,10 @@ class GMGNClient:
             return {"error": "Session not initialized"}
             
         try:
-            tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
+            if "data" not in quote or "raw_tx" not in quote["data"]:
+                return {"error": "Invalid quote response"}
+                
+            tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swap_tx"])
             # Parse and sign transaction with wallet
             tx = Transaction.from_bytes(tx_buf)
             tx.sign([wallet])  # Sign with provided wallet
