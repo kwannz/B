@@ -67,32 +67,50 @@ async def execute_trades():
                     # Calculate position size (1% of balance)
                     position_size = balance * 0.01
 
-                    # Calculate trade parameters
+                    # Calculate trade parameters with smaller position size
+                    position_size = min(max_position_size, balance * 0.01)  # Use smaller of max size or 1% of balance
                     token_in = "So11111111111111111111111111111111111111112"  # SOL token address
                     token_out = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC token address
                     
-                    # Get quote for the trade
-                    quote = await trading_client.get_quote(
-                        token_in=token_in,
-                        token_out=token_out,
-                        amount=position_size
-                    )
+                    # Get quote for the trade with retry logic
+                    retry_count = 3
+                    while retry_count > 0:
+                        quote = await trading_client.get_quote(
+                            token_in=token_in,
+                            token_out=token_out,
+                            amount=position_size
+                        )
+                        if "error" not in quote:
+                            break
+                        retry_count -= 1
+                        if retry_count > 0:
+                            await asyncio.sleep(5)  # Wait before retry
                     if "error" in quote:
                         logger.error(f"Failed to get quote: {quote['error']}")
                         await asyncio.sleep(60)  # Wait before retrying
                         continue
 
-                    # Execute the swap with anti-MEV protection
-                    trade_result = await trading_client.execute_swap(quote, None)
-                    if "error" in trade_result:
-                        logger.error(f"Failed to execute trade: {trade_result['error']}")
-                        await asyncio.sleep(60)  # Wait before retrying
-                        continue
+                    # Execute the swap with anti-MEV protection and retry logic
+                    retry_count = 3
+                    while retry_count > 0:
+                        trade_result = await trading_client.execute_swap(quote, None)
+                        if "error" not in trade_result:
+                            logger.info(f"Trade executed successfully: {trade_result}")
+                            break
+                        retry_count -= 1
+                        if retry_count > 0:
+                            logger.warning(f"Retrying trade execution. Attempts left: {retry_count}")
+                            await asyncio.sleep(5)
+                        else:
+                            logger.error(f"Failed to execute trade after all retries: {trade_result['error']}")
+                            continue
 
-                    logger.info(f"Trade executed successfully: {trade_result}")
+                    # Update balance after successful trade
+                    balance = await wallet.get_balance()
+                    logger.info(f"Updated wallet balance: {balance} SOL")
                 except Exception as e:
                     logger.error(f"Error during trade execution: {e}")
-                    await asyncio.sleep(60)  # Wait before retrying
+                    await asyncio.sleep(30)  # Shorter wait time for retries
                     continue
 
                 # Record trade in database
