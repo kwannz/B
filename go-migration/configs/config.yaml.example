@@ -12,4 +12,4 @@ market:
       write_timeout: 30s
       read_timeout: 30s
       pong_wait: 60s
-      api_key: "${PUMP_API_KEY}"
+      api_key: "${PUMP_API_KEY}"  # Set this environment variable for authentication
