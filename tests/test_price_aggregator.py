@@ -17,7 +17,7 @@ async def test_price_aggregation():
             "retry_delay": 1000
         },
         "solscan": {
-            "api_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjcmVhdGVkQXQiOjE3Mzg4NTMxMTk4ODAsImVtYWlsIjoibGVvbmNoaXVjaGlrd2FuQGdtYWlsLmNvbSIsImFjdGlvbiI6InRva2VuLWFwaSIsImFwaVZlcnNpb24iOiJ2MiIsImlhdCI6MTczODg1MzExOX0.HrDtw8ZuTHT-l0xEupl1RzycdnUdi6VIhsC8l5h-r_8"
+            "api_key": os.getenv("SOLSCAN_API_KEY")
         },
         "max_price_diff": 0.05,
         "circuit_breaker": 0.10
@@ -48,7 +48,7 @@ async def test_circuit_breaker():
             "retry_delay": 1000
         },
         "solscan": {
-            "api_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjcmVhdGVkQXQiOjE3Mzg4NTMxMTk4ODAsImVtYWlsIjoibGVvbmNoaXVjaGlrd2FuQGdtYWlsLmNvbSIsImFjdGlvbiI6InRva2VuLWFwaSIsImFwaVZlcnNpb24iOiJ2MiIsImlhdCI6MTczODg1MzExOX0.HrDtw8ZuTHT-l0xEupl1RzycdnUdi6VIhsC8l5h-r_8"
+            "api_key": os.getenv("SOLSCAN_API_KEY")
         },
         "max_price_diff": 0.05,
         "circuit_breaker": 0.10
