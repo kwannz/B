@@ -87,10 +87,8 @@ class GMGNClient:
                 "is_anti_mev": str(self.use_anti_mev).lower()
             }
             url = f"{self.base_url}/tx/get_swap_route"
-            result: Dict[str, Any] = {"error": "No response received"}
-            retry_count = self.cf_retry_count
-            
-            while retry_count > 0:
+
+            for attempt in range(self.cf_retry_count):
                 try:
                     async with self.session.get(
                         url,
@@ -100,59 +98,26 @@ class GMGNClient:
                         timeout=30
                     ) as response:
                         if response.status == 403 and "cf-" in str(response.headers).lower():
-                            retry_count -= 1
-                            if retry_count > 0:
+                            if attempt < self.cf_retry_count - 1:
                                 await asyncio.sleep(self.cf_retry_delay)
                                 continue
-                            result = {"error": "CloudFlare protection active"}
-                            break
-                        
+                            return {"error": "CloudFlare protection active"}
+
                         if response.status == 200:
-                            result = await response.json()
-                            break
-                        result = {
+                            return await response.json()
+                        return {
                             "error": "Failed to get quote",
                             "status": response.status,
                             "message": await response.text()
                         }
-                        break
                 except Exception as e:
-                    retry_count -= 1
-                    if retry_count > 0:
+                    if attempt < self.cf_retry_count - 1:
                         await asyncio.sleep(self.cf_retry_delay)
                         continue
-                    result = {"error": f"Failed to get quote: {str(e)}"}
-            return result
+                    return {"error": f"Failed to get quote: {str(e)}"}
+            return {"error": "Failed to get quote after all retries"}
         except Exception as e:
             return {"error": f"Failed to get quote: {str(e)}"}
-            try:
-                async with self.session.get(
-                    url,
-                    params=query_params,
-                    verify_ssl=False,
-                    allow_redirects=True,
-                    timeout=30
-                ) as response:
-                    if response.status == 403 and "cf-" in str(response.headers).lower():
-                        retry_count -= 1
-                        if retry_count > 0:
-                            await asyncio.sleep(self.cf_retry_delay)
-                            continue
-                        return {"error": "CloudFlare protection active"}
-                    
-                    if response.status == 200:
-                        return await response.json()
-                    return {
-                        "error": "Failed to get quote",
-                        "status": response.status,
-                        "message": await response.text()
-                    }
-            except Exception as e:
-                retry_count -= 1
-                if retry_count > 0:
-                    await asyncio.sleep(self.cf_retry_delay)
-                    continue
-                return {"error": f"Failed to get quote: {str(e)}"}
 
     async def execute_swap(
         self, quote: Dict[str, Any], _: Any
@@ -165,64 +130,55 @@ class GMGNClient:
             if "data" not in quote or "raw_tx" not in quote["data"]:
                 return {"error": "Invalid quote response"}
             
-            result: Dict[str, Any] = {"error": "No response received"}
+            tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
+            transaction = VersionedTransaction.from_bytes(tx_buf)
+            message_bytes = bytes(transaction.message)
+            wallet_key = os.environ.get("walletkey")
+            if not wallet_key:
+                return {"error": "Wallet key not found"}
             
-            try:
-                tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
-                transaction = VersionedTransaction.from_bytes(tx_buf)
-                message_bytes = bytes(transaction.message)
-                wallet_key = os.environ.get("walletkey")
-                if not wallet_key:
-                    return {"error": "Wallet key not found"}
-                
-                key_bytes = base58.b58decode(wallet_key.encode())
-                keypair = Keypair.from_bytes(key_bytes)
-                hash_bytes = bytes(Hash.hash(message_bytes))
-                signature = keypair.sign_message(message_bytes)
-                transaction.signatures = [signature]
-                signed_tx = base64.b64encode(bytes(transaction)).decode()
-                
-                endpoint = ("/tx/submit_signed_bundle_transaction" if self.use_anti_mev
-                          else "/tx/submit_signed_transaction")
-                url = f"{self.base_url}{endpoint}"
-                
-                retry_count = self.cf_retry_count
-                while retry_count > 0:
-                    try:
-                        async with self.session.post(
-                            url,
-                            json={"signed_tx": signed_tx},
-                            verify_ssl=False,
-                            allow_redirects=True,
-                            timeout=30
-                        ) as response:
-                            if response.status == 403 and "cf-" in str(response.headers).lower():
-                                retry_count -= 1
-                                if retry_count > 0:
-                                    await asyncio.sleep(self.cf_retry_delay)
-                                    continue
-                                result = {"error": "CloudFlare protection active"}
-                                break
-                            
-                            response_data = await response.json()
-                            if response.status == 200 and "data" in response_data and "hash" in response_data["data"]:
-                                result = response_data
-                                break
-                            result = {
-                                "error": "Failed to submit transaction",
-                                "status": response.status,
-                                "response": response_data
-                            }
-                            break
-                    except Exception as e:
-                        retry_count -= 1
-                        if retry_count > 0:
-                            await asyncio.sleep(self.cf_retry_delay)
-                            continue
-                        result = {"error": f"Failed to execute swap: {str(e)}"}
-                return result
-            except (ValueError, binascii.Error) as e:
-                return {"error": f"Failed to process transaction: {str(e)}"}
+            key_bytes = base58.b58decode(wallet_key.encode())
+            keypair = Keypair.from_bytes(key_bytes)
+            hash_bytes = bytes(Hash.hash(message_bytes))
+            signature = keypair.sign_message(message_bytes)
+            transaction.signatures = [signature]
+            signed_tx = base64.b64encode(bytes(transaction)).decode()
+            
+            endpoint = ("/tx/submit_signed_bundle_transaction" if self.use_anti_mev
+                      else "/tx/submit_signed_transaction")
+            url = f"{self.base_url}{endpoint}"
+
+            for attempt in range(self.cf_retry_count):
+                try:
+                    async with self.session.post(
+                        url,
+                        json={"signed_tx": signed_tx},
+                        verify_ssl=False,
+                        allow_redirects=True,
+                        timeout=30
+                    ) as response:
+                        if response.status == 403 and "cf-" in str(response.headers).lower():
+                            if attempt < self.cf_retry_count - 1:
+                                await asyncio.sleep(self.cf_retry_delay)
+                                continue
+                            return {"error": "CloudFlare protection active"}
+                        
+                        response_data = await response.json()
+                        if response.status == 200 and "data" in response_data and "hash" in response_data["data"]:
+                            return response_data
+                        return {
+                            "error": "Failed to submit transaction",
+                            "status": response.status,
+                            "response": response_data
+                        }
+                except Exception as e:
+                    if attempt < self.cf_retry_count - 1:
+                        await asyncio.sleep(self.cf_retry_delay)
+                        continue
+                    return {"error": f"Failed to execute swap: {str(e)}"}
+            return {"error": "Failed to execute swap after all retries"}
+        except (ValueError, binascii.Error) as e:
+            return {"error": f"Failed to process transaction: {str(e)}"}
         except Exception as e:
             return {"error": f"Failed to execute swap: {str(e)}"}
 
@@ -262,10 +218,7 @@ class GMGNClient:
             return {"error": "Session not initialized"}
 
         try:
-            retry_count = self.cf_retry_count
-            result: Dict[str, Any] = {"error": "No response received"}
-            
-            while retry_count > 0:
+            for attempt in range(self.cf_retry_count):
                 try:
                     async with self.session.get(
                         f"{self.base_url}/market",
@@ -274,32 +227,27 @@ class GMGNClient:
                         timeout=30
                     ) as response:
                         if response.status == 403 and "cf-" in str(response.headers).lower():
-                            retry_count -= 1
-                            if retry_count > 0:
+                            if attempt < self.cf_retry_count - 1:
                                 await asyncio.sleep(self.cf_retry_delay)
                                 continue
-                            result = {"error": "CloudFlare protection active"}
-                            break
+                            return {"error": "CloudFlare protection active"}
                         
                         if response.status == 200:
                             data = await response.json()
-                            result = {
+                            return {
                                 "code": 0,
                                 "msg": "success",
                                 "data": data
                             }
-                            break
-                        result = {
+                        return {
                             "error": f"Failed to get market data: {await response.text()}",
                             "status": response.status
                         }
-                        break
                 except Exception as e:
-                    retry_count -= 1
-                    if retry_count > 0:
+                    if attempt < self.cf_retry_count - 1:
                         await asyncio.sleep(self.cf_retry_delay)
                         continue
-                    result = {"error": f"Network error: {str(e)}"}
-            return result
+                    return {"error": f"Network error: {str(e)}"}
+            return {"error": "Failed to get market data after all retries"}
         except Exception as e:
             return {"error": f"Network error: {str(e)}"}
