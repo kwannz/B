@@ -26,9 +26,9 @@ import (
 	"github.com/kwanRoshi/B/go-migration/internal/trading"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/executor"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/grpc"
-	"github.com/kwanRoshi/B/go-migration/internal/trading/strategy"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/interfaces"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/strategy"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/risk"
 	"github.com/kwanRoshi/B/go-migration/internal/ws"
 )
@@ -139,7 +139,7 @@ func main() {
 	}
 
 	// Configure trading mode
-	isLiveMode := *mode == "live"
+	_ = *mode == "live" // Mode validation done above
 	logger.Info("Starting trading bot",
 		zap.String("mode", *mode),
 		zap.String("strategy", *strategy))
@@ -172,25 +172,7 @@ func main() {
 		APIKey:       apiKey,
 	}
 	
-	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, &pumpConfig, apiKey)
-	if err := pumpExecutor.Start(); err != nil {
-		logger.Fatal("Failed to start pump.fun executor", zap.Error(err))
-	}
-	defer pumpExecutor.Stop()
-	
-	// Initialize trading engine
-	tradingConfig := trading.Config{
-		Commission:     viper.GetFloat64("trading.order.commission"),
-		Slippage:      viper.GetFloat64("trading.order.slippage"),
-		MaxOrderSize:   viper.GetFloat64("trading.risk.max_order_size"),
-		MinOrderSize:   viper.GetFloat64("trading.risk.min_order_size"),
-		MaxPositions:   viper.GetInt("trading.risk.max_positions"),
-		UpdateInterval: viper.GetDuration("trading.engine.update_interval"),
-	}
-	tradingEngine := trading.NewEngine(tradingConfig, logger, tradingStorage)
-
-	// Register pump.fun strategy with trading engine
-	pumpStrategy := strategy.NewPumpStrategy(&types.PumpTradingConfig{
+	tradingConfig := &types.PumpTradingConfig{
 		MaxMarketCap: decimal.NewFromFloat(30000),
 		MinVolume:    decimal.NewFromFloat(1000),
 		WebSocket: types.WSConfig{
@@ -216,13 +198,33 @@ func main() {
 			TakeProfitLevels:  []decimal.Decimal{decimal.NewFromFloat(1.015), decimal.NewFromFloat(1.03)},
 			BatchSizes:        []decimal.Decimal{decimal.NewFromFloat(0.5), decimal.NewFromFloat(0.5)},
 		},
-	}, pumpExecutor, logger)
+	}
+	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, tradingConfig, apiKey)
+	if err := pumpExecutor.Start(); err != nil {
+		logger.Fatal("Failed to start pump.fun executor", zap.Error(err))
+	}
+	defer pumpExecutor.Stop()
+	
+	// Initialize trading engine
+	tradingConfig := trading.Config{
+		Commission:     viper.GetFloat64("trading.order.commission"),
+		Slippage:      viper.GetFloat64("trading.order.slippage"),
+		MaxOrderSize:   viper.GetFloat64("trading.risk.max_order_size"),
+		MinOrderSize:   viper.GetFloat64("trading.risk.min_order_size"),
+		MaxPositions:   viper.GetInt("trading.risk.max_positions"),
+		UpdateInterval: viper.GetDuration("trading.engine.update_interval"),
+	}
+	tradingEngine := trading.NewEngine(tradingConfig, logger, tradingStorage)
+
+	// Register pump.fun strategy with trading engine
+	pumpStrategy := strategy.NewPumpStrategy(tradingConfig, pumpExecutor, logger)
 	if err := tradingEngine.RegisterStrategy(pumpStrategy); err != nil {
 		logger.Fatal("Failed to register pump.fun strategy", zap.Error(err))
 	}
 
-	// Create trading service
-	tradingService := grpc.NewTradingService(tradingEngine, logger)
+	// Create trading service and gRPC server
+	tradingService := trading.NewService(tradingEngine, logger)
+	grpcServer := grpc.NewServer(tradingService, logger)
 
 	// Initialize monitoring service
 	monitoringService := monitoring.NewService(pumpProvider, metrics.NewPumpMetrics(), logger)
@@ -284,7 +286,7 @@ func handleSignals(ctx context.Context, logger *zap.Logger, engine *pricing.Engi
 		case signal := <-signals:
 			logger.Info("Received trading signal",
 				zap.String("symbol", signal.Symbol),
-				zap.String("type", signal.Type),
+				zap.String("type", string(signal.Type)),
 				zap.String("direction", signal.Direction),
 				zap.String("price", signal.Price.String()),
 				zap.Float64("confidence", signal.Confidence))
