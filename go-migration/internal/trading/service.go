@@ -8,25 +8,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type Trade struct {
-	Provider string
-	Symbol   string
-	Side     string
-	Size     decimal.Decimal
-	Price    decimal.Decimal
-}
-
-type OrderBook struct {
-	Symbol string
-	Bids   []OrderBookLevel
-	Asks   []OrderBookLevel
-}
-
-type OrderBookLevel struct {
-	Price  decimal.Decimal
-	Amount decimal.Decimal
-}
-
 // Service implements the TradingEngine interface for WebSocket server
 type Service struct {
 	engine *Engine
@@ -64,11 +45,12 @@ func (s *Service) GetOrders(ctx context.Context, userID string) ([]*types.Order,
 // ExecuteTrade implements TradingEngine interface
 func (s *Service) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
 	return s.engine.ProcessSignal(ctx, &types.Signal{
-		Provider: trade.Provider,
-		Symbol:   trade.Symbol,
-		Type:     types.SignalType(trade.Side),
-		Size:     trade.Size,
-		Price:    trade.Price,
+		Provider:   trade.Provider,
+		Symbol:     trade.Symbol,
+		Type:       types.SignalType(trade.Side),
+		Size:       trade.Size,
+		Price:      trade.Price,
+		Timestamp:  trade.Timestamp,
 	})
 }
 
