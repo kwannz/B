@@ -109,10 +109,9 @@ func (c *WSClient) Connect(ctx context.Context) error {
 	// Initialize WebSocket connection with authentication
 	authMessage := map[string]interface{}{
 		"type": "auth",
-		"data": map[string]interface{}{
+		"auth": map[string]interface{}{
 			"key": c.config.APIKey,
 			"version": "1.0",
-			"client": "pump-trading-bot",
 		},
 	}
 	
@@ -125,6 +124,10 @@ func (c *WSClient) Connect(ctx context.Context) error {
 	c.initMessage = map[string]interface{}{
 		"type": "subscribe",
 		"channel": "trades",
+		"auth": map[string]interface{}{
+			"key": c.config.APIKey,
+			"version": "1.0",
+		},
 		"data": map[string]interface{}{
 			"market_cap_max": 30000,
 			"include_metadata": true,
@@ -135,38 +138,6 @@ func (c *WSClient) Connect(ctx context.Context) error {
 	if err := c.conn.WriteJSON(c.initMessage); err != nil {
 		metrics.APIErrors.WithLabelValues("websocket_subscribe").Inc()
 		return fmt.Errorf("failed to send subscription message: %w", err)
-	}
-	
-	// Subscribe to real-time trades and executions
-	tradeSubMessage := map[string]interface{}{
-		"type": "subscribe",
-		"channel": "trades",
-		"data": map[string]interface{}{
-			"interval": "1m",
-			"include_changes": true,
-			"market_cap_max": 30000,
-			"include_metadata": true,
-			"include_executions": true,
-		},
-	}
-	
-	if err := c.conn.WriteJSON(tradeSubMessage); err != nil {
-		metrics.APIErrors.WithLabelValues("websocket_trade_subscribe").Inc()
-		return fmt.Errorf("failed to send trade subscription message: %w", err)
-	}
-
-	// Subscribe to executions channel
-	execSubMessage := map[string]interface{}{
-		"type": "subscribe",
-		"channel": "executions",
-		"data": map[string]interface{}{
-			"include_metadata": true,
-		},
-	}
-	
-	if err := c.conn.WriteJSON(execSubMessage); err != nil {
-		metrics.APIErrors.WithLabelValues("websocket_execution_subscribe").Inc()
-		return fmt.Errorf("failed to send execution subscription message: %w", err)
 	}
 	
 	// Start ping/pong routine
