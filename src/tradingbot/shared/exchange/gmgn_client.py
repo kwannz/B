@@ -26,21 +26,26 @@ class GMGNClient:
     async def start(self):
         """Initialize wallet and HTTP session."""
         try:
-            key_bytes = base58.b58decode(self.api_key)
-            keypair = Keypair.from_bytes(key_bytes)
-            self.wallet_pubkey = str(keypair.pubkey())
+            if self.api_key:
+                key_bytes = base58.b58decode(self.api_key.encode())
+                keypair = Keypair.from_bytes(key_bytes)
+                self.wallet_pubkey = str(keypair.pubkey())
         except (ValueError, TypeError) as e:
             print(f"Error initializing wallet: {e}")
         # Initialize session with required headers
-        self.session = aiohttp.ClientSession(
-            headers={
-                "Accept": "application/json", "Content-Type": "application/json",
-                "X-API-Key": self.api_key, "Origin": "https://gmgn.ai",
-                "Referer": "https://gmgn.ai/", "Accept-Language": "en-US,en;q=0.9",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                "Accept-Encoding": "gzip, deflate, br", "Connection": "keep-alive"
-            }
-        )
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Origin": "https://gmgn.ai",
+            "Referer": "https://gmgn.ai/",
+            "Accept-Language": "en-US,en;q=0.9",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive"
+        }
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
+        self.session = aiohttp.ClientSession(headers=headers)
 
     async def stop(self):
         """Close HTTP session and cleanup resources."""
@@ -118,8 +123,10 @@ class GMGNClient:
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
             transaction = VersionedTransaction.from_bytes(tx_buf)
             message_bytes = bytes(transaction.message)
-            key_bytes = base58.b58decode(os.environ.get("walletkey"))
-            keypair = Keypair.from_bytes(key_bytes)
+            wallet_key = os.environ.get("walletkey")
+            if wallet_key:
+                key_bytes = base58.b58decode(wallet_key.encode())
+                keypair = Keypair.from_bytes(key_bytes)
             hash_bytes = bytes(Hash.hash(message_bytes))
             signature = keypair.sign_message(message_bytes)  # Sign the message directly
             transaction.signatures = [signature]
@@ -184,3 +191,26 @@ class GMGNClient:
                 }
         except (aiohttp.ClientError, ValueError) as e:
             return {"error": f"Failed to get transaction status: {str(e)}"}
+
+    async def get_market_data(self) -> Dict[str, Any]:
+        """Get market data from GMGN."""
+        if not self.session:
+            return {"error": "Session not initialized"}
+
+        try:
+            async with self.session.get(
+                f"{self.base_url}/market"
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        "code": 0,
+                        "msg": "success",
+                        "data": data
+                    }
+                return {
+                    "error": f"Failed to get market data: {await response.text()}",
+                    "status": response.status
+                }
+        except Exception as e:
+            return {"error": f"Network error: {str(e)}"}

@@ -11,10 +11,11 @@ type PumpTradingConfig struct {
 	MinVolume    decimal.Decimal `yaml:"min_volume"`
 	WebSocket    WSConfig        `yaml:"websocket"`
 	Risk         struct {
-		MaxPositionSize decimal.Decimal   `yaml:"max_position_size"`
-		MinPositionSize decimal.Decimal   `yaml:"min_position_size"`
-		StopLossPercent decimal.Decimal   `yaml:"stop_loss_percent"`
-		TakeProfitLevels []decimal.Decimal `yaml:"take_profit_levels"`
+		MaxPositionSize   decimal.Decimal   `yaml:"max_position_size"`
+		MinPositionSize   decimal.Decimal   `yaml:"min_position_size"`
+		StopLossPercent   decimal.Decimal   `yaml:"stop_loss_percent"`
+		TakeProfitLevels  []decimal.Decimal `yaml:"take_profit_levels"`
+		BatchSizes        []decimal.Decimal `yaml:"batch_sizes"`
 	} `yaml:"risk"`
 }
 

@@ -22,7 +22,16 @@ type Signal struct {
 	Direction  string         `json:"direction"`
 	Confidence float64        `json:"confidence"`
 	Indicators []Indicator    `json:"indicators,omitempty"`
+	Size       decimal.Decimal `json:"size"`
 }
+
+type TradeStatus string
+
+const (
+	TradeStatusPending TradeStatus = "pending"
+	TradeStatusFilled  TradeStatus = "filled"
+	TradeStatusFailed  TradeStatus = "failed"
+)
 
 type MarketSignal struct {
 	Symbol     string          `json:"symbol"`
