@@ -1,8 +1,9 @@
 import json
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 import aiohttp
+from .gmgn_client import GMGNClient
 
 
 class DEXClient:
@@ -17,8 +18,10 @@ class DEXClient:
             "pancakeswap": "https://api.pancakeswap.info/api/v2",
             "liquidswap": "https://api.liquidswap.com",
             "hyperliquid": "https://api.hyperliquid.xyz",
+            "gmgn": "https://gmgn.ai/defi/router/v1/sol"
         }
         self.jupiter_client = None
+        self.gmgn_client = None
 
     async def start(self):
         """Initialize HTTP session."""
@@ -32,6 +35,9 @@ class DEXClient:
         if self.jupiter_client:
             await self.jupiter_client.stop()
             self.jupiter_client = None
+        if self.gmgn_client:
+            await cast(GMGNClient, self.gmgn_client).stop()
+            self.gmgn_client = None
 
     async def get_quote(
         self, dex: str, token_in: str, token_out: str, amount: float
