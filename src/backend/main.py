@@ -122,15 +122,26 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
         )
 
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
-
+import os
+import asyncio
 import logging
+import motor.motor_asyncio
+from datetime import datetime
+from fastapi import FastAPI, WebSocket, HTTPException
+from contextlib import asynccontextmanager
+from tradingbot.api.monitoring.service import monitoring_service
+from tradingbot.api.core.db import init_db
+from tradingbot.backend.ai_model import AIModel
+
+HAS_AI_MODEL = False
+try:
+    from tradingbot.backend.ai_model import AIModel
+    HAS_AI_MODEL = True
+except ImportError:
+    AIModel = None
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-
-from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -185,17 +196,16 @@ app.add_middleware(
 async def analyze_market(market_data: MarketData) -> dict:
     try:
         logger.info(f"Received market data for analysis: {market_data.symbol}")
-        if not HAS_AI_MODEL:
-            analysis = {"status": "AI model not available"}
-        else:
-            model = AIModel()
-            analysis_request = {
-                "symbol": market_data.symbol,
-                "price": market_data.price,
-                "volume": market_data.volume,
-                "indicators": market_data.metadata.get("indicators", {}),
-            }
+        analysis = {"status": "AI model not available"}
+        if HAS_AI_MODEL and AIModel is not None:
             try:
+                model = AIModel()
+                analysis_request = {
+                    "symbol": market_data.symbol,
+                    "price": market_data.price,
+                    "volume": market_data.volume,
+                    "indicators": market_data.metadata.get("indicators", {}),
+                }
                 analysis = await model.analyze_data(analysis_request)
             except Exception as model_err:
                 logger.error(f"Model error: {model_err}")
@@ -862,9 +872,7 @@ async def get_performance(db: Session = Depends(get_db)) -> PerformanceResponse:
                     profitable_trades += 1
                 total_profit += profit
                 profits.append(profit)
-            except Exception as e:
-                logger.error(f"Error calculating profit for trade {trade.id}: {e}")
-            except (TypeError, AttributeError) as e:
+            except (TypeError, AttributeError, Exception) as e:
                 logger.error(f"Error calculating profit for trade {trade.id}: {e}")
                 continue
 
