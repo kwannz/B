@@ -43,7 +43,19 @@ class DEXClient:
         self, dex: str, token_in: str, token_out: str, amount: float
     ) -> Dict[str, Any]:
         """Get quote from specified DEX."""
-        if dex == "jupiter":
+        if dex == "gmgn":
+            if not self.gmgn_client:
+                from .gmgn_client import GMGNClient
+                self.gmgn_client = GMGNClient({
+                    "slippage": 0.5,
+                    "fee": 0.002,
+                    "use_anti_mev": True
+                })
+                await self.gmgn_client.start()
+            return await self.gmgn_client.get_quote(
+                token_in, token_out, amount
+            )
+        elif dex == "jupiter":
             if not self.jupiter_client:
                 from .jupiter_client import JupiterClient
 
