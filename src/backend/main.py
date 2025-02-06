@@ -497,7 +497,7 @@ async def create_strategy(
 @app.get("/api/v1/agents", response_model=AgentListResponse)
 async def list_agents(db: Session = Depends(get_db)) -> AgentListResponse:
     try:
-        result = db.query(Agent.type).filter(Agent.type.isnot(None)).distinct().all()
+        result = db.query(Agent.type).filter(Agent.type != None).distinct().all()
         agent_types = [row[0] for row in result]
         return AgentListResponse(agents=agent_types, count=len(agent_types))
     except Exception as e:
@@ -578,7 +578,7 @@ async def start_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentRe
 
         agent = (
             db.query(Agent)
-            .filter(Agent.type.isnot(None))
+            .filter(Agent.type != None)
             .filter(Agent.type == agent_type)
             .first()
         )
@@ -652,7 +652,7 @@ async def create_agent(
 
         existing_agent = (
             db.query(Agent)
-            .filter(Agent.type.isnot(None))
+            .filter(Agent.type != None)
             .filter(Agent.type == agent.type)
             .first()
         )
