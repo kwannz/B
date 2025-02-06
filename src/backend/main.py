@@ -125,22 +125,45 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize databases
-    init_db()  # Initialize PostgreSQL
-    init_mongodb()  # Initialize MongoDB collections
-    
-    # Start monitoring service
-    from tradingbot.api.monitoring.service import monitoring_service
-    await monitoring_service.start()
-    
-    yield
-    
-    # Cleanup
-    await monitoring_service.stop()
+    try:
+        # Initialize databases
+        logger.info("Initializing PostgreSQL database...")
+        init_db()  # Initialize PostgreSQL
+        
+        logger.info("Initializing MongoDB connection...")
+        app.state.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
+            os.getenv("MONGODB_URL", "mongodb://localhost:27017"),
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=5000
+        )
+        await app.state.mongo_client.admin.command('ping')
+        app.state.db = app.state.mongo_client.tradingbot
+        
+        # Start monitoring service
+        logger.info("Starting monitoring service...")
+        from tradingbot.api.monitoring.service import monitoring_service
+        await monitoring_service.start()
+        
+        logger.info("All services initialized successfully")
+        yield
+    except Exception as e:
+        logger.error(f"Service initialization error: {e}")
+        raise
+    finally:
+        logger.info("Cleaning up services...")
+        if hasattr(app.state, 'mongo_client'):
+            app.state.mongo_client.close()
+        await monitoring_service.stop()
 
 app = FastAPI(lifespan=lifespan)
 
