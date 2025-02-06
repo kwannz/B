@@ -131,20 +131,23 @@ class GMGNClient:
             # Create versioned transaction format
             tx_header = bytearray([0x80])  # Legacy transaction marker
             sig_count = bytearray([1])  # One signature
-            tx_bytes = tx_header + sig_count + bytearray(sig_array) + tx_buf[3:]
+            version = bytearray([0])  # Version 0
+            message_header = tx_buf[3:7]  # Original message header
+            tx_bytes = tx_header + sig_count + bytearray(sig_array) + version + message_header + tx_buf[7:]
             
             # Print debug info
-            print(f"Original tx length: {len(tx_buf)}")
-            print(f"Signature length: {len(sig_array)}")
-            print(f"Final tx length: {len(tx_bytes)}")
+            print(f"\nTransaction details:")
+            print(f"- Original tx length: {len(tx_buf)}")
+            print(f"- Signature length: {len(sig_array)}")
+            print(f"- Final tx length: {len(tx_bytes)}")
+            print(f"- Header: {tx_header.hex()}")
+            print(f"- Signature: {bytes(sig_array).hex()[:32]}...")
             
             signed_tx = base64.b64encode(bytes(tx_bytes)).decode()
             
             # Submit transaction with anti-MEV protection if enabled
             endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
             print(f"\nSubmitting transaction to {self.base_url}{endpoint}")
-            print(f"Transaction signature length: {len(sig_bytes)}")
-            print(f"Transaction buffer length: {len(tx_serialized)}")
             
             async with self.session.post(
                 f"{self.base_url}{endpoint}",
