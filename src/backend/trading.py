@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 import motor.motor_asyncio
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, HTTPException
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -12,6 +12,10 @@ async def lifespan(app: FastAPI):
     app.state.mongo_client.close()
 
 app = FastAPI(lifespan=lifespan)
+
+@app.get("/api/v1/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 @app.get("/api/v1/positions")
 async def get_positions():
