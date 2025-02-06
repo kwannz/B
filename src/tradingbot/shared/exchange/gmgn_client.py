@@ -123,12 +123,13 @@ class GMGNClient:
             signature_bytes = bytes(signature)
             print(f"\nSignature bytes length: {len(signature_bytes)}")
             print(f"First 64 bytes: {[x for x in signature_bytes[:64]]}")
-            tx.signatures = [[x for x in signature_bytes[:64]]]
+            tx.signatures = [bytearray(signature_bytes[:64])]  # Use bytearray for mutable signature
             signed_tx = base64.b64encode(bytes(tx)).decode()
             print(f"Signed transaction length: {len(signed_tx)}")
-            print(f"Transaction signatures: {tx.signatures}")
             print(f"Original transaction length: {len(tx_buf)}")
-            print(f"Signed transaction bytes: {[x for x in bytes(tx)[:64]]}")
+            print(f"Message bytes length: {len(message_bytes)}")
+            print(f"Signature type: {type(signature)}")
+            print(f"Signature bytes type: {type(signature_bytes)}")
             
             # Submit transaction with anti-MEV protection if enabled
             endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
