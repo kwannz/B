@@ -19,7 +19,7 @@ func TestSolanaProvider(t *testing.T) {
 	config := Config{
 		BaseURL:      server.URL,
 		WebSocketURL: wsURL,
-		DexSources:   []string{"jupiter", "raydium"},
+		DexSources:   []string{"gmgn"},
 		TimeoutSec:   10,
 	}
 
