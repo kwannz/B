@@ -8,7 +8,7 @@ from solders.transaction import Transaction
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
         self.session = None
-        self.base_url = "https://api.gmgn.ai/v1/solana"
+        self.base_url = "https://api.gmgn.io/v1/solana"
         self.slippage = Decimal(str(config.get("slippage", "0.5")))
         self.fee = Decimal(str(config.get("fee", "0.002")))
         self.use_anti_mev = bool(config.get("use_anti_mev", True))
@@ -19,8 +19,8 @@ class GMGNClient:
             "User-Agent": "Mozilla/5.0",
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "Origin": "https://gmgn.ai",
-            "Referer": "https://gmgn.ai/"
+            "Origin": "https://gmgn.io",
+            "Referer": "https://gmgn.io/"
         }
         self.session = aiohttp.ClientSession(headers=headers)
         
