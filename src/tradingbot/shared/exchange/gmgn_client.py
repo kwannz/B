@@ -54,16 +54,17 @@ class GMGNClient:
             "slippage": str(float(self.slippage)),
             "antiMEV": str(self.use_anti_mev).lower(),
             "fee": str(float(self.fee)),
-            "walletAddress": self.wallet_pubkey or ""
+            "walletAddress": self.wallet_pubkey or "",
+            "version": "2"
         }
         
         try:
-            print(f"\nAttempting to get quote from {self.base_url}/swap/quote")
-            # Update params with wallet pubkey
-            params["wallet_address"] = self.wallet_pubkey or ""
+            print(f"\nAttempting to get quote from {self.base_url}/swap/route")
+            # Log request parameters
+            print(f"\nRequest parameters: {params}")
             
             async with self.session.post(
-                f"{self.base_url}/swap/quote",
+                f"{self.base_url}/swap/route",
                 json=params,
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
