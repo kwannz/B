@@ -120,10 +120,32 @@ func (c *WSClient) Connect(ctx context.Context) error {
 		return fmt.Errorf("failed to send auth message: %w", err)
 	}
 	
-	// Subscribe to token updates
+	// Wait for auth response
+	_, message, err := c.conn.ReadMessage()
+	if err != nil {
+		metrics.APIErrors.WithLabelValues("websocket_auth_response").Inc()
+		return fmt.Errorf("failed to read auth response: %w", err)
+	}
+
+	var authResponse struct {
+		Type    string `json:"type"`
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(message, &authResponse); err != nil {
+		metrics.APIErrors.WithLabelValues("websocket_auth_unmarshal").Inc()
+		return fmt.Errorf("failed to unmarshal auth response: %w", err)
+	}
+
+	if authResponse.Status != "success" {
+		metrics.APIErrors.WithLabelValues("websocket_auth_failed").Inc()
+		return fmt.Errorf("auth failed: %s", authResponse.Message)
+	}
+
+	// Subscribe to market data
 	c.initMessage = map[string]interface{}{
 		"type": "subscribe",
-		"channel": "trades",
+		"channel": "market",
 		"auth": map[string]interface{}{
 			"key": c.config.APIKey,
 			"version": "1.0",
@@ -377,13 +399,14 @@ func (c *WSClient) Subscribe(methods []string) error {
 		case strings.Contains(method, "/"):
 			payload = map[string]interface{}{
 				"type": "subscribe",
-				"channel": "trades",
+				"channel": "market",
 				"auth": map[string]interface{}{
 					"key": c.config.APIKey,
 					"version": "1.0",
 				},
 				"data": map[string]interface{}{
-					"pair": method,
+					"dex": "pump",
+					"symbol": method,
 					"interval": "1m",
 					"include_changes": true,
 					"include_metadata": true,
