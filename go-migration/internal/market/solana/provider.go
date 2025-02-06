@@ -24,6 +24,11 @@ type Provider struct {
 	dexSources []string // List of supported DEXs (e.g. "gmgn")
 }
 
+// ExecuteTrade implements MarketDataProvider interface
+func (p *Provider) ExecuteTrade(ctx context.Context, params map[string]interface{}) error {
+	return fmt.Errorf("not implemented for Solana provider")
+}
+
 // Config represents Solana provider configuration
 type Config struct {
 	BaseURL      string   `json:"base_url"`

@@ -73,6 +73,9 @@ func main() {
 	// Initialize storage and providers
 	database := viper.GetString("database.mongodb.database")
 	storage := mongodb.NewTradingStorage(mongoClient, database, logger)
+	if err := storage.(*mongodb.TradingStorage).Initialize(); err != nil {
+		logger.Fatal("Failed to initialize storage", zap.Error(err))
+	}
 
 	// Initialize Solana provider
 	solanaConfig := solana.Config{
