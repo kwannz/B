@@ -1,8 +1,8 @@
 market:
   providers:
     pump:
-      base_url: "https://rpc.api-pump.fun"
-      ws_url: "wss://rpc.api-pump.fun/ws"
+      base_url: "https://pumpportal.fun"
+      ws_url: "wss://pumpportal.fun/ws/trades"
       new_tokens_endpoint: "/v1/price/pump/all"
       bonding_curve_endpoint: "/api/bonding-curve"
       request_timeout: 30s

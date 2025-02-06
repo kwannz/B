@@ -145,7 +145,7 @@ func (c *WSClient) Connect(ctx context.Context) error {
 	// Subscribe to market data
 	c.initMessage = map[string]interface{}{
 		"type": "subscribe",
-		"channel": "market",
+		"channel": "trades",
 		"auth": map[string]interface{}{
 			"key": c.config.APIKey,
 			"version": "1.0",
@@ -154,6 +154,8 @@ func (c *WSClient) Connect(ctx context.Context) error {
 			"market_cap_max": 30000,
 			"include_metadata": true,
 			"interval": "1m",
+			"include_changes": true,
+			"include_executions": true,
 		},
 	}
 	
@@ -399,14 +401,13 @@ func (c *WSClient) Subscribe(methods []string) error {
 		case strings.Contains(method, "/"):
 			payload = map[string]interface{}{
 				"type": "subscribe",
-				"channel": "market",
+				"channel": "trades",
 				"auth": map[string]interface{}{
 					"key": c.config.APIKey,
 					"version": "1.0",
 				},
 				"data": map[string]interface{}{
-					"dex": "pump",
-					"symbol": method,
+					"symbol": strings.ReplaceAll(method, "/", "_"),
 					"interval": "1m",
 					"include_changes": true,
 					"include_metadata": true,
