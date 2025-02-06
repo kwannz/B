@@ -4,6 +4,7 @@ from decimal import Decimal
 import aiohttp
 import os
 from solders.transaction import Transaction, VersionedTransaction
+from solders.message import MessageV0
 
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
@@ -113,7 +114,7 @@ class GMGNClient:
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
             # Parse and sign transaction with wallet
             tx = VersionedTransaction.from_bytes(tx_buf)
-            tx.sign([wallet])  # Sign with wallet keypair
+            tx.sign_unchecked([wallet])  # Sign with wallet keypair
             signed_tx = base64.b64encode(bytes(tx)).decode()
             
             # Submit transaction with anti-MEV protection if enabled
