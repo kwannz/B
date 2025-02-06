@@ -18,16 +18,16 @@ A real-time trading bot application with a FastAPI backend and React frontend, s
 
 Before setting up the application, ensure you have the following installed:
 
-- Python 3.12
-- Go 1.23
+- Python 3.11.11
+- Go 1.22.0 or later
+- MongoDB 7.0.16 or later
+- Redis Server (latest stable)
+- PostgreSQL (latest stable)
 - Node.js 18.19.0 LTS
 - npm 10.2.3
-- PostgreSQL 14.10
-- Docker and Docker Compose
 - Git
 - GitHub CLI (for CI/CD setup)
 - Solana CLI tools
-- Base58 encoding tools
 
 ## Quick Start
 
@@ -94,18 +94,33 @@ For full API documentation, see [api.md](api.md)
 ### Backend Development
 
 ```bash
-# Python Backend
+# Python Backend Setup
 cd src/backend
 python -m venv venv
 source venv/bin/activate
-pip install -e .
-uvicorn main:app --reload --port 8000
+pip install -r requirements.txt
 
-# Go Backend
+# Required Python Packages
+fastapi==0.115.8
+motor==3.7.0
+aiohttp==3.11.12
+websockets==11.0.3
+redis==4.5.4
+psycopg2-binary==2.9.9
+pydantic==2.10.6
+uvicorn==0.21.0
+
+# Start Backend Services
+./start_services.sh
+
+# Start Monitoring
+python monitor.py
+
+# Go Backend Setup
 cd go-migration
-go mod download
-go build -o bin/trading ./cmd/execute_trading
-./bin/trading
+go mod tidy
+go mod vendor
+go run cmd/tradingbot/main.go
 ```
 
 ### Frontend Development
@@ -139,16 +154,27 @@ npm run dev
 
 The application includes built-in monitoring capabilities:
 
-- Real-time trade execution monitoring
-- Performance metrics tracking
+### Service Health
+- Health Check: http://localhost:8001/api/v1/health
+- Jupiter Metrics: http://localhost:8001/api/v1/jupiter-metrics
+- WebSocket Data: ws://localhost:8001/ws
+- Real-time Trades: ws://localhost:8001/ws/trades
+
+### Metrics Collection
+- Trade execution status
+- Market data updates
 - Risk management alerts
 - Position tracking
 - Order status updates
+- Circuit breaker status
+- Performance metrics
 
-Access monitoring endpoints:
-- `/api/v1/performance` - Trading performance metrics
-- `/api/v1/risk/metrics` - Risk monitoring
-- `/ws/trades` - Real-time trade updates
+### Service Dependencies
+- MongoDB v7.0.16 (port 27017)
+- Redis Server (port 6379)
+- PostgreSQL (port 5432)
+- FastAPI Backend (port 8000)
+- Monitoring Service (port 8001)
 
 ## Testing
 
@@ -173,19 +199,28 @@ tradingbot/
 ├── src/
 │   ├── backend/
 │   │   ├── main.py           # FastAPI application
-│   │   ├── database.py       # Database models
-│   │   ├── websocket.py      # WebSocket handlers
-│   │   └── tests/            # Backend tests
+│   │   ├── monitor.py        # Monitoring service
+│   │   ├── execute_trades.py # Trade execution
+│   │   ├── trading.py        # Trading logic
+│   │   └── start_services.sh # Service startup
 │   │
-│   └── frontend/
-│       ├── src/              # React components
-│       ├── api/              # API clients
-│       └── tests/            # Frontend tests
+│   └── tradingbot/
+│       ├── shared/           # Shared utilities
+│       │   └── exchange/     # Exchange clients
+│       └── backend/          # Backend modules
 │
 ├── go-migration/             # Go trading implementation
 │   ├── cmd/                  # Command line tools
+│   │   └── tradingbot/      # Trading service
 │   ├── internal/            # Internal packages
-│   └── tests/               # Go tests
+│   │   ├── market/         # Market providers
+│   │   ├── trading/        # Trading logic
+│   │   └── monitoring/     # Monitoring
+│   └── vendor/             # Vendored dependencies
+│
+├── docs/                    # Documentation
+│   ├── deployment.md       # Deployment guide
+│   └── vendor_management.md # Dependency management
 │
 └── README.md
 ```
