@@ -15,7 +15,16 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/api/v1/health")
 async def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    try:
+        # Test MongoDB connection
+        await app.state.db.command("ping")
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "database": "connected"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 @app.get("/api/v1/positions")
 async def get_positions():
