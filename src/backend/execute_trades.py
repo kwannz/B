@@ -20,10 +20,12 @@ async def execute_trades():
 
         # Initialize wallet and trading client
         wallet = WalletManager()
-        trading_client = GMGNClient(
-            api_key=os.getenv("GMGN_API_KEY"),
-            base_url="https://api.gmgn.ai/v1"
-        )
+        trading_client = GMGNClient({
+            "slippage": "0.5",
+            "fee": "0.002",
+            "use_anti_mev": True
+        })
+        await trading_client.start()
 
         # Verify wallet balance
         balance = await wallet.get_balance()
@@ -37,13 +39,24 @@ async def execute_trades():
                 # Calculate position size (1% of balance)
                 position_size = balance * 0.01
                 
-                # Execute trade with risk management
-                trade_result = await trading_client.execute_trade(
-                    symbol="SOL/USDC",
-                    side="buy",
-                    size=position_size,
-                    price=market_data["price"]
+                # Get market data and execute trade
+                market_data = await trading_client.get_market_data()
+                if "error" in market_data:
+                    logger.error(f"Failed to get market data: {market_data['error']}")
+                    continue
+
+                # Get quote for the trade
+                quote = await trading_client.get_quote(
+                    token_in="SOL",
+                    token_out="USDC",
+                    amount=position_size
                 )
+                if "error" in quote:
+                    logger.error(f"Failed to get quote: {quote['error']}")
+                    continue
+
+                # Execute the swap
+                trade_result = await trading_client.execute_swap(quote, None)
 
                 # Record trade in database
                 await db.trades.insert_one({
@@ -76,7 +89,17 @@ async def execute_trades():
     except Exception as e:
         logger.error(f"Fatal error in trade execution: {e}")
     finally:
+        if trading_client:
+            await trading_client.stop()
         mongo_client.close()
+        logger.info("Trade execution stopped, resources cleaned up")
 
 if __name__ == "__main__":
-    asyncio.run(execute_trades())
+    try:
+        asyncio.run(execute_trades())
+    except KeyboardInterrupt:
+        logger.info("Trade execution interrupted by user")
+    except Exception as e:
+        logger.error(f"Unexpected error in trade execution: {e}")
+    finally:
+        logger.info("Trade execution process terminated")
