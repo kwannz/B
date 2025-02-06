@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
-from pydantic import BaseModel, Field, model_validator, validator
+from pydantic import BaseModel, Field, validator
 
 from .base import PyObjectId
 from .trading import Order, Position
@@ -123,18 +123,16 @@ class RiskLimit(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    @model_validator(mode='after')
-    def validate_trading_hours(self) -> 'RiskLimit':
+    @validator('trading_hours_end')
+    def validate_trading_hours(cls, v, values):
         """Validate trading hours."""
-        if self.trading_hours_start >= self.trading_hours_end:
+        if 'trading_hours_start' in values and values['trading_hours_start'] >= v:
             raise ValueError("Trading hours start must be before end")
-        return self
+        return v
 
-    model_config = {
-
-        "json_encoders": {ObjectId: str, datetime: lambda v: v.isoformat(), Decimal: str},
-        "populate_by_name": True
-    }
+    class Config:
+        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat(), Decimal: str}
+        allow_population_by_field_name = True
 
 
 class RiskProfile(BaseModel):
@@ -164,10 +162,24 @@ class RiskProfile(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    model_config = {
-        "json_encoders": {ObjectId: str, datetime: lambda v: v.isoformat()},
-        "populate_by_name": True
-    }
+    class Config:
+        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat()}
+        allow_population_by_field_name = True
+
+
+class LimitSettings(RiskLimit):
+    """Limit settings model that extends RiskLimit."""
+    pass
+
+
+class LimitSettingsUpdate(BaseModel):
+    """Model for updating limit settings."""
+    max_position_size: Optional[float] = None
+    max_leverage: Optional[float] = None
+    max_drawdown: Optional[float] = None
+    daily_loss_limit: Optional[float] = None
+    max_trades_per_day: Optional[int] = None
+    min_trade_interval: Optional[int] = None
 
 
 class RiskAssessment(BaseModel):
@@ -200,7 +212,6 @@ class RiskAssessment(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    model_config = {
-        "json_encoders": {ObjectId: str, datetime: lambda v: v.isoformat(), Decimal: str},
-        "populate_by_name": True
-    }
+    class Config:
+        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat(), Decimal: str}
+        allow_population_by_field_name = True

@@ -7,7 +7,7 @@ from typing import List
 
 from dotenv import load_dotenv
 from pydantic import AnyHttpUrl, validator
-from pydantic_settings import BaseSettings
+from pydantic import BaseSettings
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,6 +20,39 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Trading Bot API"
+
+    # Database settings
+    POSTGRES_DB: str = "tradingbot"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    DATABASE_URL: str = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+
+    # Server settings
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
+
+    # JWT settings
+    JWT_SECRET: str = "your-secret-key-here"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # WebSocket settings
+    WS_PING_INTERVAL: int = 30000
+    WS_HEARTBEAT_TIMEOUT: int = 60000
+
+    # Trading settings
+    SOLANA_WALLET_KEY: str = ""
+    JUPITER_API_URL: str = "https://quote-api.jup.ag/v6"
+    RAYDIUM_API_URL: str = "https://api.raydium.io/v2"
+    ORCA_API_URL: str = "https://api.orca.so"
+    PRIMARY_DEX: str = "jupiter"
+    RISK_MANAGEMENT_ENABLED: bool = True
+    MAX_TRADE_SIZE_SOL: float = 10.0
+    RISK_LEVEL: str = "medium"
 
     # CORS settings
     CORS_ORIGINS: List[AnyHttpUrl] = []
@@ -77,9 +110,14 @@ class Settings(BaseSettings):
     PROMETHEUS_ENABLED: bool = os.getenv("PROMETHEUS_ENABLED", "true").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    model_config = {
+        "case_sensitive": True,
+        "env_file": ".env",
+        "extra": "allow"
+    }
+    
+    # API settings
+    api_timeout: int = 30
 
 
 settings = Settings()

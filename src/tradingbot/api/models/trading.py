@@ -68,6 +68,16 @@ class MarketType(str, Enum):
     MEME = "MEME"
 
 
+class TradeStatus(str, Enum):
+    """Trade status enumeration."""
+
+    PENDING = "PENDING"
+    EXECUTED = "EXECUTED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    CLOSED = "CLOSED"
+
+
 class OrderBase(BaseModel):
     """Base order model."""
 

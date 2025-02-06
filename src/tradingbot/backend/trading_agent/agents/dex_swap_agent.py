@@ -7,7 +7,8 @@ import pandas as pd
 import pandas_ta as ta
 
 from ....shared.exchange.dex_client import DEXClient
-from tradingbot.shared.models.trading import TradeType
+from ....shared.risk.risk_manager import RiskManager
+from tradingbot.shared.models.trading import OrderSide
 from ..base_agent import BaseTradingAgent
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ class DexSwapAgent(BaseTradingAgent):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         self.dex_client = DEXClient()
+        self.risk_manager = RiskManager()
         self.rsi_period = int(config.get("rsi_period", 14))
         self.rsi_overbought = Decimal(str(config.get("rsi_overbought", "70")))
         self.rsi_oversold = Decimal(str(config.get("rsi_oversold", "30")))
@@ -96,7 +98,7 @@ class DexSwapAgent(BaseTradingAgent):
 
             if rsi <= self.rsi_oversold and indicators["ma_cross"]:
                 return {
-                    "type": TradeType.BUY,
+                    "type": OrderSide.BUY,
                     "token": token,
                     "price": float(price),
                     "indicators": indicators,
@@ -105,7 +107,7 @@ class DexSwapAgent(BaseTradingAgent):
 
             if rsi >= self.rsi_overbought:
                 return {
-                    "type": TradeType.SELL,
+                    "type": OrderSide.SELL,
                     "token": token,
                     "price": float(price),
                     "indicators": indicators,
@@ -129,24 +131,104 @@ class DexSwapAgent(BaseTradingAgent):
             if not signal:
                 return None
 
+            # Perform risk assessment with DEX-specific parameters
+            risk_assessment = await self.risk_manager.assess_trade({
+                "symbol": token,
+                "price": float(market_data.get("price", 0)),
+                "volume": float(market_data.get("volume", 0)),
+                "amount": float(self.position_size),
+                "type": "swap",
+                "volatility": float(market_data.get("volatility", 1.0)),
+                "liquidity": float(market_data.get("liquidity", 0)),
+                "spread": float(market_data.get("spread", 0.001)),
+                "is_meme_coin": bool(market_data.get("is_meme_coin", False)),
+                "dex_liquidity": market_data.get("dex_liquidity", {}),
+                "total_liquidity": float(market_data.get("total_liquidity", 0)),
+                "cross_dex_spread": float(market_data.get("cross_dex_spread", 0)),
+                "volume_24h": float(market_data.get("volume_24h", 0)),
+                "market_data_source": "jupiter",
+                "account_size": float(market_data.get("account_size", 100000))
+            })
+
+            if not risk_assessment.is_valid:
+                logger.warning(
+                    "Risk validation failed for swap",
+                    extra={
+                        "token": token,
+                        "reason": risk_assessment.reason,
+                        "recommendations": risk_assessment.recommendations,
+                        "risk_level": risk_assessment.risk_level,
+                        "market_impact": risk_assessment.market_impact,
+                        "expected_slippage": risk_assessment.expected_slippage
+                    }
+                )
+                return None
+
+            # Apply position size adjustment from risk assessment
+            adjusted_size = risk_assessment.dynamic_position_size or self.position_size
+            
+            if adjusted_size != self.position_size:
+                logger.info(
+                    "Position size adjusted by risk assessment",
+                    extra={
+                        "token": token,
+                        "original_size": self.position_size,
+                        "adjusted_size": adjusted_size,
+                        "adjustment_factor": adjusted_size / self.position_size if self.position_size else 0,
+                        "market_conditions": {
+                            "liquidity": risk_assessment.liquidity_score,
+                            "volume": risk_assessment.volume_profile.get("volume", 0),
+                            "correlation": risk_assessment.correlation_factor
+                        }
+                    }
+                )
+
             quote_token = "USDT"
-            if signal["type"] == TradeType.BUY:
+            if signal["type"] == OrderSide.BUY:
                 quote = await self.dex_client.get_quote(
-                    "jupiter", quote_token, token, float(self.position_size)
+                    "jupiter", quote_token, token, float(adjusted_size)
                 )
             else:
                 quote = await self.dex_client.get_quote(
-                    "jupiter", token, quote_token, float(self.position_size)
+                    "jupiter", token, quote_token, float(adjusted_size)
                 )
 
             if "error" not in quote:
+                logger.info(
+                    "Swap quote obtained successfully",
+                    extra={
+                        "token": token,
+                        "position_size": adjusted_size,
+                        "risk_metrics": {
+                            "risk_level": risk_assessment.risk_level,
+                            "market_impact": risk_assessment.market_impact,
+                            "slippage": risk_assessment.expected_slippage,
+                            "liquidity_score": risk_assessment.liquidity_score,
+                            "volume_profile": risk_assessment.volume_profile
+                        },
+                        "quote_details": {
+                            "price": quote.get("price"),
+                            "minimum_out": quote.get("minimum_out"),
+                            "platform": quote.get("platform", "jupiter")
+                        }
+                    }
+                )
                 return {
                     "signal": signal,
                     "quote": quote,
-                    "position_size": float(self.position_size),
+                    "position_size": float(adjusted_size),
+                    "risk_assessment": risk_assessment
                 }
 
         except Exception as e:
-            logger.error(f"Error executing strategy: {str(e)}")
+            logger.error(
+                "Error executing swap strategy",
+                extra={
+                    "token": token,
+                    "error": str(e),
+                    "position_size": self.position_size,
+                    "market_data": market_data
+                }
+            )
 
         return None

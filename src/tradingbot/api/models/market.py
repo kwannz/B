@@ -4,9 +4,25 @@ Market data models and schemas
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from pydantic import BaseModel, Field, validator
+
+class MarketData(BaseModel):
+    """Market data model."""
+    symbol: str
+    price: Decimal
+    volume: Decimal
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    bid: Optional[Decimal] = None
+    ask: Optional[Decimal] = None
+    high_24h: Optional[Decimal] = None
+    low_24h: Optional[Decimal] = None
+    volume_24h: Optional[Decimal] = None
+    change_24h: Optional[float] = None
+    change_percentage_24h: Optional[float] = None
+    liquidity: Optional[Decimal] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class PriceLevel(BaseModel):

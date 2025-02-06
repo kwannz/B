@@ -1,5 +1,6 @@
 """Mock metrics module for testing"""
 from functools import wraps
+import psutil
 from time import time
 
 _cache_hits = 0
@@ -10,6 +11,7 @@ _total_inference_time = 0
 _total_inferences = 0
 _fallback_count = 0
 _total_fallbacks = 0
+_memory_usage = 0
 
 
 def track_cache_hit():
@@ -76,9 +78,16 @@ def track_model_fallback():
     global _total_fallbacks
     _total_fallbacks += 1
 
+def track_memory_usage():
+    """Track memory usage"""
+    global _memory_usage
+    process = psutil.Process()
+    _memory_usage = process.memory_info().rss / 1024 / 1024  # Convert to MB
+    return _memory_usage
+
 def reset_metrics():
     """Reset all metrics"""
-    global _cache_hits, _cache_misses, _errors, _total_requests, _total_inference_time, _total_inferences, _fallback_count, _total_fallbacks
+    global _cache_hits, _cache_misses, _errors, _total_requests, _total_inference_time, _total_inferences, _fallback_count, _total_fallbacks, _memory_usage
     _cache_hits = 0
     _cache_misses = 0
     _errors = 0
@@ -87,3 +96,4 @@ def reset_metrics():
     _total_inferences = 0
     _fallback_count = 0
     _total_fallbacks = 0
+    _memory_usage = 0

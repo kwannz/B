@@ -3,12 +3,27 @@ User related models
 """
 
 from datetime import datetime
+from decimal import Decimal
 from typing import List, Optional
 
 from bson import ObjectId
 from pydantic import BaseModel, EmailStr, Field
 
 from .base import PyObjectId
+
+
+class Account(BaseModel):
+    """Account model."""
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    user_id: PyObjectId
+    balance: Decimal = Field(default=Decimal("0.0"))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        json_encoders = {ObjectId: str, datetime: lambda dt: dt.isoformat()}
+        populate_by_name = True
+        arbitrary_types_allowed = True
 
 
 class UserBase(BaseModel):

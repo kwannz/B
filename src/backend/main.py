@@ -7,50 +7,57 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from src.backend.config import settings
-from src.backend.database import (
-    Account,
-    Agent,
-    AgentStatus,
-    LimitSettings,
+from tradingbot.api.core.config import settings
+from tradingbot.api.models.trading import (
     Order,
+    OrderBase,
+    OrderCreate,
+    OrderSide,
+    OrderStatus,
+    OrderType,
     Position,
-    RiskMetrics,
-    Signal,
-    Strategy,
-    Trade,
+    PositionSide,
+    PositionStatus,
     TradeStatus,
-    async_mongodb,
+)
+from tradingbot.api.models.trade import Trade, TradeCreate
+from tradingbot.api.models.risk import (
+    RiskMetrics,
+    LimitSettings,
+    LimitSettingsUpdate,
+)
+from tradingbot.api.models.base import PyObjectId
+from tradingbot.api.models.market import MarketData
+from tradingbot.api.models.user import Account
+from tradingbot.api.models.agent import Agent, AgentCreate, AgentStatus
+from tradingbot.api.models.signal import Signal, SignalCreate
+from tradingbot.api.models.strategy import Strategy, StrategyCreate
+from tradingbot.api.core.deps import (
     get_db,
     init_db,
     init_mongodb,
+    get_mongodb,
 )
-from src.backend.schemas import (
+from tradingbot.api.routes import swap
+from tradingbot.api.services.responses import (
     AccountResponse,
-    AgentCreate,
     AgentListResponse,
     AgentResponse,
     LimitSettingsResponse,
-    LimitSettingsUpdate,
-    MarketData,
-    OrderCreate,
     OrderListResponse,
     OrderResponse,
     PerformanceResponse,
     PositionListResponse,
     RiskMetricsResponse,
-    SignalCreate,
     SignalListResponse,
     SignalResponse,
-    StrategyCreate,
     StrategyListResponse,
     StrategyResponse,
-    TradeCreate,
     TradeListResponse,
     TradeResponse,
 )
-from src.backend.shared.models.ollama import OllamaModel
-from src.backend.websocket import (
+from tradingbot.backend.ai_model import AIModel
+from tradingbot.api.websocket.handler import (
     broadcast_limit_update,
     broadcast_order_update,
     broadcast_performance_update,
@@ -58,7 +65,7 @@ from src.backend.websocket import (
     broadcast_risk_update,
     broadcast_signal,
     broadcast_trade_update,
-    handle_websocket_connection,
+    handle_websocket,
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -83,6 +90,9 @@ logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 
+# Include routers
+app.include_router(swap.router, prefix="/api/v1/swap", tags=["swap"])
+
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
@@ -94,11 +104,22 @@ app.add_middleware(
 )
 
 
-# Initialize databases
+# Initialize services
 @app.on_event("startup")
 async def startup_event() -> None:
+    # Initialize databases
     init_db()  # Initialize PostgreSQL
     init_mongodb()  # Initialize MongoDB collections
+    
+    # Start monitoring service
+    from tradingbot.api.monitoring.service import monitoring_service
+    await monitoring_service.start()
+
+@app.on_event("shutdown")
+async def shutdown_event() -> None:
+    # Stop monitoring service
+    from tradingbot.api.monitoring.service import monitoring_service
+    await monitoring_service.stop()
 
 
 # Market Analysis endpoint
@@ -106,7 +127,7 @@ async def startup_event() -> None:
 async def analyze_market(market_data: MarketData) -> dict:
     try:
         logger.info(f"Received market data for analysis: {market_data.symbol}")
-        model = OllamaModel()
+        model = AIModel()
         analysis_request = {
             "symbol": market_data.symbol,
             "price": market_data.price,
@@ -114,19 +135,20 @@ async def analyze_market(market_data: MarketData) -> dict:
             "indicators": market_data.metadata.get("indicators", {}),
         }
         try:
-            analysis = await model.analyze_market(analysis_request)
+            analysis = await model.analyze_data(analysis_request)
         except Exception as model_err:
             logger.error(f"Model error: {model_err}")
             raise HTTPException(status_code=500, detail="Market analysis failed")
 
         try:
-            await async_mongodb.market_snapshots.insert_one(market_data.dict())
-            await async_mongodb.technical_analysis.insert_one(
+            db = await get_mongodb()
+            await db.market_snapshots.insert_one(market_data.model_dump())
+            await db.technical_analysis.insert_one(
                 {
                     "symbol": market_data.symbol,
                     "timestamp": datetime.utcnow(),
                     "analysis": analysis,
-                    "market_data": market_data.dict(),
+                    "market_data": market_data.model_dump(),
                 }
             )
         except Exception as store_err:
@@ -166,22 +188,22 @@ async def health_check() -> dict:
 # WebSocket endpoints
 @app.websocket("/ws/trades")
 async def websocket_trades(websocket: WebSocket) -> None:
-    await handle_websocket_connection(websocket, "trades")
+    await handle_websocket(websocket, "trades")
 
 
 @app.websocket("/ws/signals")
 async def websocket_signals(websocket: WebSocket) -> None:
-    await handle_websocket_connection(websocket, "signals")
+    await handle_websocket(websocket, "signals")
 
 
 @app.websocket("/ws/performance")
 async def websocket_performance(websocket: WebSocket) -> None:
-    await handle_websocket_connection(websocket, "performance")
+    await handle_websocket(websocket, "performance")
 
 
 @app.websocket("/ws/analysis")
 async def websocket_analysis(websocket: WebSocket) -> None:
-    await handle_websocket_connection(websocket, "analysis")
+    await handle_websocket(websocket, "analysis")
 
 
 @app.get("/api/v1/account/balance", response_model=AccountResponse)
@@ -227,12 +249,12 @@ async def get_account_positions(
 
 @app.websocket("/ws/positions")
 async def websocket_positions(websocket: WebSocket) -> None:
-    await handle_websocket_connection(websocket, "positions")
+    await handle_websocket(websocket, "positions")
 
 
 @app.websocket("/ws/orders")
 async def websocket_orders(websocket: WebSocket) -> None:
-    await handle_websocket_connection(websocket, "orders")
+    await handle_websocket(websocket, "orders")
 
 
 @app.post("/api/v1/orders", response_model=OrderResponse)
@@ -292,7 +314,7 @@ async def get_order(
 
 @app.websocket("/ws/risk")
 async def websocket_risk(websocket: WebSocket) -> None:
-    await handle_websocket_connection(websocket, "risk")
+    await handle_websocket(websocket, "risk")
 
 
 @app.get("/api/v1/risk/metrics", response_model=RiskMetricsResponse)

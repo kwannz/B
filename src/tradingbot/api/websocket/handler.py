@@ -8,8 +8,8 @@ from typing import Dict, Optional, Set
 import psutil
 from fastapi import WebSocket, WebSocketDisconnect
 
-from src.models.metrics import WebSocketMetrics
-from src.utils.security import validate_ws_token
+from ..models.metrics import WebSocketMetrics
+from ..utils.security import validate_ws_token
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,11 @@ class ConnectionManager:
             "trades": set(),
             "positions": set(),
             "metrics": set(),
+            "signals": set(),
+            "performance": set(),
+            "risk": set(),
+            "analysis": set(),
+            "orders": set(),
         }
         self.rate_limits: Dict[str, Dict] = {}
         self.message_queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
@@ -73,7 +78,7 @@ class ConnectionManager:
             )
 
             # 初始化速率限制
-            self.rate_limits[id(websocket)] = {
+            self.rate_limits[str(id(websocket))] = {
                 "last_reset": time.time(),
                 "message_count": 0,
                 "window_size": 60.0,
@@ -101,8 +106,9 @@ class ConnectionManager:
                 channel, len(self.active_connections[channel])
             )
 
-        if id(websocket) in self.rate_limits:
-            del self.rate_limits[id(websocket)]
+        ws_id = str(id(websocket))
+        if ws_id in self.rate_limits:
+            del self.rate_limits[ws_id]
         logger.info(f"Client disconnected from channel {channel}")
 
     async def broadcast(self, message: dict, channel: str):
@@ -277,10 +283,60 @@ async def broadcast_trade_update(trade_data: dict):
 
 
 async def broadcast_position_update(position_data: dict):
-    """广播仓位更新"""
+    """Broadcast position update"""
     message = {
         "type": "position",
         "data": position_data,
         "timestamp": datetime.utcnow().isoformat(),
     }
     await manager.broadcast(message, "positions")
+
+
+async def broadcast_order_update(order_data: dict):
+    """Broadcast order update"""
+    message = {
+        "type": "order",
+        "data": order_data,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    await manager.broadcast(message, "orders")
+
+
+async def broadcast_signal(signal_data: dict):
+    """Broadcast trading signal"""
+    message = {
+        "type": "signal",
+        "data": signal_data,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    await manager.broadcast(message, "signals")
+
+
+async def broadcast_performance_update(performance_data: dict):
+    """Broadcast performance metrics update"""
+    message = {
+        "type": "performance",
+        "data": performance_data,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    await manager.broadcast(message, "performance")
+
+
+async def broadcast_risk_update(risk_data: dict):
+    """Broadcast risk metrics update"""
+    message = {
+        "type": "risk",
+        "data": risk_data,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    await manager.broadcast(message, "risk")
+
+
+async def broadcast_limit_update(limit_data: dict):
+    """Broadcast limit settings update"""
+    message = {
+        "type": "limit",
+        "data": limit_data,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    await manager.broadcast(message, "risk")
