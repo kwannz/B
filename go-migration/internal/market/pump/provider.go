@@ -39,8 +39,8 @@ type Config struct {
 
 // NewProvider creates a new Pump.fun provider
 func NewProvider(config Config, logger *zap.Logger) *Provider {
-	baseURL := "https://api.gmgn.fun"
-	wsURL := "wss://api.gmgn.fun/ws/trades"
+	baseURL := "https://api.gmgn.ai/v1"
+	wsURL := "wss://api.gmgn.ai/v1/ws"
 	
 	if config.BaseURL != "" {
 		baseURL = config.BaseURL

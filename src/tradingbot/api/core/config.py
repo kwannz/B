@@ -46,7 +46,7 @@ class Settings(BaseSettings):
 
     # Trading settings
     SOLANA_WALLET_KEY: str = ""
-    GMGN_API_URL: str = "https://gmgn.ai/defi/router/v1/sol"
+    GMGN_API_URL: str = "https://api.gmgn.ai/v1"
     PRIMARY_DEX: str = "gmgn"
     RISK_MANAGEMENT_ENABLED: bool = True
     MAX_TRADE_SIZE_SOL: float = 10.0

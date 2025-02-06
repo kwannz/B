@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     GMGN_NETWORK: str = Field(default="mainnet")
     GMGN_SOLANA_RPC: str = Field(default="https://api.mainnet-beta.solana.com")
     
+    # PumpPortal settings (legacy)
+    PUMP_API_URL: str = Field(default="https://pumpportal.fun/api")
+    PUMP_WS_URL: str = Field(default="wss://pumpportal.fun/api/data")
+    PUMP_API_KEY: str = Field(default="")
+    
     # Solana wallet settings
     SOLANA_WALLET_KEY: str = Field(default="")
     SOLANA_COMMITMENT: str = Field(default="confirmed")

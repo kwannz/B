@@ -13,7 +13,7 @@ market:
       read_timeout: 30s
       pong_wait: 60s
     gmgn:
-      base_url: "https://gmgn.ai/defi/router/v1/sol"
+      base_url: "https://api.gmgn.ai/v1"
       api_key: "${walletkey}"
       use_anti_mev: true
       min_fee: 0.002
