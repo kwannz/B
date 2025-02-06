@@ -407,9 +407,13 @@ func (c *WSClient) Subscribe(methods []string) error {
 			symbol := strings.TrimPrefix(method, "market.")
 			payload = map[string]interface{}{
 				"type": "subscribe",
-				"symbol": symbol,
 				"channel": "trades",
+				"auth": map[string]interface{}{
+					"key": c.config.APIKey,
+					"version": "1.0",
+				},
 				"data": map[string]interface{}{
+					"symbol": symbol,
 					"interval": "1m",
 					"include_changes": true,
 					"include_metadata": true,
