@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
@@ -12,7 +13,31 @@ import (
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
-// Engine manages trading operations
+type Config struct {
+	Commission     float64       `yaml:"commission"`
+	Slippage      float64       `yaml:"slippage"`
+	MaxOrderSize   float64       `yaml:"max_order_size"`
+	MinOrderSize   float64       `yaml:"min_order_size"`
+	MaxPositions   int          `yaml:"max_positions"`
+	UpdateInterval time.Duration `yaml:"update_interval"`
+}
+
+type Strategy interface {
+	Name() string
+	Init(ctx context.Context) error
+	ProcessUpdate(update *types.TokenUpdate) error
+	ExecuteTrade(ctx context.Context, signal *types.Signal) error
+}
+
+type Storage interface {
+	SaveOrder(order *types.Order) error
+	SavePosition(position *types.Position) error
+	GetOrder(orderID string) (*types.Order, error)
+	GetOrders(userID string) ([]*types.Order, error)
+	GetPosition(symbol string) (*types.Position, error)
+	GetPositions(userID string) ([]*types.Position, error)
+}
+
 type Engine struct {
 	logger     *zap.Logger
 	config     Config
@@ -21,28 +46,47 @@ type Engine struct {
 	orders     map[string]*types.Order
 	strategies map[string]Strategy
 	executors  map[string]executor.TradingExecutor
+	stop       chan struct{}
+	isRunning  bool
 	mu         sync.RWMutex
-	totalValue float64
 }
 
-func (e *Engine) RegisterExecutor(name string, exec executor.TradingExecutor) {
+func NewEngine(config Config, logger *zap.Logger, storage Storage) *Engine {
+	return &Engine{
+		logger:     logger,
+		config:     config,
+		storage:    storage,
+		positions:  make(map[string]*types.Position),
+		orders:     make(map[string]*types.Order),
+		strategies: make(map[string]Strategy),
+		executors:  make(map[string]executor.TradingExecutor),
+		stop:       make(chan struct{}),
+	}
+}
+
+func (e *Engine) RegisterExecutor(name string, exec executor.TradingExecutor) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	
-	if e.executors == nil {
-		e.executors = make(map[string]executor.TradingExecutor)
+
+	if _, exists := e.executors[name]; exists {
+		return fmt.Errorf("executor %s already registered", name)
 	}
+
 	e.executors[name] = exec
+	return nil
 }
 
-func (e *Engine) RegisterStrategy(strategy Strategy) {
+func (e *Engine) RegisterStrategy(strategy Strategy) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	
-	if e.strategies == nil {
-		e.strategies = make(map[string]Strategy)
+
+	name := strategy.Name()
+	if _, exists := e.strategies[name]; exists {
+		return fmt.Errorf("strategy %s already registered", name)
 	}
-	e.strategies[strategy.Name()] = strategy
+
+	e.strategies[name] = strategy
+	return nil
 }
 
 func (e *Engine) ProcessSignal(ctx context.Context, signal *types.Signal) error {
@@ -65,43 +109,82 @@ func (e *Engine) ProcessSignal(ctx context.Context, signal *types.Signal) error 
 	return nil
 }
 
-// NewEngine creates a new trading engine
-func NewEngine(config Config, logger *zap.Logger, storage Storage) *Engine {
-	return &Engine{
-		logger:     logger,
-		config:     config,
-		storage:    storage,
-		positions:  make(map[string]*types.Position),
-		orders:     make(map[string]*types.Order),
-		strategies: make(map[string]Strategy),
-		executors:  make(map[string]executor.TradingExecutor),
-		totalValue: 0,
+func (e *Engine) Start(ctx context.Context) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.isRunning {
+		return fmt.Errorf("engine already running")
+	}
+
+	e.isRunning = true
+	e.logger.Info("Trading engine started")
+
+	go e.run(ctx)
+	return nil
+}
+
+func (e *Engine) Stop() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if !e.isRunning {
+		return fmt.Errorf("engine not running")
+	}
+
+	close(e.stop)
+	e.isRunning = false
+	e.logger.Info("Trading engine stopped")
+	return nil
+}
+
+func (e *Engine) run(ctx context.Context) {
+	ticker := time.NewTicker(e.config.UpdateInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-e.stop:
+			return
+		case <-ticker.C:
+			e.updatePositions(ctx)
+		}
 	}
 }
 
-func (e *Engine) GetTotalValue() float64 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	return e.totalValue
+func (e *Engine) updatePositions(ctx context.Context) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	for _, pos := range e.positions {
+		if err := e.storage.SavePosition(pos); err != nil {
+			e.logger.Error("Failed to save position",
+				zap.String("symbol", pos.Symbol),
+				zap.Error(err))
+		}
+	}
 }
 
-// PlaceOrder places a new order
-func (e *Engine) PlaceOrder(order *types.Order) error {
-	// Validate order
+func (e *Engine) PlaceOrder(ctx context.Context, order *types.Order) error {
 	if err := e.validateOrder(order); err != nil {
 		return err
 	}
 
-	// Store order
 	e.mu.Lock()
-	e.orders[order.ID] = order
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
-	return e.storage.SaveOrder(order)
+	e.orders[order.ID] = order
+	if err := e.storage.SaveOrder(order); err != nil {
+		delete(e.orders, order.ID)
+		return fmt.Errorf("failed to save order: %w", err)
+	}
+
+	return nil
 }
 
-// CancelOrder cancels an existing order
-func (e *Engine) CancelOrder(orderID string) error {
+func (e *Engine) CancelOrder(ctx context.Context, orderID string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -116,8 +199,7 @@ func (e *Engine) CancelOrder(orderID string) error {
 	return e.storage.SaveOrder(order)
 }
 
-// GetOrder returns an order by ID
-func (e *Engine) GetOrder(orderID string) (*types.Order, error) {
+func (e *Engine) GetOrder(ctx context.Context, orderID string) (*types.Order, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
@@ -128,29 +210,29 @@ func (e *Engine) GetOrder(orderID string) (*types.Order, error) {
 	return order, nil
 }
 
-// GetOrders returns all orders for a user
-func (e *Engine) GetOrders(userID string) ([]*types.Order, error) {
+func (e *Engine) GetOrders(ctx context.Context) ([]*types.Order, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	var orders []*types.Order
+	orders := make([]*types.Order, 0, len(e.orders))
 	for _, order := range e.orders {
-		if order.UserID == userID {
-			orders = append(orders, order)
-		}
+		orders = append(orders, order)
 	}
 	return orders, nil
 }
 
-// GetPosition returns current position for a symbol
-func (e *Engine) GetPosition(symbol string) *types.Position {
+func (e *Engine) GetPosition(ctx context.Context, symbol string) (*types.Position, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.positions[symbol]
+
+	pos, exists := e.positions[symbol]
+	if !exists {
+		return nil, fmt.Errorf("position for %s not found", symbol)
+	}
+	return pos, nil
 }
 
-// GetPositions returns all current positions
-func (e *Engine) GetPositions() []*types.Position {
+func (e *Engine) GetPositions(ctx context.Context) ([]*types.Position, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
@@ -158,22 +240,21 @@ func (e *Engine) GetPositions() []*types.Position {
 	for _, pos := range e.positions {
 		positions = append(positions, pos)
 	}
-	return positions
+	return positions, nil
 }
 
-// Internal methods
-
 func (e *Engine) validateOrder(order *types.Order) error {
-	minSize := decimal.NewFromFloat(e.config.MinOrderSize)
+	size := decimal.NewFromFloat(order.Size)
 	maxSize := decimal.NewFromFloat(e.config.MaxOrderSize)
+	minSize := decimal.NewFromFloat(e.config.MinOrderSize)
 
-	if order.Size.LessThan(minSize) {
-		return fmt.Errorf("order size too small: %v < %v",
-			order.Size, minSize)
+	if size.GreaterThan(maxSize) {
+		return fmt.Errorf("order size %v exceeds maximum %v", size, maxSize)
 	}
-	if order.Size.GreaterThan(maxSize) {
-		return fmt.Errorf("order size too large: %v > %v",
-			order.Size, maxSize)
+
+	if size.LessThan(minSize) {
+		return fmt.Errorf("order size %v below minimum %v", size, minSize)
 	}
+
 	return nil
 }
