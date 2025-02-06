@@ -129,16 +129,8 @@ import motor.motor_asyncio
 from datetime import datetime
 from fastapi import FastAPI, WebSocket, HTTPException
 from contextlib import asynccontextmanager
-from tradingbot.api.monitoring.service import monitoring_service
-from tradingbot.api.core.db import init_db
-from tradingbot.backend.ai_model import AIModel
-
-HAS_AI_MODEL = False
-try:
-    from tradingbot.backend.ai_model import AIModel
-    HAS_AI_MODEL = True
-except ImportError:
-    AIModel = None
+from src.tradingbot.api.monitoring.service import monitoring_service
+from src.tradingbot.api.core.db import init_db
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
