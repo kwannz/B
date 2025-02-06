@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import motor.motor_asyncio
 from fastapi import FastAPI, WebSocket
 from contextlib import asynccontextmanager
@@ -42,7 +43,25 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-            # Process trading data
-            await websocket.send_json({"status": "received"})
-    except Exception:
+            if "type" in data:
+                if data["type"] == "trade":
+                    await app.state.db.trades.insert_one({
+                        "symbol": data["symbol"],
+                        "side": data["side"],
+                        "size": float(data["size"]),
+                        "price": float(data["price"]),
+                        "timestamp": datetime.utcnow()
+                    })
+                elif data["type"] == "position":
+                    await app.state.db.positions.insert_one({
+                        "symbol": data["symbol"],
+                        "size": float(data["size"]),
+                        "entry_price": float(data["entry_price"]),
+                        "current_price": float(data["current_price"]),
+                        "unrealized_pnl": float(data["unrealized_pnl"]),
+                        "timestamp": datetime.utcnow()
+                    })
+            await websocket.send_json({"status": "received", "timestamp": datetime.utcnow().isoformat()})
+    except Exception as e:
+        print(f"WebSocket error: {e}")
         await websocket.close()

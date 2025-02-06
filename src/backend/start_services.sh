@@ -61,7 +61,7 @@ fi
 # Start Trading Service
 echo "=== Starting Trading Service ==="
 cd /home/ubuntu/repos/B/src/backend
-python3 trading.py &
+python3 -m uvicorn trading:app --host 0.0.0.0 --port 8002 &
 EXECUTOR_PID=$!
 
 # Wait for trading to start
