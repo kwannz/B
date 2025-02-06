@@ -109,18 +109,47 @@ async def execute_trades():
 
                     # Execute the swap with anti-MEV protection and retry logic
                     retry_count = 3
+                    current_delay = 1000  # Start with 1s delay
                     while retry_count > 0:
-                        trade_result = await trading_client.execute_swap(quote, None)
-                        if "error" not in trade_result:
-                            logger.info(f"Trade executed successfully: {trade_result}")
-                            break
-                        retry_count -= 1
-                        if retry_count > 0:
-                            logger.warning(f"Retrying trade execution. Attempts left: {retry_count}")
-                            await asyncio.sleep(5)
-                        else:
-                            logger.error(f"Failed to execute trade after all retries: {trade_result['error']}")
-                            continue
+                        try:
+                            trade_result = await trading_client.execute_swap(
+                                quote=quote,
+                                slippage=0.005,  # 0.5% slippage for execution
+                                options={
+                                    "skip_preflight": True,
+                                    "max_retries": 3,
+                                    "skip_confirmation": False,
+                                    "commitment": "confirmed"
+                                }
+                            )
+                            
+                            if "error" not in trade_result:
+                                if "signature" in trade_result:
+                                    logger.info(f"Trade executed successfully: {trade_result['signature']}")
+                                    break
+                                else:
+                                    logger.error("Trade result missing signature")
+                            else:
+                                logger.error(f"Trade error: {trade_result['error']}")
+                                
+                            retry_count -= 1
+                            if retry_count > 0:
+                                logger.warning(f"Retrying trade execution. Attempts left: {retry_count}")
+                                await asyncio.sleep(current_delay / 1000)
+                                current_delay = min(current_delay * 1.5, 5000)  # Max 5s delay
+                            else:
+                                logger.error(f"Failed to execute trade after all retries: {trade_result.get('error', 'Unknown error')}")
+                                continue
+                                
+                        except Exception as e:
+                            logger.error(f"Trade execution error: {str(e)}")
+                            retry_count -= 1
+                            if retry_count > 0:
+                                await asyncio.sleep(current_delay / 1000)
+                                current_delay = min(current_delay * 1.5, 5000)
+                            else:
+                                logger.error("Failed to execute trade after all retries")
+                                continue
 
                     # Update balance after successful trade
                     balance = await wallet.get_balance()
