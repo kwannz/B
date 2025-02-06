@@ -10,28 +10,79 @@ from tradingbot.shared.exchange.gmgn_client import GMGNClient
 from tradingbot.shared.exchange.jupiter_client import JupiterClient
 from tradingbot.shared.exchange.solscan_client import SolscanClient
 from tradingbot.shared.exchange.price_aggregator import PriceAggregator
-from tradingbot.shared.exchange.solscan_client import SolscanClient
+from solana.rpc.async_api import AsyncClient
+
+from solders.signature import Signature
+
+async def validate_transaction(client: AsyncClient, signature: str, max_retries: int = 10) -> bool:
+    """Validate a Solana transaction has been finalized
+    
+    Args:
+        client: Solana RPC client
+        signature: Transaction signature string
+        max_retries: Maximum number of status check retries
+        
+    Returns:
+        bool: True if transaction is finalized, False otherwise
+    """
+    retry_count = max_retries
+    sig = Signature.from_string(signature)
+    
+    while retry_count > 0:
+        try:
+            status = await client.get_signature_statuses([sig])
+            if not status.value[0]:
+                retry_count -= 1
+                if retry_count > 0:
+                    await asyncio.sleep(2)  # Wait longer between retries
+                continue
+                
+            if status.value[0].confirmation_status == "finalized":
+                return True
+                
+            retry_count -= 1
+            if retry_count > 0:
+                await asyncio.sleep(2)
+            continue
+                
+        except Exception as e:
+            logging.error(f"Transaction validation error: {e}")
+            retry_count -= 1
+            if retry_count > 0:
+                await asyncio.sleep(2)
+            continue
+            
+    return False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def execute_trades():
     try:
-        # Initialize MongoDB connection
+        # Initialize MongoDB and Solana RPC clients
         mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
             os.getenv("MONGODB_URL", "mongodb://localhost:27017"),
             serverSelectionTimeoutMS=5000
         )
         db = mongo_client.tradingbot
+        client = AsyncClient("https://api.mainnet-beta.solana.com")
 
         # Initialize wallet and verify key
         try:
-            if not os.getenv("SOLANA_WALLET_KEY"):
-                logger.error("SOLANA_WALLET_KEY not set")
+            key = os.environ.get("walletkey")
+            if not key:
+                logger.error("Wallet key not set")
                 return
                 
-            # Verify key format
-            key = os.getenv("SOLANA_WALLET_KEY", "")
+            # Initialize wallet with key
+            wallet = WalletManager()
+            address = str(wallet._keypair.pubkey())
+            logger.info(f"Trading with wallet address: {address}")
+            
+            # Verify key format and address
+            if address != "4BKPzFyjBaRP3L1PNDf3xTerJmbbxxESmDmZJ2CZYdQ5":
+                logger.error("Invalid wallet address")
+                return
             if not key or len(key) < 64:  # Base58 encoded private key length
                 logger.error("Invalid wallet key format")
                 return
@@ -155,23 +206,33 @@ async def execute_trades():
                                 None  # Use default options from GMGN client
                             )
                             
-                            # Verify transaction result
-                            if "error" not in trade_result:
-                                if "signature" in trade_result:
-                                    logger.info(f"Trade executed successfully: {trade_result['signature']}")
-                                    break
-                                else:
-                                    logger.error("Trade result missing signature")
-                            else:
+                            if "error" in trade_result:
                                 logger.error(f"Trade error: {trade_result['error']}")
+                                retry_count -= 1
+                                if retry_count > 0:
+                                    logger.warning(f"Retrying trade execution. Attempts left: {retry_count}")
+                                    await asyncio.sleep(current_delay / 1000)
+                                    current_delay = min(current_delay * 1.5, 5000)
+                                continue
                                 
-                            retry_count -= 1
-                            if retry_count > 0:
-                                logger.warning(f"Retrying trade execution. Attempts left: {retry_count}")
-                                await asyncio.sleep(current_delay / 1000)
-                                current_delay = min(current_delay * 1.5, 5000)  # Max 5s delay
+                            if "signature" not in trade_result:
+                                logger.error("Trade result missing signature")
+                                retry_count -= 1
+                                if retry_count > 0:
+                                    await asyncio.sleep(current_delay / 1000)
+                                    current_delay = min(current_delay * 1.5, 5000)
+                                continue
+                                
+                            # Validate transaction
+                            if await validate_transaction(client, trade_result["signature"]):
+                                logger.info(f"Trade validated successfully: {trade_result['signature']}")
+                                break
                             else:
-                                logger.error(f"Failed to execute trade after all retries: {trade_result.get('error', 'Unknown error')}")
+                                logger.error(f"Transaction validation failed: {trade_result['signature']}")
+                                retry_count -= 1
+                                if retry_count > 0:
+                                    await asyncio.sleep(current_delay / 1000)
+                                    current_delay = min(current_delay * 1.5, 5000)
                                 continue
                             
                             if "error" not in trade_result:

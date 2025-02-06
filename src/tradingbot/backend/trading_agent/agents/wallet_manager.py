@@ -8,12 +8,20 @@ from solana.rpc.async_api import AsyncClient
 class WalletManager:
     def __init__(self):
         self._client = AsyncClient("https://api.mainnet-beta.solana.com")
-        wallet_key = os.environ.get("walletkey")
+        wallet_key = os.environ.get("SOLANA_WALLET_KEY") or os.environ.get("walletkey")
         if not wallet_key:
-            raise ValueError("Wallet key not found in environment")
+            raise ValueError("Wallet key not found in environment variables (SOLANA_WALLET_KEY or walletkey)")
         
         try:
-            self._keypair = Keypair.from_bytes(base58.b58decode(wallet_key))
+            decoded_key = base58.b58decode(wallet_key)
+            if len(decoded_key) != 64:
+                raise ValueError("Invalid key length")
+                
+            self._keypair = Keypair.from_bytes(decoded_key)
+            expected_address = "4BKPzFyjBaRP3L1PNDf3xTerJmbbxxESmDmZJ2CZYdQ5"
+            if str(self._keypair.pubkey()) != expected_address:
+                raise ValueError(f"Invalid wallet address")
+                
             self._public_key = str(self._keypair.pubkey())
             self._private_key = wallet_key
         except Exception as e:
