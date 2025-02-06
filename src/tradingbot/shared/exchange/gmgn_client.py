@@ -124,11 +124,9 @@ class GMGNClient:
             signature = wallet.sign_message(message_bytes)
             sig_bytes = bytes(signature)[:64]
             
-            # Create a new transaction with our signature
-            new_tx = VersionedTransaction(
-                message=tx.message,
-                signatures=[bytearray(sig_bytes)]  # Pass signature as bytearray
-            )
+            # Create a new transaction and sign it
+            new_tx = VersionedTransaction(tx.message)  # Create fresh transaction with same message
+            new_tx.sign([wallet])  # Sign with wallet directly
             
             # Verify signature before sending
             try:
