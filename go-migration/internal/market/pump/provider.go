@@ -185,7 +185,7 @@ func (p *Provider) SubscribePrices(ctx context.Context, symbols []string) (<-cha
 }
 
 // GetHistoricalPrices implements MarketDataProvider interface
-func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, interval string, limit int) ([]*types.PriceUpdate, error) {
+func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, interval string, limit int) ([]types.PriceUpdate, error) {
 	url := fmt.Sprintf("%s/tokens/%s/history?interval=%s&limit=%d",
 		p.baseURL, symbol, interval, limit)
 
@@ -225,9 +225,9 @@ func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, inter
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	updates := make([]*types.PriceUpdate, len(result.Data))
+	updates := make([]types.PriceUpdate, len(result.Data))
 	for i, item := range result.Data {
-		updates[i] = &types.PriceUpdate{
+		updates[i] = types.PriceUpdate{
 			Symbol:    symbol,
 			Price:     decimal.NewFromFloat(item.Price),
 			Volume:    decimal.NewFromFloat(item.Volume),

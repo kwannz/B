@@ -25,6 +25,35 @@ func NewTradingStorage(client *mongo.Client, db string, logger *zap.Logger) *Tra
 	}
 }
 
+// GetOrder implements trading.Storage interface
+func (s *TradingStorage) GetOrder(orderID string) (*trading.Order, error) {
+	collection := s.client.Database(s.db).Collection("orders")
+	ctx := context.Background()
+	var order trading.Order
+	err := collection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&order)
+	if err != nil {
+		return nil, err
+	}
+	return &order, nil
+}
+
+// GetOrders implements trading.Storage interface
+func (s *TradingStorage) GetOrders(userID string) ([]*trading.Order, error) {
+	collection := s.client.Database(s.db).Collection("orders")
+	ctx := context.Background()
+	cursor, err := collection.Find(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var orders []*trading.Order
+	if err := cursor.All(ctx, &orders); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
 // SaveOrder implements trading.Storage interface
 func (s *TradingStorage) SaveOrder(order *trading.Order) error {
 	collection := s.client.Database(s.db).Collection("orders")

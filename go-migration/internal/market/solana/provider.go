@@ -214,6 +214,11 @@ func (p *Provider) getHistoricalPricesFromDEX(ctx context.Context, dex, symbol, 
 	return updates, nil
 }
 
+// GetBondingCurve implements MarketDataProvider interface
+func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.BondingCurve, error) {
+	return nil, fmt.Errorf("not implemented for Solana provider")
+}
+
 // Helper functions
 
 func sortAndDedupUpdates(updates []types.PriceUpdate) {
