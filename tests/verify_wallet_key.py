@@ -24,7 +24,7 @@ async def verify_wallet():
                 
             keypair = Keypair.from_bytes(decoded_key)
             address = str(keypair.pubkey())
-            expected_address = "4BKPzFyjBaRP3L1PNDf3xTerJmbbxxESmDmZJ2CZYdQ5"
+            expected_address = os.environ.get("WALLET_ADDRESS")
             
             print("\nWallet Verification Results:")
             print(f"Generated Address: {address}")

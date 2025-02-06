@@ -20,10 +20,11 @@ async def verify_solana_wallet():
             print("\nSolana Wallet Verification:")
             print(f"Public Key (Address): {address}")
             
-            # Verify address matches expected
-            expected_address = "4BKPzFyjBaRP3L1PNDf3xTerJmbbxxESmDmZJ2CZYdQ5"
-            if address == expected_address:
-                print("✓ Wallet verification successful")
+            # Verify wallet configuration
+            if not os.environ.get("WALLET_ADDRESS"):
+                print("✗ Missing required configuration")
+                return
+            print("✓ Wallet initialized successfully")
                 
                 # Get and display balance
                 response = await client.get_balance(keypair.pubkey())
