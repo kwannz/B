@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from ..exchange.dex_client import DEXClient
-from ..models.trading import TradeType
+from ..exchange.dex_client import TradeType
 
 logger = logging.getLogger(__name__)
 
@@ -84,14 +84,14 @@ class CopyTradingManager:
 
             if trade["type"] == TradeType.BUY:
                 quote = await self.dex_client.get_quote(
-                    "jupiter",
+                    "gmgn",
                     trade["quote_token"],
                     trade["base_token"],
                     float(position_size),
                 )
             else:
                 quote = await self.dex_client.get_quote(
-                    "jupiter",
+                    "gmgn",
                     trade["base_token"],
                     trade["quote_token"],
                     float(position_size),

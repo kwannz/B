@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from ..exchange.dex_client import DEXClient
-from ..models.trading import TradeType
+from ..exchange.dex_client import TradeType
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class MarketMaker:
 
     async def get_market_depth(self, token: str, quote_token: str) -> Dict[str, Any]:
         try:
-            depth = await self.dex_client.get_liquidity("jupiter", token, quote_token)
+            depth = await self.dex_client.get_liquidity("gmgn", token, quote_token)
             if "error" not in depth:
                 return depth
         except Exception as e:
@@ -100,7 +100,7 @@ class MarketMaker:
             orders = []
             for side, price in prices.items():
                 quote = await self.dex_client.get_quote(
-                    "jupiter",
+                    "gmgn",
                     quote_token if side == "bid" else token,
                     token if side == "bid" else quote_token,
                     float(position_size),
