@@ -402,8 +402,20 @@ func (c *WSClient) Subscribe(methods []string) error {
 	for _, method := range methods {
 		var payload map[string]interface{}
 		
-		switch method {
-		case "subscribeNewToken":
+		switch {
+		case strings.HasPrefix(method, "market."):
+			symbol := strings.TrimPrefix(method, "market.")
+			payload = map[string]interface{}{
+				"type": "subscribe",
+				"channel": "trades",
+				"data": map[string]interface{}{
+					"symbol": symbol,
+					"interval": "1m",
+					"include_changes": true,
+					"include_metadata": true,
+				},
+			}
+		case method == "subscribeNewToken":
 			payload = map[string]interface{}{
 				"type": "subscribe",
 				"channel": "tokens",
@@ -413,7 +425,7 @@ func (c *WSClient) Subscribe(methods []string) error {
 					"include_changes": true,
 				},
 			}
-		case "subscribePrices":
+		case method == "subscribePrices":
 			payload = map[string]interface{}{
 				"type": "subscribe",
 				"channel": "trades",
