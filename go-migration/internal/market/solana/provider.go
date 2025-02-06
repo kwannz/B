@@ -219,6 +219,11 @@ func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.B
 	return nil, fmt.Errorf("not implemented for Solana provider")
 }
 
+// SubscribeNewTokens implements MarketDataProvider interface
+func (p *Provider) SubscribeNewTokens(ctx context.Context) (<-chan *types.TokenMarketInfo, error) {
+	return nil, fmt.Errorf("not implemented for Solana provider")
+}
+
 // Helper functions
 
 func sortAndDedupUpdates(updates []types.PriceUpdate) {

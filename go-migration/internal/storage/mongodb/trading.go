@@ -7,7 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 
-	"github.com/kwanRoshi/B/go-migration/internal/trading"
+	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
 // TradingStorage implements trading.Storage interface
@@ -27,10 +27,10 @@ func NewTradingStorage(client *mongo.Client, db string, logger *zap.Logger) *Tra
 }
 
 // GetOrder implements trading.Storage interface
-func (s *TradingStorage) GetOrder(orderID string) (*trading.Order, error) {
+func (s *TradingStorage) GetOrder(orderID string) (*types.Order, error) {
 	collection := s.client.Database(s.db).Collection("orders")
 	ctx := context.Background()
-	var order trading.Order
+	var order types.Order
 	err := collection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&order)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func (s *TradingStorage) GetOrder(orderID string) (*trading.Order, error) {
 }
 
 // GetOrders implements trading.Storage interface
-func (s *TradingStorage) GetOrders(userID string) ([]*trading.Order, error) {
+func (s *TradingStorage) GetOrders(userID string) ([]*types.Order, error) {
 	collection := s.client.Database(s.db).Collection("orders")
 	ctx := context.Background()
 	cursor, err := collection.Find(ctx, bson.M{"user_id": userID})
@@ -48,7 +48,7 @@ func (s *TradingStorage) GetOrders(userID string) ([]*trading.Order, error) {
 	}
 	defer cursor.Close(ctx)
 
-	var orders []*trading.Order
+	var orders []*types.Order
 	if err := cursor.All(ctx, &orders); err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (s *TradingStorage) GetOrders(userID string) ([]*trading.Order, error) {
 }
 
 // SaveOrder implements trading.Storage interface
-func (s *TradingStorage) SaveOrder(order *trading.Order) error {
+func (s *TradingStorage) SaveOrder(order *types.Order) error {
 	collection := s.client.Database(s.db).Collection("orders")
 	ctx := context.Background()
 	_, err := collection.InsertOne(ctx, order)
@@ -64,7 +64,7 @@ func (s *TradingStorage) SaveOrder(order *trading.Order) error {
 }
 
 // SaveTrade implements trading.Storage interface
-func (s *TradingStorage) SaveTrade(trade *trading.Trade) error {
+func (s *TradingStorage) SaveTrade(trade *types.Trade) error {
 	collection := s.client.Database(s.db).Collection("trades")
 	ctx := context.Background()
 	_, err := collection.InsertOne(ctx, trade)
@@ -72,9 +72,38 @@ func (s *TradingStorage) SaveTrade(trade *trading.Trade) error {
 }
 
 // SavePosition implements trading.Storage interface
-func (s *TradingStorage) SavePosition(position *trading.Position) error {
+func (s *TradingStorage) SavePosition(position *types.Position) error {
 	collection := s.client.Database(s.db).Collection("positions")
 	ctx := context.Background()
 	_, err := collection.InsertOne(ctx, position)
 	return err
+}
+
+// GetPosition implements trading.Storage interface
+func (s *TradingStorage) GetPosition(symbol string) (*types.Position, error) {
+	collection := s.client.Database(s.db).Collection("positions")
+	ctx := context.Background()
+	var position types.Position
+	err := collection.FindOne(ctx, bson.M{"symbol": symbol}).Decode(&position)
+	if err != nil {
+		return nil, err
+	}
+	return &position, nil
+}
+
+// GetPositions implements trading.Storage interface
+func (s *TradingStorage) GetPositions(userID string) ([]*types.Position, error) {
+	collection := s.client.Database(s.db).Collection("positions")
+	ctx := context.Background()
+	cursor, err := collection.Find(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var positions []*types.Position
+	if err := cursor.All(ctx, &positions); err != nil {
+		return nil, err
+	}
+	return positions, nil
 }
