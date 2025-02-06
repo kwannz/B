@@ -6,8 +6,40 @@ from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from sqlalchemy import and_, text, Column, Integer, String, Float, Boolean, DateTime, ForeignKey, select
+from sqlalchemy.sql.expression import true, cast, BinaryExpression
+from sqlalchemy.orm import aliased, Query, column_property
+from sqlalchemy.sql.selectable import Select
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql import column, expression
+from sqlalchemy.types import TypeDecorator, String as StringType
+from sqlalchemy.sql.operators import ColumnOperators
+from decimal import Decimal
+from typing import Optional
 
 from tradingbot.api.core.config import settings
+
+def calculate_trade_profit(trade) -> float:
+    """Calculate profit for a trade with proper type handling."""
+    try:
+        if not all([
+            isinstance(trade.exit_price, (float, int, Decimal)),
+            isinstance(trade.entry_price, (float, int, Decimal)),
+            isinstance(trade.quantity, (float, int, Decimal))
+        ]):
+            return 0.0
+
+        exit_price = float(trade.exit_price)
+        entry_price = float(trade.entry_price)
+        quantity = float(trade.quantity)
+
+        return (
+            (exit_price - entry_price)
+            if trade.direction == "long"
+            else (entry_price - exit_price)
+        ) * quantity
+    except (TypeError, ValueError, AttributeError):
+        return 0.0
 from tradingbot.api.models.trading import (
     Order,
     OrderBase,
@@ -213,7 +245,9 @@ async def get_account_balance(
 ) -> AccountResponse:
     try:
         account = (
-            db.query(Account).filter(Account.user_id == current_user["id"]).first()
+            db.query(Account)
+            .filter(and_(Account.user_id == current_user["id"]))
+            .first()
         )
         if not account:
             account = Account(user_id=current_user["id"], balance=0.0)
@@ -283,7 +317,11 @@ async def list_orders(
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> OrderListResponse:
     try:
-        orders = db.query(Order).filter(Order.user_id == current_user["id"]).all()
+        orders = (
+            db.query(Order)
+            .filter(and_(Order.user_id == current_user["id"]))
+            .all()
+        )
         return OrderListResponse(orders=orders)
     except Exception as e:
         logger.error(f"Error listing orders: {e}")
@@ -299,7 +337,9 @@ async def get_order(
     try:
         order = (
             db.query(Order)
-            .filter(Order.id == order_id, Order.user_id == current_user["id"])
+            .filter(Order.id.isnot(None))
+            .filter(Order.id == int(order_id))
+            .filter(Order.user_id == str(current_user["id"]))
             .first()
         )
         if not order:
@@ -457,8 +497,8 @@ async def create_strategy(
 @app.get("/api/v1/agents", response_model=AgentListResponse)
 async def list_agents(db: Session = Depends(get_db)) -> AgentListResponse:
     try:
-        agents = db.query(Agent.type).distinct().all()
-        agent_types = [agent[0] for agent in agents]
+        result = db.query(Agent.type).filter(Agent.type.isnot(None)).distinct().all()
+        agent_types = [row[0] for row in result]
         return AgentListResponse(agents=agent_types, count=len(agent_types))
     except Exception as e:
         logger.error(f"Error fetching agents: {e}")
@@ -473,7 +513,11 @@ async def get_agent_status(
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = db.query(Agent).filter(Agent.type == agent_type).first()
+        agent = (
+            db.query(Agent)
+            .filter(Agent.type == agent_type)
+            .first()
+        )
         if not agent:
             agent = Agent(type=agent_type, status=AgentStatus.STOPPED)
             try:
@@ -500,7 +544,11 @@ async def update_agent_status(
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = db.query(Agent).filter(Agent.type == agent_type).first()
+        agent = (
+            db.query(Agent)
+            .filter(Agent.type == agent_type)
+            .first()
+        )
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent {agent_type} not found")
 
@@ -528,7 +576,12 @@ async def start_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentRe
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = db.query(Agent).filter(Agent.type == agent_type).first()
+        agent = (
+            db.query(Agent)
+            .filter(Agent.type.isnot(None))
+            .filter(Agent.type == agent_type)
+            .first()
+        )
         if not agent:
             agent = Agent(type=agent_type)
             db.add(agent)
@@ -560,7 +613,11 @@ async def stop_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentRes
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = db.query(Agent).filter(Agent.type == agent_type).first()
+        agent = (
+            db.query(Agent)
+            .filter(Agent.type == agent_type)
+            .first()
+        )
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent {agent_type} not found")
 
@@ -593,7 +650,12 @@ async def create_agent(
         if not agent.type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        existing_agent = db.query(Agent).filter(Agent.type == agent.type).first()
+        existing_agent = (
+            db.query(Agent)
+            .filter(Agent.type.isnot(None))
+            .filter(Agent.type == agent.type)
+            .first()
+        )
         if existing_agent:
             msg = f"Agent with type {agent.type} already exists"
             raise HTTPException(status_code=409, detail=msg)
@@ -622,7 +684,11 @@ async def delete_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentR
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = db.query(Agent).filter(Agent.type == agent_type).first()
+        agent = (
+            db.query(Agent)
+            .filter(Agent.type == agent_type)
+            .first()
+        )
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent {agent_type} not found")
 
@@ -759,15 +825,16 @@ async def get_performance(db: Session = Depends(get_db)) -> PerformanceResponse:
 
         for trade in closed_trades:
             try:
-                profit = (
-                    (trade.exit_price - trade.entry_price)
-                    if trade.direction == "long"
-                    else (trade.entry_price - trade.exit_price)
-                ) * trade.quantity
+                profit = calculate_trade_profit(trade)
+                if profit == 0.0:
+                    logger.warning(f"Could not calculate profit for trade {trade.id}")
+
                 if profit > 0:
                     profitable_trades += 1
                 total_profit += profit
                 profits.append(profit)
+            except Exception as e:
+                logger.error(f"Error calculating profit for trade {trade.id}: {e}")
             except (TypeError, AttributeError) as e:
                 logger.error(f"Error calculating profit for trade {trade.id}: {e}")
                 continue
