@@ -116,7 +116,7 @@ func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Ord
 }
 
 func (s *Server) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.OrderList, error) {
-	orders, err := s.service.GetOrders(ctx, req.UserId)
+	orders, err := s.service.GetOrders(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orders: %w", err)
 	}
