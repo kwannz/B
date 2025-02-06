@@ -79,13 +79,11 @@ async def execute_trades():
             address = str(wallet._keypair.pubkey())
             logger.info(f"Trading with wallet address: {address}")
             
-            # Verify key format and address
-            if address != "4BKPzFyjBaRP3L1PNDf3xTerJmbbxxESmDmZJ2CZYdQ5":
-                logger.error("Invalid wallet address")
+            # Verify wallet configuration
+            if not os.environ.get("WALLET_ADDRESS") or not key:
+                logger.error("Missing required configuration")
                 return
-            if not key or len(key) < 64:  # Base58 encoded private key length
-                logger.error("Invalid wallet key format")
-                return
+            logger.info("Wallet initialized successfully")
                 
             wallet = WalletManager()
             balance = await wallet.get_balance()
