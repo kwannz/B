@@ -66,7 +66,7 @@ EXECUTOR_PID=$!
 
 # Wait for trading to start
 sleep 5
-if ! check_process $EXECUTOR_PID; then
+if ! ps -p $EXECUTOR_PID > /dev/null; then
     echo "Failed to start Trading Service"
     kill $MONITOR_PID
     exit 1
