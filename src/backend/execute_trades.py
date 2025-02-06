@@ -18,18 +18,38 @@ async def execute_trades():
         )
         db = mongo_client.tradingbot
 
-        # Initialize wallet and trading client
-        wallet = WalletManager()
+        # Initialize wallet and verify key
+        try:
+            wallet = WalletManager()
+            balance = await wallet.get_balance()
+            logger.info(f"Wallet initialized successfully. Balance: {balance} SOL")
+        except Exception as e:
+            logger.error(f"Failed to initialize wallet: {e}")
+            return
+
+        # Initialize trading client with proper configuration
         trading_client = GMGNClient({
             "slippage": "0.5",
             "fee": "0.002",
-            "use_anti_mev": True
+            "use_anti_mev": True,
+            "verify_ssl": False,
+            "timeout": 30
         })
-        await trading_client.start()
+        
+        try:
+            await trading_client.start()
+            logger.info("Trading client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize trading client: {e}")
+            return
 
-        # Verify wallet balance
-        balance = await wallet.get_balance()
-        logger.info(f"Current wallet balance: {balance} SOL")
+        # Verify initial balance and set trading limits
+        min_balance = 0.1  # Minimum 0.1 SOL required
+        if balance < min_balance:
+            logger.error(f"Insufficient balance: {balance} SOL (minimum required: {min_balance} SOL)")
+            return
+        
+        logger.info("Trading system initialized successfully")
 
         while True:
             try:
@@ -39,24 +59,41 @@ async def execute_trades():
                 # Calculate position size (1% of balance)
                 position_size = balance * 0.01
                 
-                # Get market data and execute trade
-                market_data = await trading_client.get_market_data()
-                if "error" in market_data:
-                    logger.error(f"Failed to get market data: {market_data['error']}")
-                    continue
+                try:
+                    # Get market data and execute trade
+                    market_data = await trading_client.get_market_data()
+                    if "error" in market_data:
+                        logger.error(f"Failed to get market data: {market_data['error']}")
+                        await asyncio.sleep(60)  # Wait before retrying
+                        continue
 
-                # Get quote for the trade
-                quote = await trading_client.get_quote(
-                    token_in="SOL",
-                    token_out="USDC",
-                    amount=position_size
-                )
-                if "error" in quote:
-                    logger.error(f"Failed to get quote: {quote['error']}")
-                    continue
+                    # Calculate trade parameters
+                    token_in = "So11111111111111111111111111111111111111112"  # SOL token address
+                    token_out = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC token address
+                    
+                    # Get quote for the trade
+                    quote = await trading_client.get_quote(
+                        token_in=token_in,
+                        token_out=token_out,
+                        amount=position_size
+                    )
+                    if "error" in quote:
+                        logger.error(f"Failed to get quote: {quote['error']}")
+                        await asyncio.sleep(60)  # Wait before retrying
+                        continue
 
-                # Execute the swap
-                trade_result = await trading_client.execute_swap(quote, None)
+                    # Execute the swap with anti-MEV protection
+                    trade_result = await trading_client.execute_swap(quote, None)
+                    if "error" in trade_result:
+                        logger.error(f"Failed to execute trade: {trade_result['error']}")
+                        await asyncio.sleep(60)  # Wait before retrying
+                        continue
+
+                    logger.info(f"Trade executed successfully: {trade_result}")
+                except Exception as e:
+                    logger.error(f"Error during trade execution: {e}")
+                    await asyncio.sleep(60)  # Wait before retrying
+                    continue
 
                 # Record trade in database
                 await db.trades.insert_one({
