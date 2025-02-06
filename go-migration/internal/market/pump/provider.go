@@ -283,7 +283,7 @@ func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.B
 
 // GetNewTokens fetches new tokens from the API
 func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenMarketInfo, error) {
-	url := fmt.Sprintf("%s/api/v1/trades/latest", p.baseURL)
+	url := fmt.Sprintf("%s/api/v1/tokens/latest", p.baseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
