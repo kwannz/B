@@ -27,6 +27,7 @@ import (
 	"github.com/kwanRoshi/B/go-migration/internal/trading/executor"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/grpc"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/strategy"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/interfaces"
 	"github.com/kwanRoshi/B/go-migration/internal/ws"
 )
 
@@ -72,8 +73,9 @@ func main() {
 
 	// Initialize storage and providers
 	database := viper.GetString("database.mongodb.database")
-	storage := mongodb.NewTradingStorage(mongoClient, database, logger)
-	if err := storage.(*mongodb.TradingStorage).Initialize(); err != nil {
+	var tradingStorage trading.Storage
+	tradingStorage = mongodb.NewTradingStorage(mongoClient, database, logger)
+	if err := tradingStorage.(*mongodb.TradingStorage).Initialize(); err != nil {
 		logger.Fatal("Failed to initialize storage", zap.Error(err))
 	}
 
@@ -147,10 +149,21 @@ func main() {
 		MaxLeverage:         decimal.NewFromFloat(1.0),
 		MinMarginLevel:      decimal.NewFromFloat(1.5),
 		MaxConcentration:    decimal.NewFromFloat(0.2),
+		StopLoss: struct {
+			Initial  decimal.Decimal `yaml:"initial"`
+			Trailing decimal.Decimal `yaml:"trailing"`
+		}{
+			Initial:  decimal.NewFromFloat(0.02),
+			Trailing: decimal.NewFromFloat(0.01),
+		},
+		TakeProfitLevels: []types.ProfitLevel{
+			{Price: decimal.NewFromFloat(1.015), Size: decimal.NewFromFloat(0.5)},
+			{Price: decimal.NewFromFloat(1.03), Size: decimal.NewFromFloat(0.5)},
+		},
 	}
-	riskManager := trading.NewRiskManager(&limits, logger)
+	riskManager := executor.NewRiskManager(limits, logger)
 	
-	pumpConfig := &types.PumpTradingConfig{
+	pumpConfig := types.PumpTradingConfig{
 		MaxMarketCap: decimal.NewFromFloat(30000),
 		MinVolume:    decimal.NewFromFloat(1000),
 		WebSocket: types.WSConfig{
@@ -178,15 +191,26 @@ func main() {
 		},
 	}
 	
-	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, pumpConfig, apiKey)
+	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, &pumpConfig, apiKey)
 	if err := pumpExecutor.Start(); err != nil {
 		logger.Fatal("Failed to start pump.fun executor", zap.Error(err))
 	}
 	defer pumpExecutor.Stop()
 	
+	// Initialize trading engine
+	tradingConfig := types.Config{
+		Commission:     viper.GetFloat64("trading.order.commission"),
+		Slippage:      viper.GetFloat64("trading.order.slippage"),
+		MaxOrderSize:   viper.GetFloat64("trading.risk.max_order_size"),
+		MinOrderSize:   viper.GetFloat64("trading.risk.min_order_size"),
+		MaxPositions:   viper.GetInt("trading.risk.max_positions"),
+		UpdateInterval: viper.GetDuration("trading.engine.update_interval"),
+	}
+	tradingEngine := trading.NewEngine(tradingConfig, logger, tradingStorage)
+
 	// Register pump.fun strategy with trading engine
-	pumpStrategy := strategy.NewPumpStrategy(pumpExecutor, pumpConfig, logger)
-	if err := tradingEngine.RegisterStrategy("pump_fun", pumpStrategy); err != nil {
+	pumpStrategy := strategy.NewPumpStrategy(&pumpConfig, pumpExecutor, logger)
+	if err := tradingEngine.RegisterStrategy(pumpStrategy); err != nil {
 		logger.Fatal("Failed to register pump.fun strategy", zap.Error(err))
 	}
 
@@ -196,22 +220,11 @@ func main() {
 		logger.Fatal("Failed to start monitoring service", zap.Error(err))
 	}
 
-	// Initialize trading engine
-	tradingConfig := trading.Config{
-		Commission:     viper.GetFloat64("trading.order.commission"),
-		Slippage:      viper.GetFloat64("trading.order.slippage"),
-		MaxOrderSize:   viper.GetFloat64("trading.risk.max_order_size"),
-		MinOrderSize:   viper.GetFloat64("trading.risk.min_order_size"),
-		MaxPositions:   viper.GetInt("trading.risk.max_positions"),
-		UpdateInterval: viper.GetDuration("trading.engine.update_interval"),
+	// Start trading engine
+	if err := tradingEngine.Start(ctx); err != nil {
+		logger.Fatal("Failed to start trading engine", zap.Error(err))
 	}
-	tradingEngine := trading.NewEngine(tradingConfig, logger, storage)
-
-	// Register pump.fun strategy with trading engine
-	pumpStrategy := strategy.NewPumpStrategy(pumpExecutor, pumpConfig, logger)
-	if err := tradingEngine.RegisterStrategy("pump_fun", pumpStrategy); err != nil {
-		logger.Fatal("Failed to register pump.fun strategy", zap.Error(err))
-	}
+	defer tradingEngine.Stop()
 
 	// Initialize WebSocket server
 	wsConfig := ws.Config{
