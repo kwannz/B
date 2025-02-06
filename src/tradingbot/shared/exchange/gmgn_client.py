@@ -2,7 +2,8 @@ from typing import Any, Dict, Optional
 import base64
 from decimal import Decimal
 import aiohttp
-from solana.transaction import Transaction
+import base64
+from solders.transaction import Transaction
 
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
@@ -27,14 +28,14 @@ class GMGNClient:
         if not self.session:
             return {"error": "Session not initialized"}
             
+        lamports_amount = int(amount * 1e9)  # Convert SOL to lamports
         params = {
-            "token_in_address": token_in,
-            "token_out_address": token_out,
-            "in_amount": str(int(amount * 1e9)),  # Convert to lamports
-            "from_address": self.wallet_address,
-            "slippage": float(self.slippage),
-            "is_anti_mev": self.use_anti_mev,
-            "fee": float(self.fee)
+            "inputToken": token_in,
+            "outputToken": token_out,
+            "amount": str(lamports_amount),
+            "slippageBps": str(int(float(self.slippage) * 100)),  # Convert to basis points
+            "useAntiMev": "true" if self.use_anti_mev else "false",
+            "feeBps": str(int(float(self.fee) * 10000))  # Convert to basis points
         }
         
         try:
@@ -59,10 +60,12 @@ class GMGNClient:
             
         try:
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
-            tx = Transaction.deserialize(tx_buf)
-            tx.sign([wallet.payer])
-            signed_tx = base64.b64encode(tx.serialize()).decode()
+            # Parse and sign transaction with wallet
+            tx = Transaction.from_bytes(tx_buf)
+            tx.sign([wallet])  # Sign with provided wallet
+            signed_tx = base64.b64encode(bytes(tx)).decode()
             
+            # Submit transaction with anti-MEV protection if enabled
             endpoint = (
                 "/tx/submit_signed_bundle_transaction" 
                 if self.use_anti_mev else 

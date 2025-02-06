@@ -49,11 +49,12 @@ class DEXClient:
                 self.gmgn_client = GMGNClient({
                     "slippage": 0.5,
                     "fee": 0.002,
-                    "use_anti_mev": True
+                    "use_anti_mev": True,
+                    "wallet_address": None  # Will be set during swap execution
                 })
                 await self.gmgn_client.start()
             return await self.gmgn_client.get_quote(
-                token_in, token_out, amount
+                token_in, token_out, float(amount)
             )
         elif dex == "jupiter":
             if not self.jupiter_client:
@@ -126,6 +127,23 @@ class DEXClient:
                     }
         except Exception as e:
             return {"error": str(e)}
+
+    async def execute_swap(
+        self, dex: str, quote: Dict[str, Any], wallet: Any, config: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Execute swap on specified DEX."""
+        if dex == "gmgn":
+            if not self.gmgn_client:
+                from .gmgn_client import GMGNClient
+                self.gmgn_client = GMGNClient(config or {
+                    "slippage": 0.5,
+                    "fee": 0.002,
+                    "use_anti_mev": True
+                })
+                await self.gmgn_client.start()
+            return await self.gmgn_client.execute_swap(quote, wallet)
+        else:
+            return {"error": f"Unsupported DEX: {dex}"}
 
     async def get_market_data(self, dex: str) -> Dict[str, Any]:
         """Get market data from DEX."""
