@@ -1,5 +1,6 @@
 from prometheus_client import Counter, Gauge, Histogram, Info
 from typing import Dict
+from decimal import Decimal
 
 # Trading Metrics
 TRADE_COUNT = Counter(
@@ -111,18 +112,18 @@ def update_risk_metrics(market: str, exposure: float):
 def record_swap(
     market: str,
     status: str,
-    volume: float,
+    volume: Decimal,
     latency: float,
-    slippage: float,
-    risk_level: float,
-    liquidity: Dict[str, float]
+    slippage: Decimal,
+    risk_level: Decimal,
+    liquidity: Dict[str, Decimal]
 ):
     """Record swap-related metrics."""
     SWAP_COUNT.labels(status=status, market=market).inc()
-    SWAP_VOLUME.labels(market=market).inc(volume)
+    SWAP_VOLUME.labels(market=market).inc(float(volume))
     SWAP_LATENCY.labels(market=market).observe(latency)
-    SWAP_SLIPPAGE.labels(market=market).observe(slippage)
-    SWAP_RISK_LEVEL.labels(market=market).set(risk_level)
+    SWAP_SLIPPAGE.labels(market=market).observe(float(slippage))
+    SWAP_RISK_LEVEL.labels(market=market).set(float(risk_level))
     
     for dex, amount in liquidity.items():
-        SWAP_LIQUIDITY.labels(market=market, dex=dex).set(amount)
+        SWAP_LIQUIDITY.labels(market=market, dex=dex).set(float(amount))

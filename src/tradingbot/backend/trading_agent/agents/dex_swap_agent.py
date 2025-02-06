@@ -8,7 +8,7 @@ import pandas_ta as ta
 
 from ....shared.exchange.dex_client import DEXClient
 from ....shared.risk.risk_manager import RiskManager
-from tradingbot.shared.models.trading import TradeType
+from tradingbot.shared.models.trading import OrderSide
 from ..base_agent import BaseTradingAgent
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ class DexSwapAgent(BaseTradingAgent):
 
             if rsi <= self.rsi_oversold and indicators["ma_cross"]:
                 return {
-                    "type": TradeType.BUY,
+                    "type": OrderSide.BUY,
                     "token": token,
                     "price": float(price),
                     "indicators": indicators,
@@ -107,7 +107,7 @@ class DexSwapAgent(BaseTradingAgent):
 
             if rsi >= self.rsi_overbought:
                 return {
-                    "type": TradeType.SELL,
+                    "type": OrderSide.SELL,
                     "token": token,
                     "price": float(price),
                     "indicators": indicators,
@@ -184,7 +184,7 @@ class DexSwapAgent(BaseTradingAgent):
                 )
 
             quote_token = "USDT"
-            if signal["type"] == TradeType.BUY:
+            if signal["type"] == OrderSide.BUY:
                 quote = await self.dex_client.get_quote(
                     "jupiter", quote_token, token, float(adjusted_size)
                 )

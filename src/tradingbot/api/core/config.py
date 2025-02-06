@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     ORCA_API_URL: str = "https://api.orca.so"
     PRIMARY_DEX: str = "jupiter"
     RISK_MANAGEMENT_ENABLED: bool = True
-    MAX_TRADE_SIZE_SOL: int = 10
+    MAX_TRADE_SIZE_SOL: float = 10.0
     RISK_LEVEL: str = "medium"
 
     # CORS settings
@@ -115,6 +115,9 @@ class Settings(BaseSettings):
         "env_file": ".env",
         "extra": "allow"
     }
+    
+    # API settings
+    api_timeout: int = 30
 
 
 settings = Settings()
