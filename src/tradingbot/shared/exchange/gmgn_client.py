@@ -8,21 +8,32 @@ from solders.transaction import Transaction
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
         self.session = None
-        self.base_url = "https://gmgn.ai/defi/router/v1/sol"
+        self.base_url = "https://api.gmgn.ai/v1/solana"
+        self.api_key = os.environ.get('walletkey')
+        self.wallet_pubkey = None  # Will be set during initialization
         self.slippage = Decimal(str(config.get("slippage", "0.5")))
         self.fee = Decimal(str(config.get("fee", "0.002")))
         self.use_anti_mev = bool(config.get("use_anti_mev", True))
         self.wallet_address = config.get("wallet_address")
         
     async def start(self):
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {os.environ.get('walletkey')}",
-            "Accept-Encoding": "gzip, deflate, br"
-        }
-        self.session = aiohttp.ClientSession(headers=headers)
+        # Initialize wallet from API key
+        from solders.keypair import Keypair
+        import base58
+        try:
+            key_bytes = base58.b58decode(self.api_key)
+            keypair = Keypair.from_bytes(key_bytes)
+            self.wallet_pubkey = str(keypair.pubkey())
+        except Exception as e:
+            print(f"Error initializing wallet: {e}")
+            
+        self.session = aiohttp.ClientSession(
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "X-API-Key": self.api_key
+            }
+        )
         
     async def stop(self):
         if self.session:
@@ -37,29 +48,29 @@ class GMGNClient:
             
         lamports_amount = int(amount * 1e9)  # Convert SOL to lamports
         params = {
-            "fromToken": token_in,
-            "toToken": token_out,
+            "inputMint": token_in,
+            "outputMint": token_out,
             "amount": str(lamports_amount),
-            "slippage": str(float(self.slippage)),
-            "antiMEV": str(self.use_anti_mev).lower(),
-            "fee": str(float(self.fee))
+            "slippageBps": int(float(self.slippage) * 100),  # Convert to basis points
+            "walletAddress": self.wallet_address or "",
+            "useAntiMev": self.use_anti_mev,
+            "feeBps": int(float(self.fee) * 10000)  # Convert to basis points
         }
         
         try:
-            print(f"\nAttempting to get quote from {self.base_url}/swap/quote")
+            print(f"\nAttempting to get quote from {self.base_url}/dex/quote")
+            # Update params with wallet pubkey
+            params["wallet_address"] = self.wallet_pubkey or ""
+            
             async with self.session.post(
-                f"{self.base_url}/swap/quote",
+                f"{self.base_url}/dex/quote",
                 json=params,
                 headers={
-                    "Authorization": f"Bearer {os.environ.get('walletkey')}",
+                    "X-API-Key": self.api_key,
                     "Accept": "application/json",
-                    "Content-Type": "application/json",
-                    "Origin": "https://gmgn.ai",
-                    "Referer": "https://gmgn.ai/",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Accept-Encoding": "gzip, deflate, br"
-                }
+                    "Content-Type": "application/json"
+                },
+                ssl=False
             ) as response:
                 response_text = await response.text()
                 print(f"\nResponse status: {response.status}")
