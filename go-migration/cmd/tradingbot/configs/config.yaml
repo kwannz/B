@@ -2,7 +2,7 @@ market:
   providers:
     pump:
       base_url: "https://pumpportal.fun"
-      ws_url: "wss://pumpportal.fun/api/data"
+      ws_url: "wss://pumpportal.fun/ws/pump"
       new_tokens_endpoint: "/api/v1/tokens/latest"
       bonding_curve_endpoint: "/api/bonding-curve"
       request_timeout: 30s
