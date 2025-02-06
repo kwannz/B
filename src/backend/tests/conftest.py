@@ -13,6 +13,7 @@ import websockets
 import httpx
 import subprocess
 from datetime import datetime
+from datetime import timezone
 from typing import Optional, AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -273,27 +274,9 @@ async def initialize_test_app(mongodb_client, redis_client, event_loop):
         allow_headers=["*"],
     )
 
-    # Create a fresh FastAPI instance for each test
-    app_instance = FastAPI(lifespan=lifespan)
-
     # Copy routes from main app
     for route in app.routes:
         app_instance.router.routes.append(route)
-
-    # Initialize app state
-    app_instance.state.mongodb = mongodb_client
-    app_instance.state.db = mongodb_client.get_database("tradingbot_test")
-    app_instance.state.redis = redis_client
-    app_instance.state.testing = True
-
-    # Add CORS middleware
-    app_instance.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
     # Copy exception handlers
     app_instance.exception_handlers = app.exception_handlers.copy()
@@ -316,12 +299,12 @@ async def initialize_test_app(mongodb_client, redis_client, event_loop):
     await app_instance.state.db.agents.insert_one({
         "type": "trading",
         "status": "running",
-        "created_at": datetime.utcnow(),
-        "last_updated": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc),
+        "last_updated": datetime.now(timezone.utc)
     })
 
     # Initialize test server
-    from test_server import TestServer
+    from tests.utils.test_server import TestServer
     app_instance.state.test_server = TestServer(app_instance)
     await app_instance.state.test_server.start()
 
@@ -510,7 +493,7 @@ def sample_strategy_data():
             "timeframe": "1h"
         },
         "status": "active",
-        "created_at": datetime.utcnow().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
 
 @pytest.fixture

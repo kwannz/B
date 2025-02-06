@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     WS_PING_INTERVAL: int = Field(default=30000)
     WS_HEARTBEAT_TIMEOUT: int = Field(default=60000)
 
+    # Redis settings
+    REDIS_URL: str = Field(default="redis://localhost:6379/0")
+
+    # Monitoring settings
+    MONITOR_PORT: int = Field(default=8001)
+
     @property
     def DATABASE_URL(self) -> str:
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
