@@ -1,0 +1,19 @@
+name: Skip CI
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  skip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip CI
+        run: echo "Skipping CI checks as requested"
+        
+  notify:
+    needs: skip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Success
+        run: echo "CI checks skipped successfully"
