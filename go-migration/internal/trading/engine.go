@@ -259,6 +259,25 @@ func (e *Engine) validateOrder(order *types.Order) error {
 	return nil
 }
 
+func (e *Engine) GetOrderBook(ctx context.Context, symbol string) (*types.OrderBook, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	// TODO: Implement order book aggregation from providers
+	return &types.OrderBook{
+		Symbol:     symbol,
+		Bids:       make([]types.OrderBookLevel, 0),
+		Asks:       make([]types.OrderBookLevel, 0),
+		UpdateTime: time.Now(),
+	}, nil
+}
+
+func (e *Engine) SubscribeOrderBook(ctx context.Context, symbol string) (<-chan *types.OrderBook, error) {
+	updates := make(chan *types.OrderBook)
+	// TODO: Implement order book subscription
+	return updates, nil
+}
+
 func (e *Engine) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()

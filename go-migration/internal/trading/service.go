@@ -37,7 +37,7 @@ func (s *Service) GetOrder(ctx context.Context, orderID string) (*types.Order, e
 }
 
 // GetOrders implements TradingEngine interface
-func (s *Service) GetOrders(ctx context.Context, userID string) ([]*types.Order, error) {
+func (s *Service) GetOrders(ctx context.Context) ([]*types.Order, error) {
 	return s.engine.GetOrders(ctx)
 }
 
@@ -59,12 +59,12 @@ func (s *Service) GetTrades(ctx context.Context, userID string) ([]*types.Trade,
 }
 
 // GetPosition implements TradingEngine interface
-func (s *Service) GetPosition(ctx context.Context, userID, symbol string) (*types.Position, error) {
+func (s *Service) GetPosition(ctx context.Context, symbol string) (*types.Position, error) {
 	return s.engine.GetPosition(ctx, symbol)
 }
 
 // GetPositions implements TradingEngine interface
-func (s *Service) GetPositions(ctx context.Context, userID string) ([]*types.Position, error) {
+func (s *Service) GetPositions(ctx context.Context) ([]*types.Position, error) {
 	return s.engine.GetPositions(ctx)
 }
 
