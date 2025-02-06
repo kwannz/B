@@ -1,13 +1,15 @@
 import os
 import asyncio
+import logging
 from datetime import datetime
 import motor.motor_asyncio
 from fastapi import FastAPI, WebSocket, HTTPException
 from pymongo import MongoClient
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-import logging
+app = FastAPI()
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -55,33 +57,42 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            positions = await app.state.db.positions.find().to_list(None)
-            position_data = [
-                {
-                    "symbol": p["symbol"],
-                    "size": float(p["size"]),
-                    "entry_price": float(p["entry_price"]),
-                    "current_price": float(p["current_price"]),
-                    "unrealized_pnl": float(p["unrealized_pnl"])
-                } for p in positions
-            ]
+            try:
+                positions = await app.state.db.positions.find().to_list(None)
+                position_data = [
+                    {
+                        "symbol": p["symbol"],
+                        "size": float(p.get("size", 0)),
+                        "entry_price": float(p.get("entry_price", 0)),
+                        "current_price": float(p.get("current_price", 0)),
+                        "unrealized_pnl": float(p.get("unrealized_pnl", 0))
+                    } for p in positions
+                ] if positions else []
 
-            risk_metrics = await app.state.db.risk_metrics.find_one()
-            metrics_data = {
-                "total_exposure": float(risk_metrics["total_exposure"]) if risk_metrics else 0,
-                "margin_used": float(risk_metrics["margin_used"]) if risk_metrics else 0,
-                "daily_pnl": float(risk_metrics["daily_pnl"]) if risk_metrics else 0
-            }
-
-            await websocket.send_json({
-                "timestamp": datetime.utcnow().isoformat(),
-                "metrics": {
-                    "active_tokens": len(positions),
-                    "positions": position_data,
-                    "risk_metrics": metrics_data
+                risk_metrics = await app.state.db.risk_metrics.find_one()
+                metrics_data = {
+                    "total_exposure": float(risk_metrics.get("total_exposure", 0)) if risk_metrics else 0,
+                    "margin_used": float(risk_metrics.get("margin_used", 0)) if risk_metrics else 0,
+                    "daily_pnl": float(risk_metrics.get("daily_pnl", 0)) if risk_metrics else 0
                 }
-            })
+
+                await websocket.send_json({
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "metrics": {
+                        "active_tokens": len(positions),
+                        "positions": position_data,
+                        "risk_metrics": metrics_data
+                    }
+                })
+            except Exception as e:
+                logger.error(f"Error collecting metrics: {e}")
+                metrics_data = {"error": str(e)}
+                await websocket.send_json({
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "metrics": metrics_data
+                })
             await asyncio.sleep(5)
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        logger.error(f"WebSocket error: {e}")
+    finally:
         await websocket.close()
