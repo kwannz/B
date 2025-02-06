@@ -116,12 +116,13 @@ async def execute_trades():
                             trade_result = await trading_client.execute_swap(
                                 quote,
                                 {
-                                    "skip_preflight": False,  # Enable preflight checks
+                                    "skip_preflight": True,  # Skip preflight for faster execution
                                     "max_retries": 3,
-                                    "skip_confirmation": False,
-                                    "commitment": "confirmed",
-                                    "compute_unit_price": 1000,  # Add priority fee
-                                    "compute_unit_limit": 1400000  # Set compute limit
+                                    "skip_confirmation": True,  # Skip confirmation for faster execution
+                                    "commitment": "processed",  # Use processed for faster confirmation
+                                    "compute_unit_price": 5000,  # Higher priority fee
+                                    "compute_unit_limit": 1400000,  # Set compute limit
+                                    "priority_fee": 10000  # Add priority fee in lamports
                                 }
                             )
                             
