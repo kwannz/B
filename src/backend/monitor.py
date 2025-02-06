@@ -112,17 +112,19 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             try:
-                positions = await app.state.db.positions.find().to_list(None)
-                position_data = [
+                # Get latest trade data
+                trades = await app.state.db.trades.find().sort("timestamp", -1).limit(10).to_list(None)
+                trade_data = [
                     {
-                        "symbol": p["symbol"],
-                        "size": float(p.get("size", 0)),
-                        "entry_price": float(p.get("entry_price", 0)),
-                        "current_price": float(p.get("current_price", 0)),
-                        "unrealized_pnl": float(p.get("unrealized_pnl", 0))
-                    } for p in positions
-                ] if positions else []
+                        "symbol": t["symbol"],
+                        "side": t["side"],
+                        "size": float(t["size"]),
+                        "price": float(t["price"]),
+                        "timestamp": t["timestamp"].isoformat()
+                    } for t in trades
+                ] if trades else []
 
+                # Get risk metrics
                 risk_metrics = await app.state.db.risk_metrics.find_one()
                 metrics_data = {
                     "total_exposure": float(risk_metrics.get("total_exposure", 0)) if risk_metrics else 0,
@@ -130,28 +132,36 @@ async def websocket_endpoint(websocket: WebSocket):
                     "daily_pnl": float(risk_metrics.get("daily_pnl", 0)) if risk_metrics else 0
                 }
 
+                # Get Jupiter metrics
                 jupiter_metrics = await app.state.db.metrics.find_one({"type": "jupiter_metrics"})
                 jupiter_data = {
                     "circuit_breaker_failures": jupiter_metrics.get("circuit_breaker_failures", 0),
                     "last_failure_time": jupiter_metrics.get("last_failure_time", 0),
-                    "current_delay": jupiter_metrics.get("current_delay", 1000)
+                    "current_delay": jupiter_metrics.get("current_delay", 1000),
+                    "trades": trade_data
                 } if jupiter_metrics else {}
+
+                # Get wallet balance
+                wallet_data = await app.state.db.wallet.find_one({"type": "balance"})
+                balance_data = {
+                    "balance": float(wallet_data.get("balance", 0)) if wallet_data else 0,
+                    "timestamp": wallet_data.get("timestamp", datetime.utcnow()).isoformat() if wallet_data else datetime.utcnow().isoformat()
+                }
 
                 await websocket.send_json({
                     "timestamp": datetime.utcnow().isoformat(),
                     "metrics": {
-                        "active_tokens": len(positions),
-                        "positions": position_data,
+                        "trades": trade_data,
                         "risk_metrics": metrics_data,
-                        "jupiter_metrics": jupiter_data
+                        "jupiter_metrics": jupiter_data,
+                        "wallet": balance_data
                     }
                 })
             except Exception as e:
                 logger.error(f"Error collecting metrics: {e}")
-                metrics_data = {"error": str(e)}
                 await websocket.send_json({
                     "timestamp": datetime.utcnow().isoformat(),
-                    "metrics": metrics_data
+                    "metrics": {"error": str(e)}
                 })
             await asyncio.sleep(5)
     except Exception as e:
