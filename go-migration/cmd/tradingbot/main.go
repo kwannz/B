@@ -17,11 +17,15 @@ import (
 	"github.com/kwanRoshi/B/go-migration/internal/market"
 	"github.com/kwanRoshi/B/go-migration/internal/market/pump"
 	"github.com/kwanRoshi/B/go-migration/internal/market/solana"
+	"github.com/kwanRoshi/B/go-migration/internal/metrics"
+	"github.com/kwanRoshi/B/go-migration/internal/monitoring"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"github.com/kwanRoshi/B/go-migration/internal/pricing"
 	"github.com/kwanRoshi/B/go-migration/internal/storage/mongodb"
 	"github.com/kwanRoshi/B/go-migration/internal/trading"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/executor"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/grpc"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/strategy"
 	"github.com/kwanRoshi/B/go-migration/internal/ws"
 )
 
@@ -113,6 +117,49 @@ func main() {
 	// Start signal processing
 	go handleSignals(ctx, logger, pricingEngine)
 
+	// Load trading configuration
+	var tradingCfg strategy.TradingConfig
+	if err := viper.UnmarshalKey("trading", &tradingCfg); err != nil {
+		logger.Fatal("Failed to parse trading config", zap.Error(err))
+	}
+
+	// Initialize real-time trading executor with API key
+	apiKey := os.Getenv("PUMP_API_KEY")
+	if apiKey == "" {
+		logger.Fatal("PUMP_API_KEY environment variable not set")
+	
+	limits := types.RiskLimits{
+		MaxPositionSize:  1000.0,
+		MaxDrawdown:      0.1,
+		MaxDailyLoss:     100.0,
+		MaxLeverage:      1.0,
+		MinMarginLevel:   1.5,
+		MaxConcentration: 0.2,
+	}
+	riskManager := trading.NewRiskManager(limits, logger)
+	
+	pumpConfig := &types.PumpTradingConfig{
+		StopLossPercent:   15.0,  // 15% stop loss
+		TakeProfitLevels: []float64{2.0, 3.0, 5.0},  // 2x, 3x, 5x take profits
+		BatchSizes:       []float64{0.2, 0.25, 0.2},  // 20%, 25%, 20% per batch
+	}
+	
+	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, pumpConfig, apiKey)
+	if err := pumpExecutor.Start(); err != nil {
+		logger.Fatal("Failed to start pump.fun executor", zap.Error(err))
+	}
+	defer pumpExecutor.Stop()
+	
+	// Register pump.fun strategy with trading engine
+	pumpStrategy := strategy.NewPumpStrategy(pumpExecutor, pumpConfig, logger)
+	tradingEngine.RegisterStrategy("pump_fun", pumpStrategy)
+
+	// Initialize monitoring service
+	monitoringService := monitoring.NewService(pumpProvider, metrics.NewPumpMetrics(), logger)
+	if err := monitoringService.Start(ctx); err != nil {
+		logger.Fatal("Failed to start monitoring service", zap.Error(err))
+	}
+
 	// Initialize trading engine
 	tradingConfig := trading.Config{
 		Commission:     viper.GetFloat64("trading.order.commission"),
@@ -123,6 +170,12 @@ func main() {
 		UpdateInterval: viper.GetDuration("trading.engine.update_interval"),
 	}
 	tradingEngine := trading.NewEngine(tradingConfig, logger, storage)
+
+	// Register pump.fun strategy with trading engine
+	pumpStrategy := strategy.NewPumpStrategy(pumpExecutor, pumpConfig, logger)
+	if err := tradingEngine.RegisterStrategy("pump_fun", pumpStrategy); err != nil {
+		logger.Fatal("Failed to register pump.fun strategy", zap.Error(err))
+	}
 
 	// Initialize WebSocket server
 	wsConfig := ws.Config{
@@ -176,7 +229,7 @@ func handleSignals(ctx context.Context, logger *zap.Logger, engine *pricing.Engi
 				zap.String("symbol", signal.Symbol),
 				zap.String("type", signal.Type),
 				zap.String("direction", signal.Direction),
-				zap.Float64("price", signal.Price),
+				zap.String("price", signal.Price.String()),
 				zap.Float64("confidence", signal.Confidence))
 		}
 	}
@@ -191,8 +244,8 @@ func handleUpdates(ctx context.Context, logger *zap.Logger, updates <-chan *type
 		case update := <-updates:
 			logger.Debug("Received price update",
 				zap.String("symbol", update.Symbol),
-				zap.Float64("price", update.Price),
-				zap.Float64("volume", update.Volume),
+				zap.String("price", update.Price.String()),
+				zap.String("volume", update.Volume.String()),
 				zap.Time("timestamp", update.Timestamp))
 		}
 	}

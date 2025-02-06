@@ -1,7 +1,6 @@
 package strategy
 
 import (
-	"context"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -52,10 +51,4 @@ type Config struct {
 	} `json:"risk_limits"`
 }
 
-type Strategy interface {
-	Initialize(config Config) error
-	ExecuteTrade(ctx context.Context, signal *Signal) error
-	GetMetrics() *Metrics
-	GetName() string
-	GetConfig() *Config
-}
+// Strategy interface moved to strategy.go

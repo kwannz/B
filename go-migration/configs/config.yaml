@@ -124,3 +124,10 @@ metrics:
   enabled: true
   port: 9090
   path: /metrics
+trading:
+  config_file: "configs/trading.yaml"
+  execution:
+    max_slippage: 0.02
+    retry_attempts: 3
+    retry_delay: "1s"
+    batch_size: 50

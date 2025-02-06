@@ -3,6 +3,7 @@ package pricing
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"github.com/kwanRoshi/B/go-migration/internal/utils"
 )
@@ -74,7 +75,7 @@ func validateTimestamp(s *types.Signal) bool {
 
 func validatePrice(s *types.Signal) bool {
 	// Check if price is positive
-	return s.Price > 0
+	return s.Price.IsPositive()
 }
 
 func validateConfidence(s *types.Signal) bool {
@@ -110,7 +111,9 @@ func validateMACDSignal(s *types.Signal) bool {
 			// Require minimum MACD value for signal strength
 			params := ind.Params.(map[string]interface{})
 			if signal, ok := params["signal"].(float64); ok {
-				return utils.Abs(ind.Value-signal) >= 0.0001*s.Price
+				threshold := decimal.NewFromFloat(0.0001).Mul(s.Price)
+				diff := decimal.NewFromFloat(utils.Abs(ind.Value - signal))
+				return diff.GreaterThanOrEqual(threshold)
 			}
 		}
 	}
@@ -126,10 +129,12 @@ func validateBBSignal(s *types.Signal) bool {
 
 			// Require price to be significantly outside bands
 			if s.Direction == "long" {
-				return s.Price <= lower*0.995 // 0.5% below lower band
+				threshold := decimal.NewFromFloat(lower).Mul(decimal.NewFromFloat(0.995))
+				return s.Price.LessThanOrEqual(threshold) // 0.5% below lower band
 			}
 			if s.Direction == "short" {
-				return s.Price >= upper*1.005 // 0.5% above upper band
+				threshold := decimal.NewFromFloat(upper).Mul(decimal.NewFromFloat(1.005))
+				return s.Price.GreaterThanOrEqual(threshold) // 0.5% above upper band
 			}
 		}
 	}

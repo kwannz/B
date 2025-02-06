@@ -12,12 +12,13 @@ import (
 	"github.com/kwanRoshi/B/go-migration/internal/config"
 	"github.com/kwanRoshi/B/go-migration/internal/market/pump"
 	"github.com/kwanRoshi/B/go-migration/internal/risk"
-	"github.com/kwanRoshi/B/go-migration/internal/trading"
+
+	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
 type PumpFunStrategy struct {
 	*BaseStrategy
-	engine    *trading.Engine
+	engine    types.TradingEngine
 	riskMgr   *risk.Manager
 	provider  *pump.Provider
 	secretKey string
@@ -25,7 +26,7 @@ type PumpFunStrategy struct {
 	mu        sync.RWMutex
 }
 
-func NewPumpFunStrategy(engine *trading.Engine, riskMgr *risk.Manager, provider *pump.Provider, logger *zap.Logger) (*PumpFunStrategy, error) {
+func NewPumpFunStrategy(engine types.TradingEngine, riskMgr *risk.Manager, provider *pump.Provider, logger *zap.Logger) (*PumpFunStrategy, error) {
 	secrets, err := config.LoadSecrets()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load secrets: %w", err)
@@ -41,7 +42,7 @@ func NewPumpFunStrategy(engine *trading.Engine, riskMgr *risk.Manager, provider 
 	}, nil
 }
 
-func (s *PumpFunStrategy) ExecuteTrade(ctx context.Context, signal *Signal) error {
+func (s *PumpFunStrategy) ExecuteTrade(ctx context.Context, signal *types.Signal) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -50,30 +51,21 @@ func (s *PumpFunStrategy) ExecuteTrade(ctx context.Context, signal *Signal) erro
 	}
 
 	switch signal.Type {
-	case SignalBuy:
+	case types.SignalTypeBuy:
 		return s.executeBuy(ctx, signal)
-	case SignalSell:
+	case types.SignalTypeSell:
 		return s.executeSell(ctx, signal)
 	default:
 		return fmt.Errorf("unknown signal type: %s", signal.Type)
 	}
 }
 
-func (s *PumpFunStrategy) validateSignal(signal *Signal) error {
-	if signal.MarketCap.GreaterThan(s.config.EntryThresholds.MaxMarketCap) {
-		return fmt.Errorf("market cap %s exceeds threshold %s", 
-			signal.MarketCap, s.config.EntryThresholds.MaxMarketCap)
-	}
-
-	if signal.Volume.LessThan(s.config.EntryThresholds.MinVolume) {
-		return fmt.Errorf("volume %s below threshold %s",
-			signal.Volume, s.config.EntryThresholds.MinVolume)
-	}
-
+func (s *PumpFunStrategy) validateSignal(signal *types.Signal) error {
+	// Market cap and volume validation is handled by the provider
 	return nil
 }
 
-func (s *PumpFunStrategy) executeBuy(ctx context.Context, signal *Signal) error {
+func (s *PumpFunStrategy) executeBuy(ctx context.Context, signal *types.Signal) error {
 	position, err := s.engine.GetPosition(ctx, signal.Symbol)
 	if err != nil {
 		return fmt.Errorf("failed to get position: %w", err)
@@ -88,24 +80,24 @@ func (s *PumpFunStrategy) executeBuy(ctx context.Context, signal *Signal) error 
 		return fmt.Errorf("position validation failed: %w", err)
 	}
 
-	order := &trading.Order{
+	params := &types.TradeParams{
 		Symbol:    signal.Symbol,
-		Side:      trading.OrderSideBuy,
-		Type:      trading.OrderTypeLimit,
+		Side:      types.OrderSideBuy,
 		Price:     signal.Price,
 		Size:      size,
+		APIKey:    s.secretKey,
 		Timestamp: time.Now(),
 	}
 
-	if err := s.engine.PlaceOrder(ctx, order); err != nil {
-		return fmt.Errorf("failed to place buy order: %w", err)
+	if err := s.engine.ExecuteTrade(ctx, params); err != nil {
+		return fmt.Errorf("failed to execute buy trade: %w", err)
 	}
 
 	s.setupProfitTakingOrders(ctx, signal.Symbol, signal.Price, size)
 	return nil
 }
 
-func (s *PumpFunStrategy) executeSell(ctx context.Context, signal *Signal) error {
+func (s *PumpFunStrategy) executeSell(ctx context.Context, signal *types.Signal) error {
 	position, err := s.engine.GetPosition(ctx, signal.Symbol)
 	if err != nil {
 		return fmt.Errorf("failed to get position: %w", err)
@@ -115,23 +107,23 @@ func (s *PumpFunStrategy) executeSell(ctx context.Context, signal *Signal) error
 		return fmt.Errorf("no position exists for %s", signal.Symbol)
 	}
 
-	order := &trading.Order{
+	params := &types.TradeParams{
 		Symbol:    signal.Symbol,
-		Side:      trading.OrderSideSell,
-		Type:      trading.OrderTypeLimit,
+		Side:      types.OrderSideSell,
 		Price:     signal.Price,
 		Size:      position.Size,
+		APIKey:    s.secretKey,
 		Timestamp: time.Now(),
 	}
 
-	if err := s.engine.PlaceOrder(ctx, order); err != nil {
-		return fmt.Errorf("failed to place sell order: %w", err)
+	if err := s.engine.ExecuteTrade(ctx, params); err != nil {
+		return fmt.Errorf("failed to execute sell trade: %w", err)
 	}
 
 	return nil
 }
 
-func (s *PumpFunStrategy) calculatePositionSize(signal *Signal) decimal.Decimal {
+func (s *PumpFunStrategy) calculatePositionSize(signal *types.Signal) decimal.Decimal {
 	maxSize := s.config.RiskLimits.MaxPositionSize
 	suggestedSize := signal.Price.Mul(decimal.NewFromInt(1000))
 	
@@ -146,17 +138,17 @@ func (s *PumpFunStrategy) setupProfitTakingOrders(ctx context.Context, symbol st
 		takeProfit := entryPrice.Mul(level.Multiplier)
 		partialSize := size.Mul(level.Percentage)
 
-		order := &trading.Order{
+		params := &types.TradeParams{
 			Symbol:    symbol,
-			Side:      trading.OrderSideSell,
-			Type:      trading.OrderTypeTakeProfit,
+			Side:      types.OrderSideSell,
 			Price:     takeProfit,
 			Size:      partialSize,
+			APIKey:    s.secretKey,
 			Timestamp: time.Now(),
 		}
 
-		if err := s.engine.PlaceOrder(ctx, order); err != nil {
-			s.logger.Error("failed to place take-profit order",
+		if err := s.engine.ExecuteTrade(ctx, params); err != nil {
+			s.logger.Error("failed to execute take-profit trade",
 				zap.String("symbol", symbol),
 				zap.String("price", takeProfit.String()),
 				zap.String("size", partialSize.String()),

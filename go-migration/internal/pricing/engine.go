@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/analysis"
@@ -93,8 +94,8 @@ func (e *Engine) ProcessUpdate(update *types.PriceUpdate) error {
 	// Add price to history
 	history.Add(&types.PriceLevel{
 		Symbol:    update.Symbol,
-		Price:     update.Price,
-		Volume:    update.Volume,
+		Price:     update.Price.InexactFloat64(),
+		Volume:    update.Volume.InexactFloat64(),
 		Timestamp: update.Timestamp,
 	})
 
@@ -170,9 +171,9 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 			if value <= 30 {
 				return &types.Signal{
 					Symbol:     symbol,
-					Type:       "entry",
+					Type:       types.SignalTypeBuy,
 					Direction:  "long",
-					Price:      current.Price,
+					Price:      decimal.NewFromFloat(current.Price),
 					Confidence: (30 - value) / 30,
 					Timestamp:  current.Timestamp,
 					Indicators: indicators,
@@ -181,9 +182,9 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 			if value >= 70 {
 				return &types.Signal{
 					Symbol:     symbol,
-					Type:       "entry",
+					Type:       types.SignalTypeSell,
 					Direction:  "short",
-					Price:      current.Price,
+					Price:      decimal.NewFromFloat(current.Price),
 					Confidence: (value - 70) / 30,
 					Timestamp:  current.Timestamp,
 					Indicators: indicators,
@@ -202,9 +203,9 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 			if value > signal {
 				return &types.Signal{
 					Symbol:     symbol,
-					Type:       "entry",
+					Type:       types.SignalTypeBuy,
 					Direction:  "long",
-					Price:      current.Price,
+					Price:      decimal.NewFromFloat(current.Price),
 					Confidence: (value - signal) / (0.001 * current.Price),
 					Timestamp:  current.Timestamp,
 					Indicators: indicators,
@@ -213,9 +214,9 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 			if value < signal {
 				return &types.Signal{
 					Symbol:     symbol,
-					Type:       "entry",
+					Type:       types.SignalTypeSell,
 					Direction:  "short",
-					Price:      current.Price,
+					Price:      decimal.NewFromFloat(current.Price),
 					Confidence: (signal - value) / (0.001 * current.Price),
 					Timestamp:  current.Timestamp,
 					Indicators: indicators,
@@ -235,9 +236,9 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 			if current.Price <= lower {
 				return &types.Signal{
 					Symbol:     symbol,
-					Type:       "entry",
+					Type:       types.SignalTypeBuy,
 					Direction:  "long",
-					Price:      current.Price,
+					Price:      decimal.NewFromFloat(current.Price),
 					Confidence: (lower - current.Price) / (lower - middle),
 					Timestamp:  current.Timestamp,
 					Indicators: indicators,
@@ -246,9 +247,9 @@ func (e *Engine) analyzeIndicators(symbol string, history *types.PriceHistory) *
 			if current.Price >= upper {
 				return &types.Signal{
 					Symbol:     symbol,
-					Type:       "entry",
+					Type:       types.SignalTypeSell,
 					Direction:  "short",
-					Price:      current.Price,
+					Price:      decimal.NewFromFloat(current.Price),
 					Confidence: (current.Price - upper) / (upper - middle),
 					Timestamp:  current.Timestamp,
 					Indicators: indicators,

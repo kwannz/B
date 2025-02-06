@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // PriceLevel represents a price level with additional metadata
@@ -106,8 +108,9 @@ func (h *PriceHistory) Clear() {
 	h.LastIndex = 0
 }
 
-// Signal represents a trading signal
-type Signal struct {
+// LegacyMarketSignal represents an older version of market trading signal
+// Deprecated: Use types.Signal instead
+type LegacyMarketSignal struct {
 	Symbol     string      `json:"symbol"`
 	Type       string      `json:"type"`
 	Direction  string      `json:"direction"`
@@ -126,13 +129,13 @@ type Indicator struct {
 
 // PriceUpdate represents a price update
 type PriceUpdate struct {
-	Symbol      string    `json:"symbol"`
-	TokenName   string    `json:"token_name,omitempty"`
-	Price       float64   `json:"price"`
-	Volume      float64   `json:"volume"`
-	MarketCap   float64   `json:"market_cap,omitempty"`
-	TotalSupply float64   `json:"total_supply,omitempty"`
-	Timestamp   time.Time `json:"timestamp"`
+	Symbol      string          `json:"symbol"`
+	TokenName   string          `json:"token_name,omitempty"`
+	Price       decimal.Decimal `json:"price"`
+	Volume      decimal.Decimal `json:"volume"`
+	MarketCap   decimal.Decimal `json:"market_cap,omitempty"`
+	TotalSupply decimal.Decimal `json:"total_supply,omitempty"`
+	Timestamp   time.Time       `json:"timestamp"`
 }
 
 // MarketDataProvider defines the market data provider interface
@@ -150,33 +153,26 @@ type MarketDataProvider interface {
 	GetBondingCurve(ctx context.Context, symbol string) (*BondingCurve, error)
 
 	// SubscribeNewTokens subscribes to new token listings
-	SubscribeNewTokens(ctx context.Context) (<-chan *TokenInfo, error)
+	SubscribeNewTokens(ctx context.Context) (<-chan *TokenMarketInfo, error)
 
 	// ExecuteTrade executes a trade with the given parameters
 	ExecuteTrade(ctx context.Context, params map[string]interface{}) error
 }
 
-// TokenInfo represents information about a token
-type TokenInfo struct {
-	Symbol     string    `json:"symbol"`
-	Name       string    `json:"name"`
-	MarketCap  float64   `json:"market_cap"`
-	Volume     float64   `json:"volume"`
-	Supply     int64     `json:"supply"`
-	MaxSupply  int64     `json:"max_supply"`
-	LaunchTime time.Time `json:"launch_time"`
+// TokenMarketInfo represents market information about a token
+type TokenMarketInfo struct {
+	Symbol     string          `json:"symbol"`
+	Name       string          `json:"name"`
+	MarketCap  decimal.Decimal `json:"market_cap"`
+	Volume     decimal.Decimal `json:"volume"`
+	Price      decimal.Decimal `json:"price"`
+	Supply     int64          `json:"supply"`
+	MaxSupply  int64          `json:"max_supply"`
+	LaunchTime time.Time      `json:"launch_time"`
+	LastUpdate time.Time      `json:"last_update"`
 }
 
-// BondingCurve represents the bonding curve information for a token
-type BondingCurve struct {
-	Symbol       string    `json:"symbol"`
-	CurrentPrice float64   `json:"current_price"`
-	BasePrice    float64   `json:"base_price"`
-	Slope        float64   `json:"slope"`
-	Supply       int64     `json:"supply"`
-	MaxSupply    int64     `json:"max_supply"`
-	UpdateTime   time.Time `json:"update_time"`
-}
+// BondingCurve moved to bonding_curve.go
 
 // Interval represents a time interval for historical data
 type Interval string

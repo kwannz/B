@@ -117,9 +117,4 @@ type Config struct {
 	UpdateInterval time.Duration `json:"update_interval"`
 }
 
-// Storage defines interface for trading data persistence
-type Storage interface {
-	SaveOrder(order *Order) error
-	SaveTrade(trade *Trade) error
-	SavePosition(position *Position) error
-}
+// Storage interface moved to storage.go

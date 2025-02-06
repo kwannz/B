@@ -96,8 +96,8 @@ func (m *Monitor) checkThresholds(ctx context.Context) error {
 	volumes := metrics.GetVolumes()
 	for symbol, volume := range volumes {
 		prevVolume := metrics.GetPreviousVolume(symbol)
-		if !prevVolume.IsZero() {
-			increase := volume.Div(prevVolume)
+	if prevVolume > 0 {
+			increase := decimal.NewFromFloat(volume / prevVolume)
 			if increase.GreaterThan(m.thresholds.volumeSurge) {
 				m.sendAlert(&Alert{
 					Type:      AlertVolumeSurge,
@@ -113,27 +113,28 @@ func (m *Monitor) checkThresholds(ctx context.Context) error {
 	// Check market caps
 	marketCaps := metrics.GetMarketCaps()
 	for symbol, marketCap := range marketCaps {
-		if marketCap.GreaterThan(m.thresholds.maxMarketCap) {
+		mcap := decimal.NewFromFloat(marketCap)
+		if mcap.GreaterThan(m.thresholds.maxMarketCap) {
 			m.sendAlert(&Alert{
 				Type:      AlertMarketCapLimit,
 				Symbol:    symbol,
 				Threshold: m.thresholds.maxMarketCap,
-				Current:   marketCap,
+				Current:   mcap,
 				Timestamp: time.Now(),
 			})
 		}
 	}
 
 	// Check positions
-	positions, err := m.engine.GetAllPositions(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get positions: %w", err)
+	positions := m.engine.GetPositions()
+	if positions == nil {
+		return fmt.Errorf("failed to get positions")
 	}
 
 	for _, pos := range positions {
 		// Check drawdown
-		if pos.UnrealizedPnL.LessThan(decimal.Zero) {
-			drawdown := pos.UnrealizedPnL.Abs().Div(pos.Size.Mul(pos.EntryPrice))
+		if pos.UnrealizedPnL.IsNegative() {
+			drawdown := pos.UnrealizedPnL.Neg().Div(pos.Size.Mul(pos.EntryPrice))
 			if drawdown.GreaterThan(m.thresholds.maxDrawdown) {
 				m.sendAlert(&Alert{
 					Type:      AlertDrawdownLimit,
@@ -147,8 +148,8 @@ func (m *Monitor) checkThresholds(ctx context.Context) error {
 
 		// Check position size
 		totalValue := pos.Size.Mul(pos.CurrentPrice)
-		portfolioValue := m.engine.GetPortfolioValue(ctx)
-		if !portfolioValue.IsZero() {
+		portfolioValue := decimal.NewFromFloat(m.engine.GetTotalValue())
+		if portfolioValue.IsPositive() {
 			positionPct := totalValue.Div(portfolioValue)
 			if positionPct.GreaterThan(m.thresholds.maxPositionPct) {
 				m.sendAlert(&Alert{

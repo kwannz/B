@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-
+	"github.com/shopspring/decimal"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 )
 
@@ -157,14 +157,14 @@ func (p *Provider) getPriceFromDEX(ctx context.Context, dex, symbol string) (flo
 	}
 
 	var result struct {
-		Price float64 `json:"price"`
+		Price decimal.Decimal `json:"price"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return 0, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return result.Price, nil
+	return result.Price.InexactFloat64(), nil
 }
 
 func (p *Provider) getHistoricalPricesFromDEX(ctx context.Context, dex, symbol, interval string, limit int) ([]types.PriceUpdate, error) {
@@ -187,9 +187,9 @@ func (p *Provider) getHistoricalPricesFromDEX(ctx context.Context, dex, symbol, 
 	}
 
 	var result []struct {
-		Time   int64   `json:"time"`
-		Price  float64 `json:"price"`
-		Volume float64 `json:"volume"`
+		Time   int64           `json:"time"`
+		Price  decimal.Decimal `json:"price"`
+		Volume decimal.Decimal `json:"volume"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -222,7 +222,7 @@ func sortAndDedupUpdates(updates []types.PriceUpdate) {
 	for i := 1; i < len(updates); i++ {
 		if updates[i].Timestamp.Equal(updates[j].Timestamp) {
 			// Keep the higher price in case of duplicates
-			if updates[i].Price > updates[j].Price {
+			if updates[i].Price.GreaterThan(updates[j].Price) {
 				updates[j] = updates[i]
 			}
 		} else {
