@@ -1,45 +1,46 @@
-import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from fastapi import FastAPI, WebSocket
 import asyncio
 from datetime import datetime
-from src.tradingbot.api.core.deps import get_db
-from src.tradingbot.api.models.trading import Position
-from src.tradingbot.api.models.risk import RiskMetrics
-from sqlalchemy.orm import Session
-from fastapi import Depends
+import motor.motor_asyncio
+from fastapi import FastAPI, WebSocket
+from pymongo import MongoClient
 
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    app.state.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(os.getenv("MONGODB_URL", "mongodb://localhost:27017"))
+    app.state.db = app.state.mongo_client.tradingbot
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    app.state.mongo_client.close()
 
 @app.get("/api/v1/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            # Get positions
-            positions = db.query(Position).all()
+            positions = await app.state.db.positions.find().to_list(None)
             position_data = [
                 {
-                    "symbol": p.symbol,
-                    "size": float(p.size),
-                    "entry_price": float(p.entry_price),
-                    "current_price": float(p.current_price),
-                    "unrealized_pnl": float(p.unrealized_pnl)
+                    "symbol": p["symbol"],
+                    "size": float(p["size"]),
+                    "entry_price": float(p["entry_price"]),
+                    "current_price": float(p["current_price"]),
+                    "unrealized_pnl": float(p["unrealized_pnl"])
                 } for p in positions
             ]
 
-            # Get risk metrics
-            risk_metrics = db.query(RiskMetrics).first()
+            risk_metrics = await app.state.db.risk_metrics.find_one()
             metrics_data = {
-                "total_exposure": float(risk_metrics.total_exposure) if risk_metrics else 0,
-                "margin_used": float(risk_metrics.margin_used) if risk_metrics else 0,
-                "daily_pnl": float(risk_metrics.daily_pnl) if risk_metrics else 0
+                "total_exposure": float(risk_metrics["total_exposure"]) if risk_metrics else 0,
+                "margin_used": float(risk_metrics["margin_used"]) if risk_metrics else 0,
+                "daily_pnl": float(risk_metrics["daily_pnl"]) if risk_metrics else 0
             }
 
             await websocket.send_json({
@@ -51,5 +52,6 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 }
             })
             await asyncio.sleep(5)
-    except Exception:
+    except Exception as e:
+        print(f"WebSocket error: {e}")
         await websocket.close()

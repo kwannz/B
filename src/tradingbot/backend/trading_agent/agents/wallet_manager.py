@@ -1,16 +1,30 @@
-"""Mock wallet manager module for testing"""
+"""Wallet manager module for Solana wallet operations"""
+import os
 import base58
+from solders.keypair import Keypair
+from solana.rpc.async_api import AsyncClient
 
 
 class WalletManager:
     def __init__(self):
-        self._balance = 10.0  # Mock balance for testing
-        self._public_key = base58.b58encode(b"mock_public_key").decode()
-        self._private_key = base58.b58encode(b"mock_private_key").decode()
+        self._client = AsyncClient("https://api.mainnet-beta.solana.com")
+        wallet_key = os.environ.get("walletkey")
+        if not wallet_key:
+            raise ValueError("Wallet key not found in environment")
+        
+        try:
+            self._keypair = Keypair.from_bytes(base58.b58decode(wallet_key))
+            self._public_key = str(self._keypair.pubkey())
+            self._private_key = wallet_key
+        except Exception as e:
+            raise ValueError(f"Invalid wallet key: {e}")
 
     async def get_balance(self) -> float:
         """Get wallet balance"""
-        return self._balance
+        response = await self._client.get_balance(self._keypair.pubkey())
+        if response.value is None:
+            raise ValueError("Failed to get balance")
+        return float(response.value) / 1e9
 
     def get_public_key(self) -> str:
         """Get wallet public key"""
@@ -30,11 +44,12 @@ class WalletManager:
         Returns:
             Transaction hash
         """
-        if amount > self._balance:
+        balance = await self.get_balance()
+        if amount > balance:
             raise ValueError("Insufficient funds")
-
-        self._balance -= amount
-        return base58.b58encode(b"mock_tx_hash").decode()
+            
+        # Transaction implementation will be added when needed
+        raise NotImplementedError("Transaction sending not implemented")
 
     async def sign_message(self, message: bytes) -> bytes:
         """Sign message with private key
@@ -45,4 +60,4 @@ class WalletManager:
         Returns:
             Signature
         """
-        return base58.b58encode(b"mock_signature")
+        return self._keypair.sign_message(message)

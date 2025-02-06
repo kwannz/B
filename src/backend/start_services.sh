@@ -18,7 +18,11 @@ export POSTGRES_PASSWORD=trading_postgres_pass_123
 export POSTGRES_HOST=localhost
 export POSTGRES_PORT=5432
 export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
-export PUMP_API_KEY="${walletkey}"
+export MONGODB_URL="mongodb://localhost:27017/tradingbot"
+export REDIS_URL="redis://localhost:6379"
+export GMGN_API_KEY="${walletkey}"
+export SOLANA_WALLET_KEY="${walletkey}"
+export BACKUP_WALLET_KEY="${walletkey_2}"
 
 # Install package in development mode
 cd /home/ubuntu/repos/B/src/tradingbot
@@ -34,10 +38,17 @@ python init_db.py || {
     exit 1
 }
 
+# Start MongoDB and Redis if not running
+echo "=== Starting Required Services ==="
+sudo systemctl start mongod || sudo service mongod start
+sudo systemctl start redis-server || sudo service redis-server start
+sudo systemctl start postgresql || sudo service postgresql start
+sleep 2
+
 # Start Backend API with monitoring
 echo "=== Starting Backend API with Monitoring ==="
 cd /home/ubuntu/repos/B/src/backend
-python -m uvicorn monitor:app --host 0.0.0.0 --port 8001 &
+python3 -m uvicorn monitor:app --host 0.0.0.0 --port 8001 &
 MONITOR_PID=$!
 
 # Wait for monitor to start
@@ -50,12 +61,12 @@ fi
 # Start Trading Service
 echo "=== Starting Trading Service ==="
 cd /home/ubuntu/repos/B/src/backend
-python -m uvicorn trading:app --host 0.0.0.0 --port 8002 &
-TRADING_PID=$!
+python3 trading.py &
+EXECUTOR_PID=$!
 
 # Wait for trading to start
 sleep 5
-if ! check_process $TRADING_PID; then
+if ! check_process $EXECUTOR_PID; then
     echo "Failed to start Trading Service"
     kill $MONITOR_PID
     exit 1
