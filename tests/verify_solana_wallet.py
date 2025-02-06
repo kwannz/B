@@ -25,16 +25,14 @@ async def verify_solana_wallet():
                 print("✗ Missing required configuration")
                 return
             print("✓ Wallet initialized successfully")
-                
-                # Get and display balance
-                response = await client.get_balance(keypair.pubkey())
-                if response.value is not None:
-                    balance = float(response.value) / 1e9
-                    print(f"Balance: {balance} SOL")
+            
+            # Get and display balance
+            response = await client.get_balance(keypair.pubkey())
+            if response.value is not None:
+                balance = float(response.value) / 1e9
+                print(f"Balance: {balance} SOL")
             else:
-                print("✗ Wallet verification failed")
-                print(f"Expected: {expected_address}")
-                print(f"Got: {address}")
+                print("✗ Balance check failed")
         except Exception as e:
             print(f"Error: Invalid key format - {e}")
             return
