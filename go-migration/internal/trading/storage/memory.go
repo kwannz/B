@@ -15,7 +15,7 @@ type MemoryStorage struct {
 	orders    map[string]*types.Order
 }
 
-func (s *MemoryStorage) GetOrder(ctx context.Context, orderID string) (*types.Order, error) {
+func (s *MemoryStorage) GetOrder(orderID string) (*types.Order, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.orders[orderID], nil
@@ -29,39 +29,41 @@ func NewMemoryStorage() *MemoryStorage {
 	}
 }
 
-func (s *MemoryStorage) SavePosition(ctx context.Context, position *types.Position) error {
+func (s *MemoryStorage) SavePosition(position *types.Position) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.positions[position.Symbol] = position
 	return nil
 }
 
-func (s *MemoryStorage) GetPosition(ctx context.Context, symbol string) (*types.Position, error) {
+func (s *MemoryStorage) GetPosition(symbol string) (*types.Position, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.positions[symbol], nil
 }
 
-func (s *MemoryStorage) SaveTrade(ctx context.Context, trade *types.Trade) error {
+func (s *MemoryStorage) SaveTrade(trade *types.Trade) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.trades[trade.Symbol] = append(s.trades[trade.Symbol], trade)
 	return nil
 }
 
-func (s *MemoryStorage) GetTrades(ctx context.Context, symbol string) ([]*types.Trade, error) {
+func (s *MemoryStorage) GetTrades(symbol string) ([]*types.Trade, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.trades[symbol], nil
 }
 
-func (s *MemoryStorage) GetAllPositions(ctx context.Context) (map[string]*types.Position, error) {
+func (s *MemoryStorage) GetPositions(userID string) ([]*types.Position, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	
-	positions := make(map[string]*types.Position)
-	for k, v := range s.positions {
-		positions[k] = v
+	var positions []*types.Position
+	for _, pos := range s.positions {
+		if pos.UserID == userID {
+			positions = append(positions, pos)
+		}
 	}
 	return positions, nil
 }
@@ -79,5 +81,25 @@ func (s *MemoryStorage) UpdatePosition(ctx context.Context, symbol string, size,
 	
 	position.Size = size
 	position.EntryPrice = price
+	return nil
+}
+
+func (s *MemoryStorage) GetOrders(userID string) ([]*types.Order, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	var orders []*types.Order
+	for _, order := range s.orders {
+		if order.UserID == userID {
+			orders = append(orders, order)
+		}
+	}
+	return orders, nil
+}
+
+func (s *MemoryStorage) SaveOrder(order *types.Order) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.orders[order.ID] = order
 	return nil
 }

@@ -115,6 +115,8 @@ type Config struct {
 	MinOrderSize   float64       `json:"min_order_size"`
 	MaxPositions   int          `json:"max_positions"`
 	UpdateInterval time.Duration `json:"update_interval"`
+	RiskMultiplier float64      `json:"risk_multiplier"`
+	MaxDrawdown    float64      `json:"max_drawdown"`
 }
 
 // Storage interface moved to storage.go

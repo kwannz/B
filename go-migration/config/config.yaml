@@ -1,0 +1,28 @@
+version: "1.0"
+environment:
+  go_version: "1.23"
+  python_version: "3.12"
+
+trading:
+  slippage_tolerance: 0.5
+  platform_fee: 0.002
+  use_anti_mev: true
+  trade_size: 0.01
+  trading_interval: 45
+
+network:
+  rpc_url: "https://api.mainnet-beta.solana.com"
+  commitment_level: "confirmed"
+
+tokens:
+  sol: "So11111111111111111111111111111111111111112"
+  usdc: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+
+gmgn:
+  base_url: "https://gmgn.ai/defi/router/v1/sol"
+  headers:
+    accept: "application/json"
+    content_type: "application/json"
+    origin: "https://gmgn.ai"
+    referer: "https://gmgn.ai/"
+    accept_language: "en-US,en;q=0.9"

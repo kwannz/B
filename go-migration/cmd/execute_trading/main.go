@@ -113,29 +113,15 @@ func main() {
 	engine.RegisterStrategy(pumpStrategy)
 
 	updates := monitor.GetUpdates()
-	signals := make(chan *types.Signal, 100)
 
 	go func() {
 		for update := range updates {
-			signal := pumpStrategy.ProcessUpdate(update)
-			if signal != nil {
-				select {
-				case signals <- signal:
-				default:
-					logger.Warn("Signal channel full, dropping signal",
-						zap.String("symbol", signal.Symbol))
-				}
+			if err := pumpStrategy.ProcessUpdate(update); err != nil {
+				logger.Error("Failed to process update", zap.Error(err))
+				continue
 			}
-		}
-	}()
-
-	go func() {
-		for signal := range signals {
-			if err := engine.ProcessSignal(ctx, signal); err != nil {
-				logger.Error("Failed to process trading signal",
-					zap.Error(err),
-					zap.String("symbol", signal.Symbol))
-			}
+			logger.Info("Successfully processed update", 
+				zap.String("symbol", update.Symbol))
 		}
 	}()
 
