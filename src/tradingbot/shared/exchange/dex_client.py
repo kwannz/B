@@ -1,9 +1,16 @@
 import json
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, Optional, cast
 
 import aiohttp
 from .gmgn_client import GMGNClient
+
+
+class TradeType(str, Enum):
+    """Trade type enumeration."""
+    BUY = "buy"
+    SELL = "sell"
 
 
 class DEXClient:
@@ -97,8 +104,8 @@ class DEXClient:
         except Exception as e:
             return {"error": str(e)}
 
-    async def get_liquidity(self, dex: str, token: str) -> Dict[str, Any]:
-        """Get liquidity information for a token."""
+    async def get_liquidity(self, dex: str, token: str, quote_token: str) -> Dict[str, Any]:
+        """Get liquidity information for a token pair."""
         if not self.session:
             await self.start()
             if not self.session:
@@ -129,7 +136,7 @@ class DEXClient:
             return {"error": str(e)}
 
     async def execute_swap(
-        self, dex: str, quote: Dict[str, Any], wallet: Any, config: Dict[str, Any] = None
+        self, dex: str, quote: Dict[str, Any], wallet: Any, config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Execute swap on specified DEX."""
         if dex == "gmgn":
