@@ -6,10 +6,25 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(os.getenv("MONGODB_URL", "mongodb://localhost:27017"))
-    app.state.db = app.state.mongo_client.tradingbot
-    yield
-    app.state.mongo_client.close()
+    try:
+        app.state.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
+            os.getenv("MONGODB_URL", "mongodb://localhost:27017"),
+            serverSelectionTimeoutMS=5000
+        )
+        # Test connection
+        await app.state.mongo_client.admin.command('ping')
+        app.state.db = app.state.mongo_client.tradingbot
+        # Initialize collections if they don't exist
+        await app.state.db.positions.create_index("symbol")
+        await app.state.db.trades.create_index("timestamp")
+        await app.state.db.orders.create_index("symbol")
+        yield
+    except Exception as e:
+        print(f"MongoDB connection error: {e}")
+        raise
+    finally:
+        if hasattr(app.state, 'mongo_client'):
+            app.state.mongo_client.close()
 
 app = FastAPI(lifespan=lifespan)
 
