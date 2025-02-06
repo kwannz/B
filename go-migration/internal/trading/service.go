@@ -3,7 +3,6 @@ package trading
 import (
 	"context"
 
-	"github.com/shopspring/decimal"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"go.uber.org/zap"
 )
@@ -70,13 +69,13 @@ func (s *Service) GetPositions(ctx context.Context, userID string) ([]*types.Pos
 }
 
 // GetOrderBook implements TradingEngine interface
-func (s *Service) GetOrderBook(ctx context.Context, symbol string) (*OrderBook, error) {
+func (s *Service) GetOrderBook(ctx context.Context, symbol string) (*types.OrderBook, error) {
 	return nil, nil // TODO: Implement get order book
 }
 
 // SubscribeOrderBook implements TradingEngine interface
-func (s *Service) SubscribeOrderBook(ctx context.Context, symbol string) (<-chan *OrderBook, error) {
-	updates := make(chan *OrderBook)
+func (s *Service) SubscribeOrderBook(ctx context.Context, symbol string) (<-chan *types.OrderBook, error) {
+	updates := make(chan *types.OrderBook)
 	// TODO: Implement order book subscription
 	return updates, nil
 }
