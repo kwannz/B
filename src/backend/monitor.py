@@ -22,7 +22,10 @@ async def monitor_jupiter_metrics():
                 "circuit_breaker_failures": app.state.jupiter_client.circuit_breaker_failures,
                 "last_failure_time": app.state.jupiter_client.last_failure_time,
                 "current_delay": app.state.jupiter_client.retry_delay,
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.utcnow(),
+                "trades": await app.state.db.trades.find().sort("timestamp", -1).limit(10).to_list(None),
+                "wallet_balance": await app.state.db.wallet.find_one({"type": "balance"}),
+                "risk_metrics": await app.state.db.risk_metrics.find_one()
             }
             await app.state.db.metrics.update_one(
                 {"type": "jupiter_metrics"},
