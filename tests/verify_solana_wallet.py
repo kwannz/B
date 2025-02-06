@@ -24,13 +24,13 @@ async def verify_solana_wallet():
             if not os.environ.get("WALLET_ADDRESS"):
                 print("✗ Missing required configuration")
                 return
-            print("✓ Wallet initialized successfully")
-            
+                
             # Get and display balance
             response = await client.get_balance(keypair.pubkey())
             if response.value is not None:
                 balance = float(response.value) / 1e9
                 print(f"Balance: {balance} SOL")
+                print("✓ Wallet verification successful")
             else:
                 print("✗ Balance check failed")
         except Exception as e:
