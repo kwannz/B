@@ -112,15 +112,37 @@ async def execute_trades():
                     current_delay = 1000  # Start with 1s delay
                     while retry_count > 0:
                         try:
+                            # Prepare transaction with proper signing
                             trade_result = await trading_client.execute_swap(
                                 quote,
                                 {
-                                    "skip_preflight": True,
+                                    "skip_preflight": False,  # Enable preflight checks
                                     "max_retries": 3,
                                     "skip_confirmation": False,
-                                    "commitment": "confirmed"
+                                    "commitment": "confirmed",
+                                    "compute_unit_price": 1000,  # Add priority fee
+                                    "compute_unit_limit": 1400000  # Set compute limit
                                 }
                             )
+                            
+                            # Verify transaction result
+                            if "error" not in trade_result:
+                                if "signature" in trade_result:
+                                    logger.info(f"Trade executed successfully: {trade_result['signature']}")
+                                    break
+                                else:
+                                    logger.error("Trade result missing signature")
+                            else:
+                                logger.error(f"Trade error: {trade_result['error']}")
+                                
+                            retry_count -= 1
+                            if retry_count > 0:
+                                logger.warning(f"Retrying trade execution. Attempts left: {retry_count}")
+                                await asyncio.sleep(current_delay / 1000)
+                                current_delay = min(current_delay * 1.5, 5000)  # Max 5s delay
+                            else:
+                                logger.error(f"Failed to execute trade after all retries: {trade_result.get('error', 'Unknown error')}")
+                                continue
                             
                             if "error" not in trade_result:
                                 if "signature" in trade_result:
