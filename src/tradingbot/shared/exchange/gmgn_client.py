@@ -118,7 +118,7 @@ class GMGNClient:
             # Parse and sign transaction with wallet
             tx = VersionedTransaction.from_bytes(tx_buf)
             signature = wallet.sign_message(bytes(tx.message))
-            presigner = Presigner(bytes(signature))
+            presigner = Presigner(signature=[x for x in signature])
             tx.sign([presigner])
             signed_tx = base64.b64encode(bytes(tx)).decode()
             
