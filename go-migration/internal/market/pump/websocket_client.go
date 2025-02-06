@@ -84,9 +84,9 @@ func (c *WSClient) Connect(ctx context.Context) error {
 	headers.Set("User-Agent", "pump-trading-bot/1.0")
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Accept", "application/json")
-	headers.Set("Origin", "https://pump.fun")
+	headers.Set("Origin", "https://pumpportal.fun")
 	
-	wsURL := strings.Replace(c.url, "https://", "wss://", 1) + "/ws"
+	wsURL := c.url
 	conn, resp, err := dialer.DialContext(ctx, wsURL, headers)
 	if err != nil {
 		metrics.APIErrors.WithLabelValues("websocket_connect").Inc()
