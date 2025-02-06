@@ -128,19 +128,25 @@ class GMGNClient:
             # Create signature array with proper format
             sig_array = [x for x in sig_bytes]  # Convert signature to list of integers
             
-            # Create versioned transaction format
-            tx_header = bytearray([0x80])  # Legacy transaction marker
-            sig_count = bytearray([1])  # One signature
-            version = bytearray([0])  # Version 0
-            message_header = tx_buf[3:7]  # Original message header
-            tx_bytes = tx_header + sig_count + bytearray(sig_array) + version + message_header + tx_buf[7:]
+            # Parse transaction with proper versioning
+            tx = VersionedTransaction.from_bytes(tx_buf)
+            message = tx.message
+            
+            # Create signature array with proper format
+            signature = wallet.sign_message(bytes(message))
+            sig_bytes = bytes(signature)
+            sig_array = [x for x in sig_bytes]
+            
+            # Create transaction buffer preserving original format
+            tx_bytes = bytearray(tx_buf)  # Start with original buffer
+            sig_start = 3  # Skip version and num_required_signatures
+            tx_bytes[sig_start:sig_start + len(sig_array)] = sig_array
             
             # Print debug info
             print(f"\nTransaction details:")
             print(f"- Original tx length: {len(tx_buf)}")
             print(f"- Signature length: {len(sig_array)}")
-            print(f"- Final tx length: {len(tx_bytes)}")
-            print(f"- Header: {tx_header.hex()}")
+            print(f"- Message length: {len(bytes(message))}")
             print(f"- Signature: {bytes(sig_array).hex()[:32]}...")
             
             signed_tx = base64.b64encode(bytes(tx_bytes)).decode()
