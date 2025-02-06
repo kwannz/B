@@ -21,7 +21,7 @@ type Provider struct {
 	baseURL    string
 	wsClient   *WSClient
 	mu         sync.RWMutex
-	dexSources []string // List of supported DEXs (e.g. "jupiter", "raydium", "orca")
+	dexSources []string // List of supported DEXs (e.g. "gmgn")
 }
 
 // Config represents Solana provider configuration

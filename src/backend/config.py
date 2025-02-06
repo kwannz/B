@@ -14,6 +14,29 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = Field(default=5432)
     MONGODB_URL: str = Field(default="mongodb://localhost:27017/tradingbot")
 
+    # GMGN settings
+    GMGN_API_URL: str = Field(default="https://api.gmgn.ai/v1")
+    GMGN_WS_URL: str = Field(default="wss://api.gmgn.ai/v1/ws")
+    GMGN_API_KEY: str = Field(default="")
+    GMGN_NETWORK: str = Field(default="mainnet")
+    GMGN_SOLANA_RPC: str = Field(default="https://api.mainnet-beta.solana.com")
+    
+    # Solana wallet settings
+    SOLANA_WALLET_KEY: str = Field(default="")
+    SOLANA_COMMITMENT: str = Field(default="confirmed")
+    SOLANA_MAX_RETRIES: int = Field(default=3)
+    SOLANA_RETRY_DELAY: int = Field(default=1)
+    SOLANA_TRANSACTION_TIMEOUT: int = Field(default=30)
+
+    # Trading settings
+    GMGN_MIN_TRADE_SIZE: float = Field(default=0.01)
+    GMGN_MAX_TRADE_SIZE: float = Field(default=10.0)
+    GMGN_MIN_PRICE_IMPACT: float = Field(default=0.001)
+    GMGN_MAX_PRICE_IMPACT: float = Field(default=0.05)
+    GMGN_SLIPPAGE_TOLERANCE: float = Field(default=0.01)
+    GMGN_MAX_RETRIES: int = Field(default=3)
+    GMGN_RETRY_DELAY: int = Field(default=1)
+
     # Server settings
     HOST: str = Field(default="0.0.0.0")
     PORT: int = Field(default=8000)

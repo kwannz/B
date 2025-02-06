@@ -5,7 +5,7 @@
 ### GET /v1/price/{dex}/{symbol}
 Get current price from a specific DEX.
 - Parameters:
-  - dex: DEX name (jupiter/raydium/orca)
+  - dex: DEX name (gmgn)
   - symbol: Trading pair symbol
 - Response: Current price and volume data
 

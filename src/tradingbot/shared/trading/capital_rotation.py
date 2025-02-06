@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from ..exchange.dex_client import DEXClient
-from ..models.trading import TradeType
+from ..exchange.dex_client import TradeType
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class CapitalRotationManager:
                 profit = Decimal(str(position.get("unrealized_profit_pct", "0")))
                 if profit >= self.min_profit_threshold:
                     quote = await self.dex_client.get_quote(
-                        "jupiter",
+                        "gmgn",
                         position["token_address"],
                         target_token,
                         float(position["size"]),
@@ -98,7 +98,7 @@ class CapitalRotationManager:
 
             try:
                 swap_result = await self.dex_client.get_quote(
-                    "jupiter",
+                    "gmgn",
                     position["token_address"],
                     target_token,
                     float(position["size"]),

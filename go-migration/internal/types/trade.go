@@ -13,6 +13,7 @@ type Trade struct {
 	Side       OrderSide         `json:"side" bson:"side"`
 	Price      decimal.Decimal   `json:"price" bson:"price"`
 	Size       decimal.Decimal   `json:"size" bson:"size"`
+	Quantity   decimal.Decimal   `json:"quantity" bson:"quantity"`
 	Fee        decimal.Decimal   `json:"fee" bson:"fee"`
 	Provider   string            `json:"provider" bson:"provider"`
 	Status     OrderStatus       `json:"status" bson:"status"`

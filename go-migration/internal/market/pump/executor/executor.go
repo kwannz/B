@@ -39,7 +39,7 @@ func (e *Executor) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
 	params := map[string]interface{}{
 		"symbol":    trade.Symbol,
 		"side":      trade.Side,
-		"quantity":  trade.Quantity,
+		"size":      trade.Size,
 		"price":     trade.Price,
 		"timestamp": time.Now().UnixNano(),
 		"key":       e.secrets.PumpFunKey,
@@ -47,10 +47,10 @@ func (e *Executor) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
 
 	// Execute trade through provider
 	if err := e.provider.ExecuteTrade(ctx, params); err != nil {
-		e.logger.Error("Failed to execute trade",
+	e.logger.Error("Failed to execute trade",
 			zap.String("symbol", trade.Symbol),
 			zap.String("side", string(trade.Side)),
-			zap.Float64("quantity", trade.Quantity),
+			zap.String("size", trade.Size.String()),
 			zap.Error(err))
 		return fmt.Errorf("failed to execute trade: %w", err)
 	}
@@ -58,7 +58,7 @@ func (e *Executor) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
 	e.logger.Info("Trade executed successfully",
 		zap.String("symbol", trade.Symbol),
 		zap.String("side", string(trade.Side)),
-		zap.Float64("quantity", trade.Quantity))
+		zap.String("size", trade.Size.String()))
 
 	return nil
 }

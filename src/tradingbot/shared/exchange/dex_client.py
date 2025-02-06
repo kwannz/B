@@ -1,9 +1,16 @@
 import json
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, Optional, cast
 
 import aiohttp
 from .gmgn_client import GMGNClient
+
+
+class TradeType(str, Enum):
+    """Trade type enumeration."""
+    BUY = "buy"
+    SELL = "sell"
 
 
 class DEXClient:
@@ -97,8 +104,8 @@ class DEXClient:
         except Exception as e:
             return {"error": str(e)}
 
-    async def get_liquidity(self, dex: str, token: str) -> Dict[str, Any]:
-        """Get liquidity information for a token."""
+    async def get_liquidity(self, dex: str, token: str, quote_token: str) -> Dict[str, Any]:
+        """Get liquidity information for a token pair."""
         if not self.session:
             await self.start()
             if not self.session:
@@ -129,7 +136,7 @@ class DEXClient:
             return {"error": str(e)}
 
     async def execute_swap(
-        self, dex: str, quote: Dict[str, Any], wallet: Any, config: Dict[str, Any] = None
+        self, dex: str, quote: Dict[str, Any], wallet: Any, config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Execute swap on specified DEX."""
         if dex == "gmgn":
@@ -141,37 +148,66 @@ class DEXClient:
                     "use_anti_mev": True
                 })
                 await self.gmgn_client.start()
-            return await self.gmgn_client.execute_swap(quote, wallet)
+            try:
+                if not quote or "data" not in quote or "raw_tx" not in quote["data"]:
+                    return {"error": "Invalid quote response"}
+                return await self.gmgn_client.execute_swap(quote, wallet)
+            except Exception as e:
+                return {"error": f"Failed to execute swap: {str(e)}"}
         else:
             return {"error": f"Unsupported DEX: {dex}"}
 
     async def get_market_data(self, dex: str) -> Dict[str, Any]:
         """Get market data from DEX."""
+        if dex == "gmgn":
+            if not self.gmgn_client:
+                from .gmgn_client import GMGNClient
+                self.gmgn_client = GMGNClient({
+                    "slippage": 0.5,
+                    "fee": 0.002,
+                    "use_anti_mev": True
+                })
+                await self.gmgn_client.start()
+            return await self.gmgn_client.get_market_data()
+
         if not self.session:
             await self.start()
             if not self.session:
                 return {"error": "Failed to initialize session"}
 
-        endpoints = {
-            "uniswap": "/pairs",
-            "jupiter": "/market",
-            "raydium": "/market",
-            "pancakeswap": "/summary",
-            "liquidswap": "/market",
-            "hyperliquid": "/market",
-        }
-
         try:
+            if dex == "gmgn":
+                if not self.gmgn_client:
+                    from .gmgn_client import GMGNClient
+                    self.gmgn_client = GMGNClient({
+                        "slippage": 0.5,
+                        "fee": 0.002,
+                        "use_anti_mev": True
+                    })
+                    await self.gmgn_client.start()
+                try:
+                    return await self.gmgn_client.get_market_data()
+                except Exception as e:
+                    return {"error": str(e)}
+
+            if dex not in self.base_urls:
+                return {"error": f"Unsupported DEX: {dex}"}
+
             async with self.session.get(
-                f"{self.base_urls[dex]}{endpoints[dex]}"
+                f"{self.base_urls[dex]}/market"
             ) as response:
                 if response.status == 200:
-                    return await response.json()
-                else:
+                    data = await response.json()
                     return {
-                        "error": f"Failed to get market data from {dex}",
-                        "status": response.status,
-                        "message": await response.text(),
+                        "code": 0,
+                        "msg": "success",
+                        "data": data
+                    }
+                else:
+                    error_msg = await response.text()
+                    return {
+                        "error": f"Failed to get market data from {dex}: {error_msg}",
+                        "status": response.status
                     }
         except Exception as e:
             return {"error": str(e)}

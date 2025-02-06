@@ -1,6 +1,7 @@
 import os
 import asyncio
 import logging
+import pytest
 from decimal import Decimal
 from typing import Dict, Any
 
@@ -29,7 +30,7 @@ async def execute_trades():
     # Trading parameters
     token_in = "So11111111111111111111111111111111111111112"  # SOL
     token_out = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
-    amount = 0.01  # Trade size in SOL
+    amount = 0.001  # Small trade size for testing
     
     try:
         # Get quote
@@ -75,5 +76,13 @@ async def execute_trades():
     finally:
         await client.stop()
 
-if __name__ == "__main__":
-    asyncio.run(execute_trades())
+@pytest.mark.asyncio
+@pytest.mark.asyncio
+async def test_execute_trades():
+    """Test GMGN trade execution."""
+    try:
+        await asyncio.wait_for(execute_trades(), timeout=30)  # 30 second timeout
+    except asyncio.TimeoutError:
+        pytest.fail("Test timed out after 30 seconds")
+    except Exception as e:
+        pytest.fail(f"Test failed with error: {str(e)}")

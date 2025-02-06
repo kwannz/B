@@ -16,7 +16,7 @@ class SwapRiskMetrics(BaseModel):
     correlation_factor: Decimal = Field(default=Decimal("0"))
     risk_level: Decimal = Field(default=Decimal("0"))
     confidence_score: Decimal = Field(default=Decimal("0"))
-    market_data_source: str = "jupiter"
+    market_data_source: str = "gmgn"
     is_stale: bool = False
     rate_limit_info: Dict[str, float] = Field(default_factory=dict)
     recommendations: Optional[Dict[str, str]] = None
