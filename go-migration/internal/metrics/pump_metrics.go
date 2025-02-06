@@ -1,30 +1,26 @@
 package metrics
 
-import (
-	"github.com/kwanRoshi/B/go-migration/internal/types"
-)
-
-func RecordNewToken(token *types.TokenInfo) {
-	NewTokensTotal.Inc()
-	TokenPrice.WithLabelValues("pump.fun", token.Symbol).Set(0)
-}
-
-func RecordBondingCurve(curve *types.BondingCurve) {
-	TokenPrice.WithLabelValues("pump.fun", curve.Symbol).Set(curve.CurrentPrice.InexactFloat64())
-}
-
-func RecordAPIError(operation string) {
-	APIErrors.WithLabelValues(operation).Inc()
-}
-
-func RecordWebsocketConnection(active bool) {
-	if active {
-		WebsocketConnections.Inc()
-	} else {
-		WebsocketConnections.Dec()
+// NewPumpMetrics creates a new instance of PumpMetrics with initialized metrics
+func NewPumpMetrics() *PumpMetrics {
+	return &PumpMetrics{
+		TokenPrice:         TokenPrice,
+		TokenVolume:        TokenVolume,
+		TradeExecutions:    PumpTradeExecutions,
+		PositionSize:       PumpPositionSize,
+		RiskLimits:         PumpRiskLimits,
+		StopLossTriggers:   PumpStopLossTriggers,
+		TakeProfitTriggers: PumpTakeProfitTriggers,
+		UnrealizedPnL:      PumpUnrealizedPnL,
+		APIKeyUsage:        APIKeyUsage,
+		TotalVolume:        PumpTotalVolume,
+		RiskExposure:       PumpRiskExposure,
+		TotalRiskExposure:  PumpTotalRiskExposure,
+		TokenMarketCap:      TokenMarketCap,
+		TokenPriceChangeHour: TokenPriceChangeHour,
+		TokenPriceChangeDay:  TokenPriceChangeDay,
+		ActiveTokens:        ActiveTokens,
+		LastUpdate:         LastUpdate,
+		NewTokensTotal:     NewTokensTotal,
+		WebsocketConnections: WebsocketConnections,
 	}
-}
-
-func RecordTokenMarketCap(provider, symbol string, marketCap float64) {
-	TokenMarketCap.WithLabelValues(provider, symbol).Set(marketCap)
 }

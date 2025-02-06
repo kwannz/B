@@ -9,6 +9,32 @@ import (
 
 var (
 	pumpMetricsOnce sync.Once
+
+	SignificantPriceChanges = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "pump_significant_price_changes_total",
+		Help: "Total number of significant price changes",
+	})
+
+	TradeExecutions = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "trade_executions_total",
+		Help: "Total number of trade executions",
+	})
+
+	TradingVolume = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "trading_volume_total",
+		Help: "Total trading volume",
+	})
+
+	ActivePositions = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "active_positions",
+		Help: "Number of active positions",
+	})
+
+	LastUpdateTimestamp = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "last_update_timestamp",
+		Help: "Timestamp of last update",
+	})
+
 	TokenPrice = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "pump_token_price",
 		Help: "Current token price",
@@ -88,6 +114,31 @@ var (
 		Name: "pump_token_market_cap",
 		Help: "Current token market capitalization",
 	}, []string{"provider", "symbol"})
+
+	TokenPriceChangeHour = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "pump_token_price_change_hour",
+		Help: "Token price change in the last hour",
+	}, []string{"provider", "symbol"})
+
+	TokenPriceChangeDay = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "pump_token_price_change_day",
+		Help: "Token price change in the last 24 hours",
+	}, []string{"provider", "symbol"})
+
+	ActiveTokens = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "pump_active_tokens",
+		Help: "Number of active tokens being monitored",
+	})
+
+	LastUpdate = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "pump_last_update_timestamp",
+		Help: "Timestamp of the last update",
+	})
+
+	MonitoringServiceStatus = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "pump_monitoring_service_status",
+		Help: "Monitoring service status (1 = active, 0 = inactive)",
+	})
 )
 
 func GetVolumes() map[string]float64 {
@@ -155,6 +206,13 @@ type PumpMetrics struct {
 	TotalVolume         *prometheus.CounterVec
 	RiskExposure        *prometheus.GaugeVec
 	TotalRiskExposure   *prometheus.CounterVec
+	TokenMarketCap      *prometheus.GaugeVec
+	TokenPriceChangeHour *prometheus.GaugeVec
+	TokenPriceChangeDay  *prometheus.GaugeVec
+	ActiveTokens        prometheus.Gauge
+	LastUpdate         prometheus.Gauge
+	NewTokensTotal     prometheus.Counter
+	WebsocketConnections prometheus.Gauge
 }
 
 var pumpMetrics *PumpMetrics
@@ -162,18 +220,25 @@ var pumpMetrics *PumpMetrics
 func init() {
 	pumpMetricsOnce.Do(func() {
 		pumpMetrics = &PumpMetrics{
-			TokenPrice:         TokenPrice,
-			TokenVolume:        TokenVolume,
-			TradeExecutions:    PumpTradeExecutions,
-			PositionSize:       PumpPositionSize,
-			RiskLimits:         PumpRiskLimits,
-			StopLossTriggers:   PumpStopLossTriggers,
-			TakeProfitTriggers: PumpTakeProfitTriggers,
-			UnrealizedPnL:      PumpUnrealizedPnL,
-			APIKeyUsage:        APIKeyUsage,
-			TotalVolume:        PumpTotalVolume,
-			RiskExposure:       PumpRiskExposure,
-			TotalRiskExposure:  PumpTotalRiskExposure,
+			TokenPrice:          TokenPrice,
+			TokenVolume:         TokenVolume,
+			TradeExecutions:     PumpTradeExecutions,
+			PositionSize:        PumpPositionSize,
+			RiskLimits:          PumpRiskLimits,
+			StopLossTriggers:    PumpStopLossTriggers,
+			TakeProfitTriggers:  PumpTakeProfitTriggers,
+			UnrealizedPnL:       PumpUnrealizedPnL,
+			APIKeyUsage:         APIKeyUsage,
+			TotalVolume:         PumpTotalVolume,
+			RiskExposure:        PumpRiskExposure,
+			TotalRiskExposure:   PumpTotalRiskExposure,
+			TokenMarketCap:      TokenMarketCap,
+			TokenPriceChangeHour: TokenPriceChangeHour,
+			TokenPriceChangeDay:  TokenPriceChangeDay,
+			ActiveTokens:        ActiveTokens,
+			LastUpdate:          LastUpdate,
+			NewTokensTotal:      NewTokensTotal,
+			WebsocketConnections: WebsocketConnections,
 		}
 	})
 }
@@ -182,18 +247,25 @@ func GetPumpMetrics() *PumpMetrics {
 	if pumpMetrics == nil {
 		pumpMetricsOnce.Do(func() {
 			pumpMetrics = &PumpMetrics{
-				TokenPrice:         TokenPrice,
-				TokenVolume:        TokenVolume,
-				TradeExecutions:    PumpTradeExecutions,
-				PositionSize:       PumpPositionSize,
-				RiskLimits:         PumpRiskLimits,
-				StopLossTriggers:   PumpStopLossTriggers,
-				TakeProfitTriggers: PumpTakeProfitTriggers,
-				UnrealizedPnL:      PumpUnrealizedPnL,
-				APIKeyUsage:        APIKeyUsage,
-				TotalVolume:        PumpTotalVolume,
-				RiskExposure:       PumpRiskExposure,
-				TotalRiskExposure:  PumpTotalRiskExposure,
+				TokenPrice:          TokenPrice,
+				TokenVolume:         TokenVolume,
+				TradeExecutions:     PumpTradeExecutions,
+				PositionSize:        PumpPositionSize,
+				RiskLimits:          PumpRiskLimits,
+				StopLossTriggers:    PumpStopLossTriggers,
+				TakeProfitTriggers:  PumpTakeProfitTriggers,
+				UnrealizedPnL:       PumpUnrealizedPnL,
+				APIKeyUsage:         APIKeyUsage,
+				TotalVolume:         PumpTotalVolume,
+				RiskExposure:        PumpRiskExposure,
+				TotalRiskExposure:   PumpTotalRiskExposure,
+				TokenMarketCap:      TokenMarketCap,
+				TokenPriceChangeHour: TokenPriceChangeHour,
+				TokenPriceChangeDay:  TokenPriceChangeDay,
+				ActiveTokens:        ActiveTokens,
+				LastUpdate:          LastUpdate,
+				NewTokensTotal:      NewTokensTotal,
+				WebsocketConnections: WebsocketConnections,
 			}
 		})
 	}
