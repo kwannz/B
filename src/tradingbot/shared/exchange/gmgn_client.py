@@ -8,6 +8,7 @@ from solders.message import MessageV0
 from solders.keypair import Keypair
 from solders.signature import Signature
 from solders.presigner import Presigner
+from solders.hash import Hash
 
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
@@ -117,10 +118,12 @@ class GMGNClient:
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
             # Parse and sign transaction with wallet
             tx = VersionedTransaction.from_bytes(tx_buf)
-            signature_bytes = wallet.sign_message(bytes(tx.message))
-            signature = list(signature_bytes)
-            tx.signatures = [signature]
+            message_bytes = bytes(tx.message)
+            signature = wallet.sign_message(message_bytes)
+            signature_bytes = bytes(signature)
+            tx.signatures = [bytes([x for x in signature_bytes[:64]])]
             signed_tx = base64.b64encode(bytes(tx)).decode()
+            print(f"\nSigned transaction length: {len(signed_tx)}")
             
             # Submit transaction with anti-MEV protection if enabled
             endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
