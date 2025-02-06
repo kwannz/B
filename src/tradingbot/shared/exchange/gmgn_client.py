@@ -8,7 +8,7 @@ from solders.transaction import Transaction
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
         self.session = None
-        self.base_url = "https://api.gmgn.io/v1/solana"
+        self.base_url = "https://gmgn.ai/defi/router/v1/sol"
         self.slippage = Decimal(str(config.get("slippage", "0.5")))
         self.fee = Decimal(str(config.get("fee", "0.002")))
         self.use_anti_mev = bool(config.get("use_anti_mev", True))
@@ -19,8 +19,8 @@ class GMGNClient:
             "User-Agent": "Mozilla/5.0",
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "Origin": "https://gmgn.io",
-            "Referer": "https://gmgn.io/"
+            "Authorization": f"Bearer {os.environ.get('walletkey')}",
+            "Accept-Encoding": "gzip, deflate, br"
         }
         self.session = aiohttp.ClientSession(headers=headers)
         
@@ -37,24 +37,34 @@ class GMGNClient:
             
         lamports_amount = int(amount * 1e9)  # Convert SOL to lamports
         params = {
-            "inToken": token_in,
-            "outToken": token_out,
-            "inAmount": str(lamports_amount),
+            "fromToken": token_in,
+            "toToken": token_out,
+            "amount": str(lamports_amount),
             "slippage": str(float(self.slippage)),
-            "antiMev": str(self.use_anti_mev).lower(),
-            "fee": str(float(self.fee)),
-            "version": "2"
+            "antiMEV": str(self.use_anti_mev).lower(),
+            "fee": str(float(self.fee))
         }
         
         try:
+            print(f"\nAttempting to get quote from {self.base_url}/swap/quote")
             async with self.session.post(
-                f"{self.base_url}/swap/create",
+                f"{self.base_url}/swap/quote",
                 json=params,
                 headers={
                     "Authorization": f"Bearer {os.environ.get('walletkey')}",
-                    "Accept": "application/json"
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Origin": "https://gmgn.ai",
+                    "Referer": "https://gmgn.ai/",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Accept-Encoding": "gzip, deflate, br"
                 }
             ) as response:
+                response_text = await response.text()
+                print(f"\nResponse status: {response.status}")
+                print(f"Response headers: {response.headers}")
+                print(f"Response text: {response_text}")
                 if response.status == 200:
                     return await response.json()
                 return {
