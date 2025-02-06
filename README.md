@@ -18,13 +18,16 @@ A real-time trading bot application with a FastAPI backend and React frontend, s
 
 Before setting up the application, ensure you have the following installed:
 
-- Python 3.8 or higher
+- Python 3.12
+- Go 1.23
 - Node.js 16 or higher
 - npm (Node Package Manager)
 - PostgreSQL 12 or higher
 - Docker and Docker Compose
 - Git
 - GitHub CLI (for CI/CD setup)
+- Solana CLI tools
+- Base58 encoding tools
 
 ## Quick Start
 
@@ -56,11 +59,15 @@ Before setting up the application, ensure you have the following installed:
 - `GET /v1/history/{dex}/{symbol}` - Get historical price data
 - `GET /api/v1/price/{symbol}` - Get current price from Pump.fun
 - `GET /api/v1/historical/{symbol}` - Get historical price data from Pump.fun
+- `GET /api/v1/gmgn/quote` - Get GMGN DEX quote
+- `GET /api/v1/gmgn/status/{tx_hash}` - Get GMGN transaction status
 
 ### Trading Endpoints
 - `POST /api/v1/orders` - Create new order
 - `GET /api/v1/orders` - List all orders
 - `GET /api/v1/orders/{order_id}` - Get specific order details
+- `POST /api/v1/gmgn/swap` - Execute GMGN DEX swap
+- `POST /api/v1/gmgn/bundle` - Submit GMGN bundle transaction
 
 ### Account Management
 - `GET /api/v1/account/balance` - Get account balance
@@ -78,6 +85,7 @@ Before setting up the application, ensure you have the following installed:
 - `/ws/positions` - Real-time position updates
 - `/ws/orders` - Real-time order updates
 - `/ws/risk` - Real-time risk metrics updates
+- `/ws/gmgn` - Real-time GMGN DEX updates
 
 For full API documentation, see [api.md](api.md)
 
@@ -86,9 +94,18 @@ For full API documentation, see [api.md](api.md)
 ### Backend Development
 
 ```bash
+# Python Backend
 cd src/backend
+python -m venv venv
 source venv/bin/activate
+pip install -e .
 uvicorn main:app --reload --port 8000
+
+# Go Backend
+cd go-migration
+go mod download
+go build -o bin/trading ./cmd/execute_trading
+./bin/trading
 ```
 
 ### Frontend Development
