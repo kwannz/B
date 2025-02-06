@@ -39,8 +39,8 @@ type Config struct {
 
 // NewProvider creates a new Pump.fun provider
 func NewProvider(config Config, logger *zap.Logger) *Provider {
-	baseURL := "https://frontend-api.pump.fun"
-	wsURL := "wss://frontend-api.pump.fun/ws"
+	baseURL := "https://pumpportal.fun"
+	wsURL := "wss://pumpportal.fun/ws/trades"
 	
 	if config.BaseURL != "" {
 		baseURL = config.BaseURL
