@@ -4,26 +4,36 @@ import motor.motor_asyncio
 from fastapi import FastAPI, WebSocket, HTTPException
 from contextlib import asynccontextmanager
 
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
+        logger.info("Initializing MongoDB connection...")
         app.state.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
             os.getenv("MONGODB_URL", "mongodb://localhost:27017"),
-            serverSelectionTimeoutMS=5000
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=5000
         )
-        # Test connection
+        logger.info("Testing MongoDB connection...")
         await app.state.mongo_client.admin.command('ping')
         app.state.db = app.state.mongo_client.tradingbot
-        # Initialize collections if they don't exist
+        logger.info("Initializing collections and indexes...")
         await app.state.db.positions.create_index("symbol")
         await app.state.db.trades.create_index("timestamp")
         await app.state.db.orders.create_index("symbol")
+        logger.info("MongoDB initialization complete")
         yield
     except Exception as e:
-        print(f"MongoDB connection error: {e}")
+        logger.error(f"MongoDB connection error: {e}")
         raise
     finally:
         if hasattr(app.state, 'mongo_client'):
+            logger.info("Closing MongoDB connection")
             app.state.mongo_client.close()
 
 app = FastAPI(lifespan=lifespan)
