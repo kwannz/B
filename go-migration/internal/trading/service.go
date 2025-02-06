@@ -23,46 +23,48 @@ func NewService(engine *Engine, logger *zap.Logger) *Service {
 
 // PlaceOrder implements TradingEngine interface
 func (s *Service) PlaceOrder(ctx context.Context, order *types.Order) error {
-	return s.engine.PlaceOrder(order)
+	return s.engine.PlaceOrder(ctx, order)
 }
 
 // CancelOrder implements TradingEngine interface
 func (s *Service) CancelOrder(ctx context.Context, orderID string) error {
-	return s.engine.CancelOrder(orderID)
+	return s.engine.CancelOrder(ctx, orderID)
 }
 
 // GetOrder implements TradingEngine interface
 func (s *Service) GetOrder(ctx context.Context, orderID string) (*types.Order, error) {
-	return s.engine.GetOrder(orderID)
+	return s.engine.GetOrder(ctx, orderID)
 }
 
 // GetOrders implements TradingEngine interface
 func (s *Service) GetOrders(ctx context.Context, userID string) ([]*types.Order, error) {
-	return s.engine.GetOrders(userID)
+	return s.engine.GetOrders(ctx)
 }
 
 // ExecuteTrade implements TradingEngine interface
-func (s *Service) ExecuteTrade(ctx context.Context, trade *Trade) error {
-	return nil // TODO: Implement trade execution
+func (s *Service) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
+	return s.engine.ProcessSignal(ctx, &types.Signal{
+		Provider: trade.Provider,
+		Symbol:   trade.Symbol,
+		Side:     trade.Side,
+		Size:     trade.Size,
+		Price:    trade.Price,
+	})
 }
 
 // GetTrades implements TradingEngine interface
-func (s *Service) GetTrades(ctx context.Context, userID string) ([]*Trade, error) {
+func (s *Service) GetTrades(ctx context.Context, userID string) ([]*types.Trade, error) {
 	return nil, nil // TODO: Implement get trades
 }
 
 // GetPosition implements TradingEngine interface
 func (s *Service) GetPosition(ctx context.Context, userID, symbol string) (*types.Position, error) {
-	pos := s.engine.GetPosition(symbol)
-	if pos == nil {
-		return nil, nil
-	}
-	return pos, nil
+	return s.engine.GetPosition(ctx, symbol)
 }
 
 // GetPositions implements TradingEngine interface
 func (s *Service) GetPositions(ctx context.Context, userID string) ([]*types.Position, error) {
-	return s.engine.GetPositions(), nil
+	return s.engine.GetPositions(ctx)
 }
 
 // GetOrderBook implements TradingEngine interface
