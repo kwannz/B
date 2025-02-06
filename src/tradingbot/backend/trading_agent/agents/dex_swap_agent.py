@@ -146,7 +146,7 @@ class DexSwapAgent(BaseTradingAgent):
                 "total_liquidity": float(market_data.get("total_liquidity", 0)),
                 "cross_dex_spread": float(market_data.get("cross_dex_spread", 0)),
                 "volume_24h": float(market_data.get("volume_24h", 0)),
-                "market_data_source": "jupiter",
+                "market_data_source": "gmgn",
                 "account_size": float(market_data.get("account_size", 100000))
             })
 
@@ -186,11 +186,11 @@ class DexSwapAgent(BaseTradingAgent):
             quote_token = "USDT"
             if signal["type"] == OrderSide.BUY:
                 quote = await self.dex_client.get_quote(
-                    "jupiter", quote_token, token, float(adjusted_size)
+                    "gmgn", quote_token, token, float(adjusted_size)
                 )
             else:
                 quote = await self.dex_client.get_quote(
-                    "jupiter", token, quote_token, float(adjusted_size)
+                    "gmgn", token, quote_token, float(adjusted_size)
                 )
 
             if "error" not in quote:
