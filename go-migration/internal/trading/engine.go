@@ -244,7 +244,7 @@ func (e *Engine) GetPositions(ctx context.Context) ([]*types.Position, error) {
 }
 
 func (e *Engine) validateOrder(order *types.Order) error {
-	size := decimal.NewFromFloat(order.Size)
+	size := order.Size
 	maxSize := decimal.NewFromFloat(e.config.MaxOrderSize)
 	minSize := decimal.NewFromFloat(e.config.MinOrderSize)
 
@@ -254,6 +254,35 @@ func (e *Engine) validateOrder(order *types.Order) error {
 
 	if size.LessThan(minSize) {
 		return fmt.Errorf("order size %v below minimum %v", size, minSize)
+	}
+
+	return nil
+}
+
+func (e *Engine) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	if trade.Provider == "" {
+		return fmt.Errorf("trade provider not specified")
+	}
+
+	executor, ok := e.executors[trade.Provider]
+	if !ok {
+		return fmt.Errorf("executor %s not found", trade.Provider)
+	}
+
+	signal := &types.Signal{
+		Provider:   trade.Provider,
+		Symbol:     trade.Symbol,
+		Type:       types.SignalType(trade.Side),
+		Amount:     trade.Size,
+		Price:      trade.Price,
+		Timestamp:  trade.Timestamp,
+	}
+
+	if err := executor.ExecuteTrade(ctx, signal); err != nil {
+		return fmt.Errorf("failed to execute trade: %w", err)
 	}
 
 	return nil
