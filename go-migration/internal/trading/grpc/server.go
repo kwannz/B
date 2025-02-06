@@ -173,7 +173,7 @@ func (s *Server) ExecuteTrade(ctx context.Context, req *pb.Trade) (*pb.TradeResp
 }
 
 func (s *Server) GetPosition(ctx context.Context, req *pb.GetPositionRequest) (*pb.Position, error) {
-	pos, err := s.service.GetPosition(ctx, req.UserId, req.Symbol)
+	pos, err := s.service.GetPosition(ctx, req.Symbol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get position: %w", err)
 	}
