@@ -7,7 +7,8 @@ from typing import List
 
 from dotenv import load_dotenv
 from pydantic import AnyHttpUrl, validator
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
+from pydantic_settings import SettingsConfigDict
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,7 +16,6 @@ load_dotenv()
 
 class Settings(BaseSettings):
     """API configuration settings"""
-
     # Basic settings
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
@@ -108,11 +108,11 @@ class Settings(BaseSettings):
     PROMETHEUS_ENABLED: bool = os.getenv("PROMETHEUS_ENABLED", "true").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
-    model_config = {
-        "case_sensitive": True,
-        "env_file": ".env",
-        "extra": "allow"
-    }
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=".env",
+        extra="allow"
+    )
     
     # API settings
     api_timeout: int = 30

@@ -15,13 +15,17 @@ trading:
 
   risk_management:
     position_sizing:
-      max_position_size: 0.1  # 10% of portfolio
-      min_position_size: 0.01 # 1% of portfolio
+      max_position_size: 1000
+      min_position_size: 10
     stop_loss:
-      initial: 0.15  # 15% stop loss
-      trailing: 0.10 # 10% trailing stop
+      initial: 0.02  # 2% stop loss
+      trailing: 0.02 # 2% trailing stop
     take_profit:
-      levels: [2.0, 3.0, 5.0]  # Corresponding to batch trading stages
+      levels:
+        - percentage: 0.015  # 1.5%
+          size_percentage: 0.5  # 50%
+        - percentage: 0.03   # 3.0%
+          size_percentage: 1.0  # 100%
 
   technical_analysis:
     timeframes: ["30m", "1h"]
