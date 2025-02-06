@@ -1,6 +1,7 @@
 """Wallet manager module for Solana wallet operations"""
 import os
 import base58
+from typing import Optional
 from solders.keypair import Keypair
 from solana.rpc.async_api import AsyncClient
 
@@ -14,16 +15,15 @@ class WalletManager:
         
         try:
             decoded_key = base58.b58decode(wallet_key)
-            if len(decoded_key) != 64:
-                raise ValueError("Invalid key length")
+            if not decoded_key:
+                raise ValueError("Missing wallet key")
                 
             self._keypair = Keypair.from_bytes(decoded_key)
-            expected_address = "4BKPzFyjBaRP3L1PNDf3xTerJmbbxxESmDmZJ2CZYdQ5"
-            if str(self._keypair.pubkey()) != expected_address:
-                raise ValueError(f"Invalid wallet address")
-                
+            if not self._keypair or not self._keypair.pubkey():
+                raise ValueError("Invalid wallet configuration")
+            
             self._public_key = str(self._keypair.pubkey())
-            self._private_key = wallet_key
+            self._private_key = None
         except Exception as e:
             raise ValueError(f"Invalid wallet key: {e}")
 
@@ -38,8 +38,8 @@ class WalletManager:
         """Get wallet public key"""
         return self._public_key
 
-    def get_private_key(self) -> str:
-        """Get wallet private key"""
+    def get_private_key(self) -> Optional[str]:
+        """Get wallet private key reference"""
         return self._private_key
 
     async def send_transaction(self, to_address: str, amount: float) -> str:
