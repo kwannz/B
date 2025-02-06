@@ -27,11 +27,18 @@ class GMGNClient:
         except Exception as e:
             print(f"Error initializing wallet: {e}")
             
+        # Initialize session with required headers
         self.session = aiohttp.ClientSession(
             headers={
                 "Accept": "application/json",
                 "Content-Type": "application/json",
-                "X-API-Key": self.api_key
+                "X-API-Key": self.api_key,
+                "Origin": "https://gmgn.ai",
+                "Referer": "https://gmgn.ai/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive"
             }
         )
         
@@ -48,32 +55,35 @@ class GMGNClient:
             
         lamports_amount = int(amount * 1e9)  # Convert SOL to lamports
         params = {
-            "fromToken": token_in,
-            "toToken": token_out,
-            "amount": str(lamports_amount),
+            "token_in_address": token_in,
+            "token_out_address": token_out,
+            "in_amount": str(lamports_amount),
+            "from_address": self.wallet_pubkey or "",
             "slippage": str(float(self.slippage)),
-            "antiMEV": str(self.use_anti_mev).lower(),
-            "fee": str(float(self.fee)),
-            "walletAddress": self.wallet_pubkey or "",
-            "version": "2"
+            "is_anti_mev": str(self.use_anti_mev).lower(),
+            "fee": "0.002"  # Required minimum fee for anti-MEV protection
         }
         
         try:
-            print(f"\nAttempting to get quote from {self.base_url}/swap/route")
-            # Log request parameters
-            print(f"\nRequest parameters: {params}")
+            print(f"\nAttempting to get quote from {self.base_url}/tx/get_swap_route")
             
-            async with self.session.post(
-                f"{self.base_url}/swap/route",
-                json=params,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                    "Origin": "https://gmgn.ai",
-                    "Referer": "https://gmgn.ai/",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                },
+            # Build URL with query parameters
+            query_params = {
+                "token_in_address": token_in,
+                "token_out_address": token_out,
+                "in_amount": str(lamports_amount),
+                "from_address": self.wallet_pubkey or "",
+                "slippage": str(float(self.slippage)),
+                "fee": "0.002",  # Required minimum fee for anti-MEV protection
+                "is_anti_mev": str(self.use_anti_mev).lower()
+            }
+            url = f"{self.base_url}/tx/get_swap_route"
+            print(f"\nFull URL: {url}")
+            print(f"Query parameters: {query_params}")
+            
+            async with self.session.get(
+                url,
+                params=query_params,
                 verify_ssl=False
             ) as response:
                 response_text = await response.text()
