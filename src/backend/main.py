@@ -125,25 +125,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI()
+from contextlib import asynccontextmanager
 
-# Include routers
-app.include_router(swap.router, prefix="/api/v1/swap", tags=["swap"])
-
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    # Allow all origins in development
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# Initialize services
-@app.on_event("startup")
-async def startup_event() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     # Initialize databases
     init_db()  # Initialize PostgreSQL
     init_mongodb()  # Initialize MongoDB collections
@@ -151,12 +136,25 @@ async def startup_event() -> None:
     # Start monitoring service
     from tradingbot.api.monitoring.service import monitoring_service
     await monitoring_service.start()
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    # Stop monitoring service
-    from tradingbot.api.monitoring.service import monitoring_service
+    
+    yield
+    
+    # Cleanup
     await monitoring_service.stop()
+
+app = FastAPI(lifespan=lifespan)
+
+# Include routers
+app.include_router(swap.router, prefix="/api/v1/swap", tags=["swap"])
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Market Analysis endpoint

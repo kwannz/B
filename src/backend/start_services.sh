@@ -39,7 +39,10 @@ python init_db.py || {
 }
 
 # Start MongoDB and Redis if not running
-echo "=== Starting Required Services ==="
+echo "=== Starting Required Services ===
+# Kill any existing Prometheus processes
+pkill -f prometheus_client || true
+sleep 2"
 sudo systemctl start mongod || sudo service mongod start
 sudo systemctl start redis-server || sudo service redis-server start
 sudo systemctl start postgresql || sudo service postgresql start
