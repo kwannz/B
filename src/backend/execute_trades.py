@@ -21,8 +21,22 @@ async def execute_trades():
 
         # Initialize wallet and verify key
         try:
+            if not os.getenv("SOLANA_WALLET_KEY"):
+                logger.error("SOLANA_WALLET_KEY not set")
+                return
+                
+            # Verify key format
+            key = os.getenv("SOLANA_WALLET_KEY", "")
+            if not key or len(key) < 64:  # Base58 encoded private key length
+                logger.error("Invalid wallet key format")
+                return
+                
             wallet = WalletManager()
             balance = await wallet.get_balance()
+            if balance <= 0:
+                logger.error("Wallet has zero balance")
+                return
+                
             logger.info(f"Wallet initialized successfully. Balance: {balance} SOL")
         except Exception as e:
             logger.error(f"Failed to initialize wallet: {e}")
