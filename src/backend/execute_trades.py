@@ -113,9 +113,8 @@ async def execute_trades():
                     while retry_count > 0:
                         try:
                             trade_result = await trading_client.execute_swap(
-                                quote=quote,
-                                slippage=0.005,  # 0.5% slippage for execution
-                                options={
+                                quote,
+                                {
                                     "skip_preflight": True,
                                     "max_retries": 3,
                                     "skip_confirmation": False,
