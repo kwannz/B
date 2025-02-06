@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="tradingbot",
     version="0.1.0",
-    python_requires=">=3.12",
+    python_requires=">=3.11.11",
     packages=find_packages(),
     install_requires=[
         "aiohttp>=3.9.1",
