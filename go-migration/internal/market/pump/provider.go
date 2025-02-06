@@ -186,7 +186,7 @@ func (p *Provider) SubscribePrices(ctx context.Context, symbols []string) (<-cha
 
 // GetHistoricalPrices implements MarketDataProvider interface
 func (p *Provider) GetHistoricalPrices(ctx context.Context, symbol string, interval string, limit int) ([]types.PriceUpdate, error) {
-	url := fmt.Sprintf("%s/v1/history/pump/%s?interval=%s&limit=%d",
+	url := fmt.Sprintf("%s/api/v1/historical/%s?interval=%s&limit=%d",
 		p.baseURL, symbol, interval, limit)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -283,7 +283,7 @@ func (p *Provider) GetBondingCurve(ctx context.Context, symbol string) (*types.B
 
 // GetNewTokens fetches new tokens from the API
 func (p *Provider) GetNewTokens(ctx context.Context) ([]*types.TokenMarketInfo, error) {
-	url := fmt.Sprintf("%s/v1/price/pump/latest", p.baseURL)
+	url := fmt.Sprintf("%s/api/v1/price/latest", p.baseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
