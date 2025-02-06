@@ -198,8 +198,23 @@ class GMGNClient:
             return {"error": "Session not initialized"}
 
         try:
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Origin": "https://gmgn.ai",
+                "Referer": "https://gmgn.ai/",
+                "Accept-Language": "en-US,en;q=0.9",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive"
+            }
+            if self.api_key:
+                headers["X-API-Key"] = self.api_key
+
             async with self.session.get(
-                f"{self.base_url}/market"
+                f"{self.base_url}/market",
+                headers=headers,
+                verify_ssl=False
             ) as response:
                 if response.status == 200:
                     data = await response.json()
