@@ -129,8 +129,8 @@ import motor.motor_asyncio
 from datetime import datetime
 from fastapi import FastAPI, WebSocket, HTTPException
 from contextlib import asynccontextmanager
-from src.tradingbot.api.monitoring.service import monitoring_service
-from src.tradingbot.api.core.db import init_db
+from tradingbot.api.core.deps import get_db, init_db, init_mongodb, get_mongodb
+from tradingbot.api.monitoring.service import monitoring_service
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
