@@ -3,6 +3,7 @@ import os
 import base64
 import binascii
 import json
+import asyncio
 from decimal import Decimal
 from typing import Any, Dict
 import aiohttp
@@ -12,6 +13,7 @@ from solders.keypair import Keypair
 from solders.transaction import VersionedTransaction
 
 class GMGNClient:
+    """GMGN API client for Solana trading with anti-MEV protection"""
     """GMGN DEX client for executing Solana trades with anti-MEV protection."""
     def __init__(self, config: Dict[str, Any]):
         """Initialize GMGN client with configuration."""
@@ -22,6 +24,12 @@ class GMGNClient:
         self.slippage = Decimal(str(config.get("slippage", "0.5")))
         self.fee = Decimal(str(config.get("fee", "0.002")))
         self.use_anti_mev = bool(config.get("use_anti_mev", True))
+        # CloudFlare configuration
+        self.cf_clearance = None
+        self.cf_retry_count = config.get("cf_retry_count", 3)
+        self.cf_retry_delay = config.get("cf_retry_delay", 5)
+        self.user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+        self.cookies = {}
 
     async def start(self):
         """Initialize wallet and HTTP session."""
@@ -34,14 +42,22 @@ class GMGNClient:
             print(f"Error initializing wallet: {e}")
         # Initialize session with required headers
         headers = {
-            "Accept": "application/json",
+            "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
             "Content-Type": "application/json",
             "Origin": "https://gmgn.ai",
+            "Pragma": "no-cache",
             "Referer": "https://gmgn.ai/",
-            "Accept-Language": "en-US,en;q=0.9",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive"
+            "Sec-Ch-Ua": '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Linux"',
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
         }
         if self.api_key:
             headers["X-API-Key"] = self.api_key
@@ -60,50 +76,48 @@ class GMGNClient:
         if not self.session:
             return {"error": "Session not initialized"}
 
-        lamports_amount = int(amount * 1e9)
-        query_params = {
-            "token_in_address": token_in,
-            "token_out_address": token_out,
-            "in_amount": str(lamports_amount),
-            "from_address": self.wallet_pubkey or "",
-            "slippage": str(float(self.slippage)),
-            "is_anti_mev": str(self.use_anti_mev).lower(),
-            "fee": "0.002"
-        }
-
         try:
-            print(f"\nAttempting to get quote from {self.base_url}/tx/get_swap_route")
-            # Build URL with query parameters
+            lamports_amount = int(amount * 1e9)
             query_params = {
                 "token_in_address": token_in,
                 "token_out_address": token_out,
                 "in_amount": str(lamports_amount),
                 "from_address": self.wallet_pubkey or "",
                 "slippage": str(float(self.slippage)),
-                "fee": "0.002",  # Required minimum fee for anti-MEV protection
+                "fee": "0.002",
                 "is_anti_mev": str(self.use_anti_mev).lower()
             }
             url = f"{self.base_url}/tx/get_swap_route"
-            print(f"\nFull URL: {url}")
-            print(f"Query parameters: {query_params}")
-            
-            async with self.session.get(
-                url,
-                params=query_params,
-                verify_ssl=False
-            ) as response:
-                response_text = await response.text()
-                print(f"\nResponse status: {response.status}")
-                print(f"Response headers: {response.headers}")
-                print(f"Response text: {response_text}")
-                if response.status == 200:
-                    return await response.json()
-                return {
-                    "error": "Failed to get quote",
-                    "status": response.status,
-                    "message": await response.text()
-                }
-        except (aiohttp.ClientError, ValueError) as e:
+
+            for attempt in range(self.cf_retry_count):
+                try:
+                    async with self.session.get(
+                        url,
+                        params=query_params,
+                        verify_ssl=False,
+                        allow_redirects=True,
+                        timeout=30
+                    ) as response:
+                        if response.status == 403 and "cf-" in str(response.headers).lower():
+                            if attempt < self.cf_retry_count - 1:
+                                await asyncio.sleep(self.cf_retry_delay)
+                                continue
+                            return {"error": "CloudFlare protection active"}
+
+                        if response.status == 200:
+                            return await response.json()
+                        return {
+                            "error": "Failed to get quote",
+                            "status": response.status,
+                            "message": await response.text()
+                        }
+                except Exception as e:
+                    if attempt < self.cf_retry_count - 1:
+                        await asyncio.sleep(self.cf_retry_delay)
+                        continue
+                    return {"error": f"Failed to get quote: {str(e)}"}
+            return {"error": "Failed to get quote after all retries"}
+        except Exception as e:
             return {"error": f"Failed to get quote: {str(e)}"}
 
     async def execute_swap(
@@ -116,50 +130,58 @@ class GMGNClient:
         try:
             if "data" not in quote or "raw_tx" not in quote["data"]:
                 return {"error": "Invalid quote response"}
-                
-            print("\nQuote response:")
-            print(json.dumps(quote, indent=2))
             
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
             transaction = VersionedTransaction.from_bytes(tx_buf)
             message_bytes = bytes(transaction.message)
             wallet_key = os.environ.get("walletkey")
-            if wallet_key:
-                key_bytes = base58.b58decode(wallet_key.encode())
-                keypair = Keypair.from_bytes(key_bytes)
+            if not wallet_key:
+                return {"error": "Wallet key not found"}
+            
+            key_bytes = base58.b58decode(wallet_key.encode())
+            keypair = Keypair.from_bytes(key_bytes)
             hash_bytes = bytes(Hash.hash(message_bytes))
-            signature = keypair.sign_message(message_bytes)  # Sign the message directly
+            signature = keypair.sign_message(message_bytes)
             transaction.signatures = [signature]
             signed_tx = base64.b64encode(bytes(transaction)).decode()
             
-            endpoint = ("/tx/submit_signed_bundle_transaction" if self.use_anti_mev
-                      else "/tx/submit_signed_transaction")
-            print(f"\nTransaction details:")
-            print(f"Message hash: {hash_bytes.hex()}")
-            print(f"Signature: {bytes(signature).hex()}")
-            print(f"\nSubmitting to endpoint: {self.base_url}{endpoint}")
-            
-            endpoint = ("/tx/submit_signed_bundle_transaction" if self.use_anti_mev
-                      else "/tx/submit_signed_transaction")
-            print(f"\nSubmitting to endpoint: {self.base_url}{endpoint}")
-            print(f"Submitting transaction to endpoint: {self.base_url}{endpoint}")
-            print(f"Transaction signature: {bytes(signature).hex()}")
-            async with self.session.post(
-                f"{self.base_url}{endpoint}",
-                json={"signed_tx": signed_tx}
-            ) as response:
-                response_data = await response.json()
-                print(f"\nTransaction submission response:")
-                print(json.dumps(response_data, indent=2))
-                
-                if response.status == 200 and "data" in response_data and "hash" in response_data["data"]:
-                    return response_data
-                return {
-                    "error": "Failed to submit transaction",
-                    "status": response.status,
-                    "response": response_data
-                }
-        except (aiohttp.ClientError, ValueError, binascii.Error) as e:
+            endpoint = "/tx/submit_signed_transaction"
+            url = f"{self.base_url}{endpoint}"
+
+            for attempt in range(self.cf_retry_count):
+                try:
+                    async with self.session.post(
+                        url,
+                        json={"signed_tx": signed_tx},
+                        verify_ssl=False,
+                        allow_redirects=True,
+                        timeout=30
+                    ) as response:
+                        if response.status == 403 and "cf-" in str(response.headers).lower():
+                            if attempt < self.cf_retry_count - 1:
+                                await asyncio.sleep(self.cf_retry_delay)
+                                continue
+                            return {"error": "CloudFlare protection active"}
+                        
+                        response_data = await response.json()
+                        if response.status == 200:
+                            if "data" in response_data and "hash" in response_data["data"]:
+                                return {"signature": response_data["data"]["hash"]}
+                            return {"error": "Response missing transaction hash"}
+                        return {
+                            "error": "Failed to submit transaction",
+                            "status": response.status,
+                            "response": response_data
+                        }
+                except Exception as e:
+                    if attempt < self.cf_retry_count - 1:
+                        await asyncio.sleep(self.cf_retry_delay)
+                        continue
+                    return {"error": f"Failed to execute swap: {str(e)}"}
+            return {"error": "Failed to execute swap after all retries"}
+        except (ValueError, binascii.Error) as e:
+            return {"error": f"Failed to process transaction: {str(e)}"}
+        except Exception as e:
             return {"error": f"Failed to execute swap: {str(e)}"}
 
     async def get_transaction_status(
@@ -198,34 +220,36 @@ class GMGNClient:
             return {"error": "Session not initialized"}
 
         try:
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "Origin": "https://gmgn.ai",
-                "Referer": "https://gmgn.ai/",
-                "Accept-Language": "en-US,en;q=0.9",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Connection": "keep-alive"
-            }
-            if self.api_key:
-                headers["X-API-Key"] = self.api_key
-
-            async with self.session.get(
-                f"{self.base_url}/market",
-                headers=headers,
-                verify_ssl=False
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return {
-                        "code": 0,
-                        "msg": "success",
-                        "data": data
-                    }
-                return {
-                    "error": f"Failed to get market data: {await response.text()}",
-                    "status": response.status
-                }
+            for attempt in range(self.cf_retry_count):
+                try:
+                    async with self.session.get(
+                        f"{self.base_url}/market",
+                        verify_ssl=False,
+                        allow_redirects=True,
+                        timeout=30
+                    ) as response:
+                        if response.status == 403 and "cf-" in str(response.headers).lower():
+                            if attempt < self.cf_retry_count - 1:
+                                await asyncio.sleep(self.cf_retry_delay)
+                                continue
+                            return {"error": "CloudFlare protection active"}
+                        
+                        if response.status == 200:
+                            data = await response.json()
+                            return {
+                                "code": 0,
+                                "msg": "success",
+                                "data": data
+                            }
+                        return {
+                            "error": f"Failed to get market data: {await response.text()}",
+                            "status": response.status
+                        }
+                except Exception as e:
+                    if attempt < self.cf_retry_count - 1:
+                        await asyncio.sleep(self.cf_retry_delay)
+                        continue
+                    return {"error": f"Network error: {str(e)}"}
+            return {"error": "Failed to get market data after all retries"}
         except Exception as e:
             return {"error": f"Network error: {str(e)}"}

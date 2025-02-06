@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tradingbot"
+version = "0.1.0"
+description = "Trading bot for GMGN and other DEX platforms"
+requires-python = ">=3.11"
+dependencies = [
+    "aiohttp>=3.9.1",
+    "pandas>=2.2.0",
+    "pandas_ta>=0.3.14b",
+    "solana>=0.30.2",
+    "base58>=2.1.1",
+    "solders>=0.20.0",
+    "httpx>=0.26.0",
+]
