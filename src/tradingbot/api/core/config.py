@@ -46,10 +46,8 @@ class Settings(BaseSettings):
 
     # Trading settings
     SOLANA_WALLET_KEY: str = ""
-    JUPITER_API_URL: str = "https://quote-api.jup.ag/v6"
-    RAYDIUM_API_URL: str = "https://api.raydium.io/v2"
-    ORCA_API_URL: str = "https://api.orca.so"
-    PRIMARY_DEX: str = "jupiter"
+    GMGN_API_URL: str = "https://gmgn.ai/defi/router/v1/sol"
+    PRIMARY_DEX: str = "gmgn"
     RISK_MANAGEMENT_ENABLED: bool = True
     MAX_TRADE_SIZE_SOL: float = 10.0
     RISK_LEVEL: str = "medium"
@@ -62,7 +60,7 @@ class Settings(BaseSettings):
         """Validate and assemble CORS origins"""
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
+        elif isinstance(v, list):
             return v
         raise ValueError(v)
 
@@ -96,7 +94,7 @@ class Settings(BaseSettings):
         """Validate and assemble trading symbols"""
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
+        elif isinstance(v, list):
             return v
         raise ValueError(v)
 
