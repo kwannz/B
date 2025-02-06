@@ -2,23 +2,44 @@ import os
 import asyncio
 from datetime import datetime
 import motor.motor_asyncio
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, HTTPException
 from pymongo import MongoClient
 
 app = FastAPI()
 
 @app.on_event("startup")
 async def startup_event():
-    app.state.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(os.getenv("MONGODB_URL", "mongodb://localhost:27017"))
-    app.state.db = app.state.mongo_client.tradingbot
+    try:
+        app.state.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
+            os.getenv("MONGODB_URL", "mongodb://localhost:27017"),
+            serverSelectionTimeoutMS=5000
+        )
+        # Test connection
+        await app.state.mongo_client.admin.command('ping')
+        app.state.db = app.state.mongo_client.tradingbot
+        # Initialize collections if they don't exist
+        await app.state.db.positions.create_index("symbol")
+        await app.state.db.risk_metrics.create_index("timestamp")
+    except Exception as e:
+        print(f"MongoDB connection error: {e}")
+        raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    app.state.mongo_client.close()
+    if hasattr(app.state, 'mongo_client'):
+        app.state.mongo_client.close()
 
 @app.get("/api/v1/health")
 async def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    try:
+        await app.state.db.command("ping")
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "database": "connected"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
