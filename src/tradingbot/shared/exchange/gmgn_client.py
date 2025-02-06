@@ -116,35 +116,24 @@ class GMGNClient:
                 return {"error": "Invalid quote response"}
                 
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
+            
             # Parse transaction and prepare for signing
             tx = VersionedTransaction.from_bytes(tx_buf)
-            message_bytes = bytes(tx.message)
-            
-            # Sign the message and prepare signature
-            signature = wallet.sign_message(message_bytes)
-            sig_bytes = bytes(signature)[:64]
-            
-            # Create a new transaction with our signature
-            tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
-            tx.signatures = []  # Clear any existing signatures
-            tx.signatures.append(list(sig_bytes))  # Add our signature as list of bytes
-            
-            # Sign the transaction
-            tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
-            tx.signatures = []  # Clear any existing signatures
-            
-            # Sign the transaction
-            tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
             message_bytes = bytes(tx.message)
             
             # Sign the message and create signature
             signature = wallet.sign_message(message_bytes)
             sig_bytes = bytes(signature)
             
+            # Create signature array with proper format
+            sig_array = []
+            for i in range(64):  # Ensure exactly 64 bytes
+                sig_array.append(sig_bytes[i] if i < len(sig_bytes) else 0)
+            
             # Create a new transaction with proper signature format
-            tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
-            tx.signatures = []  # Clear any existing signatures
-            tx.signatures.append([x for x in sig_bytes])  # Add signature as list of integers
+            tx = VersionedTransaction.from_bytes(tx_buf)
+            tx.signatures = []
+            tx.signatures.append(sig_array)
             
             # Serialize and encode transaction
             tx_serialized = bytes(tx)
@@ -173,29 +162,6 @@ class GMGNClient:
                     "error": "Failed to submit transaction",
                     "status": response.status,
                     "message": response_text
-                }
-            
-            # Encode and submit transaction
-            signed_tx = base64.b64encode(bytes(tx)).decode()
-            print(f"\nTransaction details:")
-            print(f"- Transaction length: {len(signed_tx)}")
-            print(f"- Message length: {len(message_bytes)}")
-            print(f"- Transaction signatures: {[bytes(bytearray(s)).hex() for s in tx.signatures]}")
-            
-            # Submit transaction with anti-MEV protection if enabled
-            endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
-            print(f"\nSubmitting transaction to {self.base_url}{endpoint}")
-            
-            async with self.session.post(
-                f"{self.base_url}{endpoint}",
-                json={"signed_tx": signed_tx}
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                return {
-                    "error": "Failed to submit transaction",
-                    "status": response.status,
-                    "message": await response.text()
                 }
         except Exception as e:
             return {"error": str(e)}
