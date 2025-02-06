@@ -401,14 +401,8 @@ func (p *Provider) SubscribeNewTokens(ctx context.Context) (<-chan *types.TokenM
 
 	return updates, nil
 }
-// ExecuteTrade implements MarketDataProvider interface
-func (p *Provider) ExecuteTrade(ctx context.Context, params map[string]interface{}) error {
-	symbol := params["symbol"].(string)
-	orderType := types.SignalType(params["type"].(string))
-	amount := params["amount"].(decimal.Decimal)
-	price := params["price"].(decimal.Decimal)
-	stopLoss := params["stop_loss"].(*decimal.Decimal)
-	takeProfits := params["take_profits"].([]decimal.Decimal)
+// ExecuteOrder executes a trade order
+func (p *Provider) ExecuteOrder(ctx context.Context, symbol string, orderType types.SignalType, amount decimal.Decimal, price decimal.Decimal, stopLoss *decimal.Decimal, takeProfits []decimal.Decimal) error {
 	url := fmt.Sprintf("%s/tokens/%s/trade", p.baseURL, symbol)
 
 	payload := map[string]interface{}{
@@ -485,6 +479,18 @@ func (p *Provider) ExecuteTrade(ctx context.Context, params map[string]interface
 
 	metrics.PumpTradeExecutions.WithLabelValues("success").Inc()
 	return nil
+}
+
+// ExecuteTrade implements MarketDataProvider interface
+func (p *Provider) ExecuteTrade(ctx context.Context, params map[string]interface{}) error {
+	symbol := params["symbol"].(string)
+	orderType := types.SignalType(params["type"].(string))
+	amount := params["amount"].(decimal.Decimal)
+	price := params["price"].(decimal.Decimal)
+	stopLoss := params["stop_loss"].(*decimal.Decimal)
+	takeProfits := params["take_profits"].([]decimal.Decimal)
+	
+	return p.ExecuteOrder(ctx, symbol, orderType, amount, price, stopLoss, takeProfits)
 }
 
 // Close closes the provider and its WebSocket client
