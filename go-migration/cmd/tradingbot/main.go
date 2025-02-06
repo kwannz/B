@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/kwanRoshi/B/go-migration/internal/market"
+	"github.com/shopspring/decimal"
 	"github.com/kwanRoshi/B/go-migration/internal/market/pump"
 	"github.com/kwanRoshi/B/go-migration/internal/market/solana"
 	"github.com/kwanRoshi/B/go-migration/internal/metrics"
@@ -32,7 +33,14 @@ import (
 func main() {
 	// Parse command line flags
 	configFile := flag.String("config", "configs/config.yaml", "path to config file")
+	mode := flag.String("mode", "test", "trading mode (test/live)")
+	strategy := flag.String("strategy", "pump", "trading strategy to use")
 	flag.Parse()
+
+	// Validate trading mode
+	if *mode != "test" && *mode != "live" {
+		log.Fatalf("Invalid trading mode: %s. Must be 'test' or 'live'", *mode)
+	}
 
 	// Load configuration
 	viper.SetConfigFile(*configFile)
@@ -84,7 +92,7 @@ func main() {
 	pumpProvider := pump.NewProvider(pumpConfig, logger)
 
 	// Initialize market data handler with both providers
-	marketHandler := market.NewHandler([]market.Provider{solanaProvider, pumpProvider}, logger)
+	marketHandler := market.NewHandler([]types.MarketDataProvider{solanaProvider, pumpProvider}, logger)
 
 	// Initialize pricing engine
 	pricingConfig := pricing.Config{
@@ -117,31 +125,54 @@ func main() {
 	// Start signal processing
 	go handleSignals(ctx, logger, pricingEngine)
 
-	// Load trading configuration
-	var tradingCfg strategy.TradingConfig
-	if err := viper.UnmarshalKey("trading", &tradingCfg); err != nil {
-		logger.Fatal("Failed to parse trading config", zap.Error(err))
-	}
-
 	// Initialize real-time trading executor with API key
 	apiKey := os.Getenv("PUMP_API_KEY")
 	if apiKey == "" {
 		logger.Fatal("PUMP_API_KEY environment variable not set")
-	
-	limits := types.RiskLimits{
-		MaxPositionSize:  1000.0,
-		MaxDrawdown:      0.1,
-		MaxDailyLoss:     100.0,
-		MaxLeverage:      1.0,
-		MinMarginLevel:   1.5,
-		MaxConcentration: 0.2,
 	}
-	riskManager := trading.NewRiskManager(limits, logger)
+
+	// Configure trading mode
+	isLiveMode := *mode == "live"
+	logger.Info("Starting trading bot",
+		zap.String("mode", *mode),
+		zap.String("strategy", *strategy))
+	
+	limits := types.RiskConfig{
+		MaxPositionSize:     decimal.NewFromFloat(1000.0),
+		MaxDrawdown:         decimal.NewFromFloat(0.1),
+		MaxDailyLoss:        decimal.NewFromFloat(100.0),
+		MaxLeverage:         decimal.NewFromFloat(1.0),
+		MinMarginLevel:      decimal.NewFromFloat(1.5),
+		MaxConcentration:    decimal.NewFromFloat(0.2),
+	}
+	riskManager := trading.NewRiskManager(&limits, logger)
 	
 	pumpConfig := &types.PumpTradingConfig{
-		StopLossPercent:   15.0,  // 15% stop loss
-		TakeProfitLevels: []float64{2.0, 3.0, 5.0},  // 2x, 3x, 5x take profits
-		BatchSizes:       []float64{0.2, 0.25, 0.2},  // 20%, 25%, 20% per batch
+		MaxMarketCap: decimal.NewFromFloat(30000),
+		MinVolume:    decimal.NewFromFloat(1000),
+		WebSocket: types.WSConfig{
+			ReconnectTimeout: 10 * time.Second,
+			PingInterval:    15 * time.Second,
+			WriteTimeout:    10 * time.Second,
+			ReadTimeout:     60 * time.Second,
+			PongWait:       60 * time.Second,
+			MaxRetries:     5,
+			APIKey:         apiKey,
+			DialTimeout:    10 * time.Second,
+		},
+		Risk: struct {
+			MaxPositionSize   decimal.Decimal   `yaml:"max_position_size"`
+			MinPositionSize   decimal.Decimal   `yaml:"min_position_size"`
+			StopLossPercent   decimal.Decimal   `yaml:"stop_loss_percent"`
+			TakeProfitLevels  []decimal.Decimal `yaml:"take_profit_levels"`
+			BatchSizes        []decimal.Decimal `yaml:"batch_sizes"`
+		}{
+			MaxPositionSize:   decimal.NewFromFloat(1000),
+			MinPositionSize:   decimal.NewFromFloat(10),
+			StopLossPercent:   decimal.NewFromFloat(0.02),
+			TakeProfitLevels:  []decimal.Decimal{decimal.NewFromFloat(1.015), decimal.NewFromFloat(1.03)},
+			BatchSizes:        []decimal.Decimal{decimal.NewFromFloat(0.5), decimal.NewFromFloat(0.5)},
+		},
 	}
 	
 	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, pumpConfig, apiKey)
@@ -152,7 +183,9 @@ func main() {
 	
 	// Register pump.fun strategy with trading engine
 	pumpStrategy := strategy.NewPumpStrategy(pumpExecutor, pumpConfig, logger)
-	tradingEngine.RegisterStrategy("pump_fun", pumpStrategy)
+	if err := tradingEngine.RegisterStrategy("pump_fun", pumpStrategy); err != nil {
+		logger.Fatal("Failed to register pump.fun strategy", zap.Error(err))
+	}
 
 	// Initialize monitoring service
 	monitoringService := monitoring.NewService(pumpProvider, metrics.NewPumpMetrics(), logger)
