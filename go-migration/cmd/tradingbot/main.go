@@ -26,9 +26,8 @@ import (
 	"github.com/kwanRoshi/B/go-migration/internal/trading"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/executor"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/grpc"
-	"github.com/kwanRoshi/B/go-migration/internal/trading/strategy"
-	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/risk"
+	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"github.com/kwanRoshi/B/go-migration/internal/ws"
 )
 
@@ -215,28 +214,15 @@ func main() {
 	}
 	tradingEngine := trading.NewEngine(engineConfig, logger, tradingStorage)
 
-	// Initialize WebSocket server
-	wsConfig := ws.Config{
-		Port:           viper.GetInt("server.websocket.port"),
-		PingInterval:   viper.GetDuration("server.websocket.ping_interval"),
-		PongWait:       viper.GetDuration("server.websocket.pong_wait"),
-		WriteWait:      10 * time.Second,
-		MaxMessageSize: 1024 * 1024, // 1MB
-	}
-
-	// Register pump.fun strategy with trading engine
-	pumpStrat := strategy.NewPumpStrategy(tradingConfig, pumpExecutor, logger)
-	if err := pumpStrat.Init(context.Background()); err != nil {
-		logger.Fatal("Failed to initialize pump strategy", zap.Error(err))
-	}
-	if err := tradingEngine.RegisterStrategy(pumpStrat); err != nil {
-		logger.Fatal("Failed to register pump.fun strategy", zap.Error(err))
+	// Register pump.fun executor with trading engine
+	if err := tradingEngine.RegisterExecutor("pump.fun", pumpExecutor); err != nil {
+		logger.Fatal("Failed to register pump.fun executor", zap.Error(err))
 	}
 
 	// Create trading service and servers
 	tradingService := trading.NewService(tradingEngine, logger)
 	grpcServer := grpc.NewServer(tradingService, logger)
-	wsServer := ws.NewServer(wsConfig, logger, tradingEngine, marketHandler)
+	wsServer := ws.NewServer(wsConfig, logger, tradingService, marketHandler)
 
 	// Initialize monitoring service
 	monitoringService := monitoring.NewService(pumpProvider, metrics.NewPumpMetrics(), logger)
@@ -250,21 +236,8 @@ func main() {
 	}
 	defer tradingEngine.Stop()
 
-	// Initialize WebSocket server
-	wsConfig := ws.Config{
-		Port:           viper.GetInt("server.websocket.port"),
-		PingInterval:   viper.GetDuration("server.websocket.ping_interval"),
-		PongWait:       viper.GetDuration("server.websocket.pong_wait"),
-		WriteWait:      10 * time.Second,
-		MaxMessageSize: 1024 * 1024, // 1MB
-	}
-	wsServer := ws.NewServer(wsConfig, logger, tradingService, marketHandler)
-
-	// Start WebSocket server
+	// Start servers
 	go wsServer.Start()
-
-	// Initialize and start gRPC server
-	grpcServer := grpc.NewServer(tradingService, logger)
 	if err := grpcServer.Start(viper.GetInt("server.grpc.port")); err != nil {
 		logger.Fatal("Failed to start gRPC server", zap.Error(err))
 	}

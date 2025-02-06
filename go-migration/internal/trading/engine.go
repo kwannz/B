@@ -259,6 +259,24 @@ func (e *Engine) validateOrder(order *types.Order) error {
 	return nil
 }
 
+func (e *Engine) GetTrades(ctx context.Context) ([]*types.Trade, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	trades := make([]*types.Trade, 0)
+	for _, executor := range e.executors {
+		if tradeHistory, ok := executor.(interface{ GetTradeHistory(context.Context) ([]*types.Trade, error) }); ok {
+			history, err := tradeHistory.GetTradeHistory(ctx)
+			if err != nil {
+				e.logger.Error("Failed to get trade history", zap.Error(err))
+				continue
+			}
+			trades = append(trades, history...)
+		}
+	}
+	return trades, nil
+}
+
 func (e *Engine) GetOrderBook(ctx context.Context, symbol string) (*types.OrderBook, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
