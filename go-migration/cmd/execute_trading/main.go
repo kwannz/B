@@ -30,6 +30,7 @@ func main() {
 	apiKey := os.Getenv("PUMP_API_KEY")
 	if apiKey == "" {
 		logger.Fatal("PUMP_API_KEY environment variable not set")
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
