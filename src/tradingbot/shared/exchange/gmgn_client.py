@@ -2,20 +2,27 @@ from typing import Any, Dict, Optional
 import base64
 from decimal import Decimal
 import aiohttp
-import base64
+import os
 from solders.transaction import Transaction
 
 class GMGNClient:
     def __init__(self, config: Dict[str, Any]):
         self.session = None
-        self.base_url = "https://gmgn.ai/defi/router/v1/sol"
+        self.base_url = "https://api.gmgn.ai/v1/solana"
         self.slippage = Decimal(str(config.get("slippage", "0.5")))
         self.fee = Decimal(str(config.get("fee", "0.002")))
         self.use_anti_mev = bool(config.get("use_anti_mev", True))
         self.wallet_address = config.get("wallet_address")
         
     async def start(self):
-        self.session = aiohttp.ClientSession()
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Origin": "https://gmgn.ai",
+            "Referer": "https://gmgn.ai/"
+        }
+        self.session = aiohttp.ClientSession(headers=headers)
         
     async def stop(self):
         if self.session:
@@ -30,18 +37,23 @@ class GMGNClient:
             
         lamports_amount = int(amount * 1e9)  # Convert SOL to lamports
         params = {
-            "fromToken": token_in,
-            "toToken": token_out,
-            "amount": str(lamports_amount),
+            "inToken": token_in,
+            "outToken": token_out,
+            "inAmount": str(lamports_amount),
             "slippage": str(float(self.slippage)),
-            "antiMEV": str(self.use_anti_mev).lower(),
-            "fee": str(float(self.fee))
+            "antiMev": str(self.use_anti_mev).lower(),
+            "fee": str(float(self.fee)),
+            "version": "2"
         }
         
         try:
             async with self.session.post(
-                f"{self.base_url}/swap/quote",
-                json=params
+                f"{self.base_url}/swap/create",
+                json=params,
+                headers={
+                    "Authorization": f"Bearer {os.environ.get('walletkey')}",
+                    "Accept": "application/json"
+                }
             ) as response:
                 if response.status == 200:
                     return await response.json()
