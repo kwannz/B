@@ -33,7 +33,23 @@ async def execute_trades():
             "fee": "0.002",
             "use_anti_mev": True,
             "verify_ssl": False,
-            "timeout": 30
+            "timeout": 30,
+            "cf_retry_count": 5,
+            "cf_retry_delay": 3,
+            "headers": {
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Connection": "keep-alive",
+                "Origin": "https://gmgn.ai",
+                "Referer": "https://gmgn.ai/",
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+                "Sec-Ch-Ua": '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+                "Sec-Ch-Ua-Mobile": "?0",
+                "Sec-Ch-Ua-Platform": '"Linux"',
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-origin"
+            }
         })
         
         try:
