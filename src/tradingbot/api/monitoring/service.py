@@ -19,13 +19,14 @@ class MonitoringService:
     def __init__(self):
         self._running = False
         self.dex_client = None
+        self._task = None
 
     async def initialize(self):
         """Initialize DEX client."""
-        from ...shared.exchange.dex_client import DEXClient
-        self.dex_client = DEXClient()
-        await self.dex_client.start()
-        self._task: Optional[asyncio.Task] = None
+        if not self.dex_client:
+            from ...shared.exchange.dex_client import DEXClient
+            self.dex_client = DEXClient()
+            await self.dex_client.start()
         
     async def start(self):
         """Start the monitoring service."""
@@ -75,7 +76,8 @@ class MonitoringService:
                 # Update market metrics for active markets
                 markets = ["SOL/USDC", "BONK/SOL", "JUP/SOL"]
                 for market in markets:
-                    market_data = await self.dex_client.get_market_data("gmgn", market)
+                    if self.dex_client:
+                        market_data = await self.dex_client.get_market_data(market)
                     if "error" not in market_data:
                         update_market_metrics(
                             market=market,

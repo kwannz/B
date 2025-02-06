@@ -44,14 +44,14 @@ class DexSwapAgent(BaseTradingAgent):
         ma_slow = ta.sma(prices, length=self.ma_slow)
 
         return {
-            "rsi": float(rsi.iloc[-1]) if rsi is not None and not rsi.empty else None,
-            "ma_fast": float(ma_fast.iloc[-1]) if ma_fast is not None and not ma_fast.empty else None,
-            "ma_slow": float(ma_slow.iloc[-1]) if ma_slow is not None and not ma_slow.empty else None,
+            "rsi": float(rsi.iloc[-1].item()) if rsi is not None and not rsi.empty else None,
+            "ma_fast": float(ma_fast.iloc[-1].item()) if ma_fast is not None and not ma_fast.empty else None,
+            "ma_slow": float(ma_slow.iloc[-1].item()) if ma_slow is not None and not ma_slow.empty else None,
             "ma_cross": (
                 ma_fast is not None and ma_slow is not None and
                 not ma_fast.empty and not ma_slow.empty and
-                float(ma_fast.iloc[-2]) < float(ma_slow.iloc[-2]) and
-                float(ma_fast.iloc[-1]) > float(ma_slow.iloc[-1])
+                float(ma_fast.iloc[-2].item()) < float(ma_slow.iloc[-2].item()) and
+                float(ma_fast.iloc[-1].item()) > float(ma_slow.iloc[-1].item())
             ),
         }
 
