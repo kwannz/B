@@ -3,9 +3,29 @@ package trading
 import (
 	"context"
 
+	"github.com/shopspring/decimal"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 	"go.uber.org/zap"
 )
+
+type Trade struct {
+	Provider string
+	Symbol   string
+	Side     string
+	Size     decimal.Decimal
+	Price    decimal.Decimal
+}
+
+type OrderBook struct {
+	Symbol string
+	Bids   []OrderBookLevel
+	Asks   []OrderBookLevel
+}
+
+type OrderBookLevel struct {
+	Price  decimal.Decimal
+	Amount decimal.Decimal
+}
 
 // Service implements the TradingEngine interface for WebSocket server
 type Service struct {
@@ -46,7 +66,7 @@ func (s *Service) ExecuteTrade(ctx context.Context, trade *types.Trade) error {
 	return s.engine.ProcessSignal(ctx, &types.Signal{
 		Provider: trade.Provider,
 		Symbol:   trade.Symbol,
-		Side:     trade.Side,
+		Type:     types.SignalType(trade.Side),
 		Size:     trade.Size,
 		Price:    trade.Price,
 	})
