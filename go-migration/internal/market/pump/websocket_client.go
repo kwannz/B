@@ -383,10 +383,11 @@ func (c *WSClient) Subscribe(methods []string) error {
 					"version": "1.0",
 				},
 				"data": map[string]interface{}{
-					"symbol": strings.ReplaceAll(method, "/", "_"),
+					"pair": method,
 					"interval": "1m",
 					"include_changes": true,
 					"include_metadata": true,
+					"include_executions": true,
 				},
 			}
 		case method == "subscribeNewToken":
