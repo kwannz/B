@@ -132,29 +132,47 @@ class GMGNClient:
             # Sign the transaction
             tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
             tx.signatures = []  # Clear any existing signatures
-            tx.signatures.append(list(sig_bytes))  # Add our signature as list of bytes
             
-            # Encode and submit transaction
-            signed_tx = base64.b64encode(bytes(tx)).decode()
+            # Sign the transaction
+            tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
+            message_bytes = bytes(tx.message)
+            
+            # Sign the message and create signature
+            signature = wallet.sign_message(message_bytes)
+            sig_bytes = bytes(signature)
+            
+            # Create a new transaction with proper signature format
+            tx = VersionedTransaction.from_bytes(tx_buf)  # Create fresh transaction
+            tx.signatures = []  # Clear any existing signatures
+            tx.signatures.append([x for x in sig_bytes])  # Add signature as list of integers
+            
+            # Serialize and encode transaction
+            tx_serialized = bytes(tx)
+            signed_tx = base64.b64encode(tx_serialized).decode()
             
             # Submit transaction with anti-MEV protection if enabled
             endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
             print(f"\nSubmitting transaction to {self.base_url}{endpoint}")
+            print(f"Transaction signature length: {len(sig_bytes)}")
+            print(f"Transaction buffer length: {len(tx_serialized)}")
             
             async with self.session.post(
                 f"{self.base_url}{endpoint}",
                 json={"signed_tx": signed_tx}
             ) as response:
+                response_text = await response.text()
+                print(f"Response status: {response.status}")
+                print(f"Response text: {response_text}")
+                
                 if response.status == 200:
                     result = await response.json()
                     print(f"Transaction submitted successfully: {result}")
                     return result
-                error_text = await response.text()
-                print(f"Transaction submission failed: {error_text}")
+                print(f"Transaction submission failed: {response_text}")
                 return {
                     "error": "Failed to submit transaction",
                     "status": response.status,
-                    "message": error_text
+                    "message": response_text
                 }
             
             # Encode and submit transaction
