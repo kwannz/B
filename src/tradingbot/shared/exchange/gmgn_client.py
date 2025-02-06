@@ -1,53 +1,49 @@
-from typing import Any, Dict, Optional
-import base64
-from decimal import Decimal
-import aiohttp
+"""GMGN DEX client implementation for Solana trading."""
 import os
-from solders.transaction import Transaction, VersionedTransaction
-from solders.message import MessageV0
-from solders.keypair import Keypair
-from solders.signature import Signature
-from solders.presigner import Presigner
+import base64
+import binascii
+import json
+from decimal import Decimal
+from typing import Any, Dict
+import aiohttp
+import base58
 from solders.hash import Hash
+from solders.keypair import Keypair
+from solders.transaction import VersionedTransaction
 
 class GMGNClient:
+    """GMGN DEX client for executing Solana trades with anti-MEV protection."""
     def __init__(self, config: Dict[str, Any]):
+        """Initialize GMGN client with configuration."""
         self.session = None
         self.base_url = "https://gmgn.ai/defi/router/v1/sol"
         self.api_key = os.environ.get('walletkey')
-        self.wallet_pubkey = None  # Will be set during initialization
+        self.wallet_pubkey = None
         self.slippage = Decimal(str(config.get("slippage", "0.5")))
         self.fee = Decimal(str(config.get("fee", "0.002")))
         self.use_anti_mev = bool(config.get("use_anti_mev", True))
-        self.wallet_address = config.get("wallet_address")
-        
+
     async def start(self):
-        # Initialize wallet from API key
-        from solders.keypair import Keypair
-        import base58
+        """Initialize wallet and HTTP session."""
         try:
             key_bytes = base58.b58decode(self.api_key)
             keypair = Keypair.from_bytes(key_bytes)
             self.wallet_pubkey = str(keypair.pubkey())
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             print(f"Error initializing wallet: {e}")
-            
         # Initialize session with required headers
         self.session = aiohttp.ClientSession(
             headers={
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "X-API-Key": self.api_key,
-                "Origin": "https://gmgn.ai",
-                "Referer": "https://gmgn.ai/",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Connection": "keep-alive"
+                "Accept": "application/json", "Content-Type": "application/json",
+                "X-API-Key": self.api_key, "Origin": "https://gmgn.ai",
+                "Referer": "https://gmgn.ai/", "Accept-Language": "en-US,en;q=0.9",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "Accept-Encoding": "gzip, deflate, br", "Connection": "keep-alive"
             }
         )
-        
+
     async def stop(self):
+        """Close HTTP session and cleanup resources."""
         if self.session:
             await self.session.close()
             self.session = None
@@ -55,23 +51,23 @@ class GMGNClient:
     async def get_quote(
         self, token_in: str, token_out: str, amount: float
     ) -> Dict[str, Any]:
+        """Get quote for token swap."""
         if not self.session:
             return {"error": "Session not initialized"}
-            
-        lamports_amount = int(amount * 1e9)  # Convert SOL to lamports
-        params = {
+
+        lamports_amount = int(amount * 1e9)
+        query_params = {
             "token_in_address": token_in,
             "token_out_address": token_out,
             "in_amount": str(lamports_amount),
             "from_address": self.wallet_pubkey or "",
             "slippage": str(float(self.slippage)),
             "is_anti_mev": str(self.use_anti_mev).lower(),
-            "fee": "0.002"  # Required minimum fee for anti-MEV protection
+            "fee": "0.002"
         }
-        
+
         try:
             print(f"\nAttempting to get quote from {self.base_url}/tx/get_swap_route")
-            
             # Build URL with query parameters
             query_params = {
                 "token_in_address": token_in,
@@ -102,118 +98,75 @@ class GMGNClient:
                     "status": response.status,
                     "message": await response.text()
                 }
-        except Exception as e:
-            return {"error": str(e)}
-            
+        except (aiohttp.ClientError, ValueError) as e:
+            return {"error": f"Failed to get quote: {str(e)}"}
+
     async def execute_swap(
-        self, quote: Dict[str, Any], wallet: Any
+        self, quote: Dict[str, Any], _: Any
     ) -> Dict[str, Any]:
+        """Execute token swap transaction."""
         if not self.session:
             return {"error": "Session not initialized"}
-            
+
         try:
             if "data" not in quote or "raw_tx" not in quote["data"]:
                 return {"error": "Invalid quote response"}
                 
+            print("\nQuote response:")
+            print(json.dumps(quote, indent=2))
+            
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
+            transaction = VersionedTransaction.from_bytes(tx_buf)
+            message_bytes = bytes(transaction.message)
+            key_bytes = base58.b58decode(os.environ.get("walletkey"))
+            keypair = Keypair.from_bytes(key_bytes)
+            hash_bytes = bytes(Hash.hash(message_bytes))
+            signature = keypair.sign_message(message_bytes)  # Sign the message directly
+            transaction.signatures = [signature]
+            signed_tx = base64.b64encode(bytes(transaction)).decode()
             
-            # Parse transaction and prepare for signing
-            tx = VersionedTransaction.from_bytes(tx_buf)
-            message_bytes = bytes(tx.message)
-            
-            # Sign the message and create signature
-            signature = wallet.sign_message(message_bytes)
-            sig_bytes = bytes(signature)
-            
-            # Create signature array with proper format
-            sig_array = [x for x in sig_bytes]  # Convert signature to list of integers
-            
-            # Parse and sign transaction preserving original format
-            tx = VersionedTransaction.from_bytes(tx_buf)
-            message = tx.message
-            
-            # Sign the message
-            signature = wallet.sign_message(bytes(message))
-            sig_bytes = bytes(signature)
-            sig_array = [x for x in sig_bytes]
-            
-            # Create transaction buffer with exact original format
-            # Create transaction buffer with exact original format
-            # Parse transaction and examine format
-            tx = VersionedTransaction.from_bytes(tx_buf)
-            message = tx.message
-            
-            # Print original transaction format
-            print(f"\nOriginal transaction format:")
-            print(f"- First 32 bytes: {tx_buf[:32].hex()}")
-            print(f"- Version byte: {tx_buf[0]:02x}")
-            print(f"- Header bytes: {tx_buf[1:4].hex()}")
-            print(f"- Total length: {len(tx_buf)}")
-            print(f"- Message length: {len(bytes(message))}")
-            
-            # Sign the message
-            signature = wallet.sign_message(bytes(message))
-            sig_bytes = bytes(signature)
-            sig_array = [x for x in sig_bytes]
-            
-            # Create transaction buffer preserving exact format
-            tx_bytes = bytearray(tx_buf)  # Start with original buffer
-            sig_start = 1  # After version byte
-            tx_bytes[sig_start:sig_start + len(sig_array)] = sig_array  # Replace signature
-            
-            # Print final transaction format
-            print(f"\nFinal transaction format:")
-            print(f"- First 32 bytes: {tx_bytes[:32].hex()}")
-            print(f"- Version byte: {tx_bytes[0]:02x}")
-            print(f"- Header bytes: {tx_bytes[1:4].hex()}")
-            print(f"- Total length: {len(tx_bytes)}")
-            print(f"- Signature: {bytes(sig_array).hex()[:32]}...")
-            
-            # Print debug info
+            endpoint = ("/tx/submit_signed_bundle_transaction" if self.use_anti_mev
+                      else "/tx/submit_signed_transaction")
             print(f"\nTransaction details:")
-            print(f"- Original tx length: {len(tx_buf)}")
-            print(f"- Signature length: {len(sig_array)}")
-            print(f"- Message length: {len(bytes(message))}")
-            print(f"- Signature: {bytes(sig_array).hex()[:32]}...")
+            print(f"Message hash: {hash_bytes.hex()}")
+            print(f"Signature: {bytes(signature).hex()}")
+            print(f"\nSubmitting to endpoint: {self.base_url}{endpoint}")
             
-            signed_tx = base64.b64encode(bytes(tx_bytes)).decode()
-            
-            # Submit transaction with anti-MEV protection if enabled
-            endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
-            print(f"\nSubmitting transaction to {self.base_url}{endpoint}")
-            
+            endpoint = ("/tx/submit_signed_bundle_transaction" if self.use_anti_mev
+                      else "/tx/submit_signed_transaction")
+            print(f"\nSubmitting to endpoint: {self.base_url}{endpoint}")
+            print(f"Submitting transaction to endpoint: {self.base_url}{endpoint}")
+            print(f"Transaction signature: {bytes(signature).hex()}")
             async with self.session.post(
                 f"{self.base_url}{endpoint}",
                 json={"signed_tx": signed_tx}
             ) as response:
-                response_text = await response.text()
-                print(f"Response status: {response.status}")
-                print(f"Response text: {response_text}")
+                response_data = await response.json()
+                print(f"\nTransaction submission response:")
+                print(json.dumps(response_data, indent=2))
                 
-                if response.status == 200:
-                    result = await response.json()
-                    print(f"Transaction submitted successfully: {result}")
-                    return result
-                print(f"Transaction submission failed: {response_text}")
+                if response.status == 200 and "data" in response_data and "hash" in response_data["data"]:
+                    return response_data
                 return {
                     "error": "Failed to submit transaction",
                     "status": response.status,
-                    "message": response_text
+                    "response": response_data
                 }
-        except Exception as e:
-            return {"error": str(e)}
-            
+        except (aiohttp.ClientError, ValueError, binascii.Error) as e:
+            return {"error": f"Failed to execute swap: {str(e)}"}
+
     async def get_transaction_status(
         self, tx_hash: str, last_valid_height: int
     ) -> Dict[str, Any]:
+        """Get status of submitted transaction."""
         if not self.session:
             return {"error": "Session not initialized"}
-            
+
         params = {
             "hash": tx_hash,
             "last_valid_height": last_valid_height
         }
-        
+
         try:
             async with self.session.get(
                 f"{self.base_url}/tx/get_transaction_status",
@@ -229,5 +182,5 @@ class GMGNClient:
                     "status": response.status,
                     "message": await response.text()
                 }
-        except Exception as e:
-            return {"error": str(e)}
+        except (aiohttp.ClientError, ValueError) as e:
+            return {"error": f"Failed to get transaction status: {str(e)}"}

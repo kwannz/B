@@ -8,6 +8,6 @@ import (
 
 type Strategy interface {
 	Name() string
-	ProcessUpdate(update *types.TokenUpdate) *types.Signal
+	ProcessUpdate(update *types.TokenUpdate) error
 	Init(ctx context.Context) error
 }
