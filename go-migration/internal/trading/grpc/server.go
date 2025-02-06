@@ -151,7 +151,7 @@ func (s *Server) ExecuteTrade(ctx context.Context, req *pb.Trade) (*pb.TradeResp
 		return nil, fmt.Errorf("invalid size: %w", err)
 	}
 
-	trade := &types.Trade{
+	trade := &trading.Trade{
 		ID:        req.Id,
 		OrderID:   req.OrderId,
 		Symbol:    req.Symbol,
@@ -222,22 +222,22 @@ func (s *Server) SubscribeOrderBook(req *pb.SubscribeOrderBookRequest, stream pb
 	for update := range updates {
 		pbUpdate := &pb.OrderBook{
 			Symbol:    update.Symbol,
-			Timestamp: update.Timestamp.UnixNano(),
+			Timestamp: time.Now().UnixNano(),
 		}
 
 		pbUpdate.Bids = make([]*pb.PriceLevel, len(update.Bids))
 		for i, bid := range update.Bids {
 			pbUpdate.Bids[i] = &pb.PriceLevel{
-				Price: bid.Price,
-				Size:  bid.Size,
+				Price: fmt.Sprintf("%f", bid.Price),
+				Size:  fmt.Sprintf("%f", bid.Amount),
 			}
 		}
 
 		pbUpdate.Asks = make([]*pb.PriceLevel, len(update.Asks))
 		for i, ask := range update.Asks {
 			pbUpdate.Asks[i] = &pb.PriceLevel{
-				Price: ask.Price,
-				Size:  ask.Size,
+				Price: fmt.Sprintf("%f", ask.Price),
+				Size:  fmt.Sprintf("%f", ask.Amount),
 			}
 		}
 

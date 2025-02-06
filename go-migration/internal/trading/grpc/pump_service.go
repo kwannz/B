@@ -7,7 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/kwanRoshi/B/go-migration/internal/metrics"
-	"github.com/kwanRoshi/B/go-migration/internal/trading"
+
 	"github.com/kwanRoshi/B/go-migration/internal/trading/executor"
 	"github.com/kwanRoshi/B/go-migration/internal/types"
 	pb "github.com/kwanRoshi/B/go-migration/proto"
