@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  python_backend:
+    build:
+      context: ./src/tradingbot
+      dockerfile: Dockerfile
+    environment:
+      - PYTHONPATH=/app/src
+      - PYTHON_VERSION=3.12
+    volumes:
+      - ./src/tradingbot:/app
+    ports:
+      - "8000:8000"
+
+  go_backend:
+    build:
+      context: ./go-migration
+      dockerfile: Dockerfile
+    environment:
+      - GO_VERSION=1.23.6
+    volumes:
+      - ./go-migration:/app
+    ports:
+      - "8001:8001"
+
+networks:
+  default:
+    driver: bridge
