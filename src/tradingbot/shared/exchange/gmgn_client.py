@@ -116,38 +116,41 @@ class GMGNClient:
                 return {"error": "Invalid quote response"}
                 
             tx_buf = base64.b64decode(quote["data"]["raw_tx"]["swapTransaction"])
-            # Parse and sign transaction with wallet
+            # Parse transaction and prepare for signing
             tx = VersionedTransaction.from_bytes(tx_buf)
             message_bytes = bytes(tx.message)
-            signature = wallet.sign_message(message_bytes)
             
-            # Convert signature to bytes and create Signature object
+            # Sign the message and prepare signature
+            signature = wallet.sign_message(message_bytes)
             sig_bytes = bytes(signature)[:64]
-            sig_array = [int(x) for x in sig_bytes]  # Convert to list of integers
-            tx.signatures = [sig_array]  # Pass signature bytes as array
+            
+            # Create a new transaction with our signature
+            new_tx = VersionedTransaction(
+                message=tx.message,
+                signatures=[bytearray(sig_bytes)]  # Pass signature as bytearray
+            )
             
             # Verify signature before sending
             try:
-                tx.verify()
+                new_tx.verify()
                 print("\nTransaction signature verified successfully")
             except Exception as e:
                 print(f"\nTransaction signature verification failed: {e}")
                 print(f"Message bytes: {message_bytes[:32].hex()}...")
                 print(f"Public key: {wallet.pubkey()}")
                 print(f"Raw signature: {sig_bytes.hex()}")
-                print(f"Signature array: {sig_array[:8]}...")
-                print(f"Transaction message: {tx.message}")
-                print(f"Transaction version: {tx.version}")
-                print(f"Transaction signatures: {tx.signatures}")
+                print(f"Transaction message: {new_tx.message}")
+                print(f"Transaction version: {new_tx.version}")
+                print(f"Transaction signatures: {[bytes(s).hex() for s in new_tx.signatures]}")
             
             # Encode and submit transaction
-            signed_tx = base64.b64encode(bytes(tx)).decode()
+            signed_tx = base64.b64encode(bytes(new_tx)).decode()
             print(f"\nTransaction details:")
             print(f"- Signature length: {len(sig_bytes)}")
             print(f"- Transaction length: {len(signed_tx)}")
             print(f"- Message length: {len(message_bytes)}")
             print(f"- Raw signature: {sig_bytes.hex()}")
-            print(f"- Signature array: {sig_array[:8]}...")
+            print(f"- Transaction signatures: {[bytes(s).hex() for s in new_tx.signatures]}")
             
             # Submit transaction with anti-MEV protection if enabled
             endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
