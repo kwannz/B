@@ -5,17 +5,9 @@ from typing import Any, Dict
 from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, text, Column, Integer, String, Float, Boolean, DateTime, ForeignKey, select
-from sqlalchemy.sql.expression import true, cast, BinaryExpression
-from sqlalchemy.orm import aliased, Query, column_property
-from sqlalchemy.sql.selectable import Select
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql import column, expression
-from sqlalchemy.types import TypeDecorator, String as StringType
-from sqlalchemy.sql.operators import ColumnOperators
 from decimal import Decimal
 from typing import Optional
+from motor.motor_asyncio import AsyncIOMotorClient
 
 from tradingbot.api.core.config import settings
 
@@ -137,11 +129,8 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    monitoring_service = None
     try:
-        # Initialize databases
-        logger.info("Initializing PostgreSQL database...")
-        init_db()  # Initialize PostgreSQL
-        
         logger.info("Initializing MongoDB connection...")
         app.state.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
             os.getenv("MONGODB_URL", "mongodb://localhost:27017"),
@@ -154,7 +143,8 @@ async def lifespan(app: FastAPI):
         
         # Start monitoring service
         logger.info("Starting monitoring service...")
-        from tradingbot.api.monitoring.service import monitoring_service
+        from tradingbot.api.monitoring.service import MonitoringService
+        monitoring_service = MonitoringService()
         await monitoring_service.start()
         
         logger.info("All services initialized successfully")
@@ -166,7 +156,8 @@ async def lifespan(app: FastAPI):
         logger.info("Cleaning up services...")
         if hasattr(app.state, 'mongo_client'):
             app.state.mongo_client.close()
-        await monitoring_service.stop()
+        if monitoring_service:
+            await monitoring_service.stop()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -233,11 +224,8 @@ async def analyze_market(market_data: MarketData) -> dict:
 @app.get("/api/v1/health")
 async def health_check() -> dict:
     try:
-        # Test database connection
-        from sqlalchemy import text
-
-        db = next(get_db())
-        db.execute(text("SELECT 1"))
+        # Test MongoDB connection
+        await app.state.mongo_client.admin.command('ping')
         return {
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
@@ -271,21 +259,14 @@ async def websocket_analysis(websocket: WebSocket) -> None:
 
 @app.get("/api/v1/account/balance", response_model=AccountResponse)
 async def get_account_balance(
-    db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> AccountResponse:
     try:
-        account = (
-            db.query(Account)
-            .filter(and_(Account.user_id == current_user["id"]))
-            .first()
-        )
+        account = await app.state.db.accounts.find_one({"user_id": current_user["id"]})
         if not account:
-            account = Account(user_id=current_user["id"], balance=0.0)
-            db.add(account)
-            db.commit()
-            db.refresh(account)
-        return account
+            account = {"user_id": current_user["id"], "balance": 0.0}
+            await app.state.db.accounts.insert_one(account)
+        return AccountResponse(**account)
     except Exception as e:
         logger.error(f"Error fetching account balance: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch balance")
@@ -293,20 +274,18 @@ async def get_account_balance(
 
 @app.get("/api/v1/account/positions", response_model=PositionListResponse)
 async def get_account_positions(
-    db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> PositionListResponse:
     try:
-        positions = (
-            db.query(Position).filter(Position.user_id == current_user["id"]).all()
-        )
-        positions_data = PositionListResponse(positions=positions)
+        positions = await app.state.db.positions.find(
+            {"user_id": current_user["id"]}
+        ).to_list(None)
 
         # Broadcast position updates via WebSocket
         for position in positions:
-            await broadcast_position_update(position.model_dump())
+            await broadcast_position_update(position)
 
-        return positions_data
+        return PositionListResponse(positions=positions)
     except Exception as e:
         logger.error(f"Error fetching positions: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch positions")
@@ -325,18 +304,18 @@ async def websocket_orders(websocket: WebSocket) -> None:
 @app.post("/api/v1/orders", response_model=OrderResponse)
 async def create_order(
     order: OrderCreate,
-    db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> OrderResponse:
     try:
         order_data = order.model_dump()
         order_data["user_id"] = current_user["id"]
-        db_order = Order(**order_data)
-        db.add(db_order)
-        db.commit()
-        db.refresh(db_order)
-        await broadcast_order_update(db_order.model_dump())
-        return db_order
+        order_data["created_at"] = datetime.utcnow()
+        
+        result = await app.state.db.orders.insert_one(order_data)
+        order_data["id"] = str(result.inserted_id)
+        
+        await broadcast_order_update(order_data)
+        return OrderResponse(**order_data)
     except Exception as e:
         logger.error(f"Error creating order: {e}")
         raise HTTPException(status_code=500, detail="Failed to create order")
@@ -344,15 +323,12 @@ async def create_order(
 
 @app.get("/api/v1/orders", response_model=OrderListResponse)
 async def list_orders(
-    db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> OrderListResponse:
     try:
-        orders = (
-            db.query(Order)
-            .filter(and_(Order.user_id == current_user["id"]))
-            .all()
-        )
+        orders = await app.state.db.orders.find(
+            {"user_id": current_user["id"]}
+        ).to_list(None)
         return OrderListResponse(orders=orders)
     except Exception as e:
         logger.error(f"Error listing orders: {e}")
@@ -361,21 +337,19 @@ async def list_orders(
 
 @app.get("/api/v1/orders/{order_id}", response_model=OrderResponse)
 async def get_order(
-    order_id: int,
-    db: Session = Depends(get_db),
+    order_id: str,
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> OrderResponse:
     try:
-        order = (
-            db.query(Order)
-            .filter(Order.id.isnot(None))
-            .filter(Order.id == int(order_id))
-            .filter(Order.user_id == str(current_user["id"]))
-            .first()
-        )
+        from bson import ObjectId
+        order = await app.state.db.orders.find_one({
+            "_id": ObjectId(order_id),
+            "user_id": current_user["id"]
+        })
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
-        return order
+        order["id"] = str(order["_id"])
+        return OrderResponse(**order)
     except HTTPException:
         raise
     except Exception as e:
@@ -390,49 +364,39 @@ async def websocket_risk(websocket: WebSocket) -> None:
 
 @app.get("/api/v1/risk/metrics", response_model=RiskMetricsResponse)
 async def get_risk_metrics(
-    db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> RiskMetricsResponse:
     try:
-        positions = (
-            db.query(Position).filter(Position.user_id == current_user["id"]).all()
-        )
+        positions = await app.state.db.positions.find(
+            {"user_id": current_user["id"]}
+        ).to_list(None)
 
         # Calculate risk metrics
-        total_exposure = sum(abs(p.size * p.current_price) for p in positions)
+        total_exposure = sum(abs(p["size"] * p["current_price"]) for p in positions)
         margin_used = total_exposure * 0.1  # Example: 10% margin requirement
         margin_ratio = margin_used / total_exposure if total_exposure > 0 else 0
-        daily_pnl = sum(p.unrealized_pnl for p in positions)
+        daily_pnl = sum(p.get("unrealized_pnl", 0) for p in positions)
         total_pnl = daily_pnl  # For simplicity, using same value
 
         # Create or update risk metrics
-        risk_metrics = (
-            db.query(RiskMetrics)
-            .filter(RiskMetrics.user_id == current_user["id"])
-            .first()
+        risk_metrics = {
+            "user_id": current_user["id"],
+            "total_exposure": total_exposure,
+            "margin_used": margin_used,
+            "margin_ratio": margin_ratio,
+            "daily_pnl": daily_pnl,
+            "total_pnl": total_pnl,
+            "updated_at": datetime.utcnow()
+        }
+
+        await app.state.db.risk_metrics.update_one(
+            {"user_id": current_user["id"]},
+            {"$set": risk_metrics},
+            upsert=True
         )
 
-        if not risk_metrics:
-            risk_metrics = RiskMetrics(
-                user_id=current_user["id"],
-                total_exposure=total_exposure,
-                margin_used=margin_used,
-                margin_ratio=margin_ratio,
-                daily_pnl=daily_pnl,
-                total_pnl=total_pnl,
-            )
-            db.add(risk_metrics)
-        else:
-            risk_metrics.total_exposure = total_exposure
-            risk_metrics.margin_used = margin_used
-            risk_metrics.margin_ratio = margin_ratio
-            risk_metrics.daily_pnl = daily_pnl
-            risk_metrics.total_pnl = total_pnl
-
-        db.commit()
-        db.refresh(risk_metrics)
-        await broadcast_risk_update(risk_metrics.model_dump())
-        return risk_metrics
+        await broadcast_risk_update(risk_metrics)
+        return RiskMetricsResponse(**risk_metrics)
     except Exception as e:
         logger.error(f"Error calculating risk metrics: {e}")
         raise HTTPException(status_code=500, detail="Failed to calculate risk metrics")
@@ -441,29 +405,23 @@ async def get_risk_metrics(
 @app.post("/api/v1/risk/limits", response_model=LimitSettingsResponse)
 async def update_limit_settings(
     settings: LimitSettingsUpdate,
-    db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> LimitSettingsResponse:
     try:
-        limit_settings = (
-            db.query(LimitSettings)
-            .filter(LimitSettings.user_id == current_user["id"])
-            .first()
+        settings_data = {
+            "user_id": current_user["id"],
+            "updated_at": datetime.utcnow(),
+            **settings.model_dump()
+        }
+        
+        await app.state.db.limit_settings.update_one(
+            {"user_id": current_user["id"]},
+            {"$set": settings_data},
+            upsert=True
         )
-
-        if not limit_settings:
-            limit_settings = LimitSettings(
-                user_id=current_user["id"], **settings.model_dump()
-            )
-            db.add(limit_settings)
-        else:
-            for key, value in settings.model_dump().items():
-                setattr(limit_settings, key, value)
-
-        db.commit()
-        db.refresh(limit_settings)
-        await broadcast_limit_update(limit_settings.model_dump())
-        return limit_settings
+        
+        await broadcast_limit_update(settings_data)
+        return LimitSettingsResponse(**settings_data)
     except Exception as e:
         logger.error(f"Error updating limit settings: {e}")
         raise HTTPException(status_code=500, detail="Failed to update limits")
@@ -471,20 +429,15 @@ async def update_limit_settings(
 
 @app.get("/api/v1/risk/limits", response_model=LimitSettingsResponse)
 async def get_limit_settings(
-    db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> LimitSettingsResponse:
     try:
-        limit_settings = (
-            db.query(LimitSettings)
-            .filter(LimitSettings.user_id == current_user["id"])
-            .first()
+        limit_settings = await app.state.db.limit_settings.find_one(
+            {"user_id": current_user["id"]}
         )
-
         if not limit_settings:
             raise HTTPException(status_code=404, detail="Limit settings not found")
-
-        return limit_settings
+        return LimitSettingsResponse(**limit_settings)
     except HTTPException:
         raise
     except Exception as e:
@@ -494,9 +447,9 @@ async def get_limit_settings(
 
 # REST endpoints
 @app.get("/api/v1/strategies", response_model=StrategyListResponse)
-async def get_strategies(db: Session = Depends(get_db)) -> StrategyListResponse:
+async def get_strategies() -> StrategyListResponse:
     try:
-        strategies = db.query(Strategy).all()
+        strategies = await app.state.db.strategies.find().to_list(None)
         return StrategyListResponse(strategies=strategies)
     except Exception as e:
         logger.error(f"Error fetching strategies: {e}")
@@ -505,31 +458,26 @@ async def get_strategies(db: Session = Depends(get_db)) -> StrategyListResponse:
 
 @app.post("/api/v1/strategies", response_model=StrategyResponse)
 async def create_strategy(
-    strategy: StrategyCreate, db: Session = Depends(get_db)
+    strategy: StrategyCreate,
 ) -> StrategyResponse:
     try:
-        db_strategy = Strategy(**strategy.model_dump())
-        try:
-            db.add(db_strategy)
-            db.commit()
-            db.refresh(db_strategy)
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"Database error creating strategy: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to create strategy")
-        return db_strategy
-    except HTTPException:
-        raise
+        strategy_data = {
+            **strategy.model_dump(),
+            "created_at": datetime.utcnow(),
+            "id": None
+        }
+        result = await app.state.db.strategies.insert_one(strategy_data)
+        strategy_data["id"] = str(result.inserted_id)
+        return StrategyResponse(**strategy_data)
     except Exception as e:
         logger.error(f"Error creating strategy: {e}")
         raise HTTPException(status_code=500, detail="Failed to create strategy")
 
 
 @app.get("/api/v1/agents", response_model=AgentListResponse)
-async def list_agents(db: Session = Depends(get_db)) -> AgentListResponse:
+async def list_agents() -> AgentListResponse:
     try:
-        result = db.query(Agent.type).filter(Agent.type != None).distinct().all()
-        agent_types = [row[0] for row in result]
+        agent_types = await app.state.db.agents.distinct("type", {"type": {"$ne": None}})
         return AgentListResponse(agents=agent_types, count=len(agent_types))
     except Exception as e:
         logger.error(f"Error fetching agents: {e}")
@@ -538,28 +486,21 @@ async def list_agents(db: Session = Depends(get_db)) -> AgentListResponse:
 
 @app.get("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
 async def get_agent_status(
-    agent_type: str, db: Session = Depends(get_db)
+    agent_type: str,
 ) -> AgentResponse:
     try:
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = (
-            db.query(Agent)
-            .filter(Agent.type == agent_type)
-            .first()
-        )
+        agent = await app.state.db.agents.find_one({"type": agent_type})
         if not agent:
-            agent = Agent(type=agent_type, status=AgentStatus.STOPPED)
-            try:
-                db.add(agent)
-                db.commit()
-                db.refresh(agent)
-            except Exception as db_error:
-                db.rollback()
-                logger.error(f"Database error creating agent: {db_error}")
-                raise HTTPException(status_code=500, detail="Failed to create agent")
-        return agent
+            agent = {
+                "type": agent_type,
+                "status": AgentStatus.STOPPED,
+                "created_at": datetime.utcnow()
+            }
+            await app.state.db.agents.insert_one(agent)
+        return AgentResponse(**agent)
     except HTTPException:
         raise
     except Exception as e:
@@ -569,31 +510,28 @@ async def get_agent_status(
 
 @app.patch("/api/v1/agents/{agent_type}/status", response_model=AgentResponse)
 async def update_agent_status(
-    agent_type: str, status: AgentStatus, db: Session = Depends(get_db)
+    agent_type: str, status: AgentStatus
 ) -> AgentResponse:
     try:
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = (
-            db.query(Agent)
-            .filter(Agent.type == agent_type)
-            .first()
-        )
+        agent = await app.state.db.agents.find_one({"type": agent_type})
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent {agent_type} not found")
 
-        agent.status = status
-        agent.last_updated = datetime.utcnow()
-        try:
-            db.commit()
-            db.refresh(agent)
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"Database error updating agent status: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to update agent status")
-
-        return agent
+        update_data = {
+            "status": status,
+            "last_updated": datetime.utcnow()
+        }
+        
+        await app.state.db.agents.update_one(
+            {"type": agent_type},
+            {"$set": update_data}
+        )
+        
+        agent.update(update_data)
+        return AgentResponse(**agent)
     except HTTPException:
         raise
     except Exception as e:
@@ -602,72 +540,59 @@ async def update_agent_status(
 
 
 @app.post("/api/v1/agents/{agent_type}/start", response_model=AgentResponse)
-async def start_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentResponse:
+async def start_agent(agent_type: str) -> AgentResponse:
     try:
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = (
-            db.query(Agent)
-            .filter(Agent.type != None)
-            .filter(Agent.type == agent_type)
-            .first()
-        )
+        agent = await app.state.db.agents.find_one({"type": agent_type})
         if not agent:
-            agent = Agent(type=agent_type)
-            db.add(agent)
+            agent = {
+                "type": agent_type,
+                "status": AgentStatus.RUNNING,
+                "created_at": datetime.utcnow(),
+                "last_updated": datetime.utcnow()
+            }
+            await app.state.db.agents.insert_one(agent)
+        elif agent["status"] != AgentStatus.RUNNING:
+            await app.state.db.agents.update_one(
+                {"type": agent_type},
+                {"$set": {
+                    "status": AgentStatus.RUNNING,
+                    "last_updated": datetime.utcnow()
+                }}
+            )
+            agent["status"] = AgentStatus.RUNNING
+            agent["last_updated"] = datetime.utcnow()
 
-        if agent.status == AgentStatus.RUNNING:
-            return agent
-
-        agent.status = AgentStatus.RUNNING
-        agent.last_updated = datetime.utcnow()
-        try:
-            db.commit()
-            db.refresh(agent)
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"Database error starting agent: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to start agent")
-
-        return agent
-    except HTTPException:
-        raise
+        return AgentResponse(**agent)
     except Exception as e:
         logger.error(f"Error starting agent: {e}")
         raise HTTPException(status_code=500, detail="Failed to start agent")
 
 
 @app.post("/api/v1/agents/{agent_type}/stop", response_model=AgentResponse)
-async def stop_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentResponse:
+async def stop_agent(agent_type: str) -> AgentResponse:
     try:
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = (
-            db.query(Agent)
-            .filter(Agent.type == agent_type)
-            .first()
-        )
+        agent = await app.state.db.agents.find_one({"type": agent_type})
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent {agent_type} not found")
 
-        if agent.status == AgentStatus.STOPPED:
-            return agent
+        if agent["status"] != AgentStatus.STOPPED:
+            await app.state.db.agents.update_one(
+                {"type": agent_type},
+                {"$set": {
+                    "status": AgentStatus.STOPPED,
+                    "last_updated": datetime.utcnow()
+                }}
+            )
+            agent["status"] = AgentStatus.STOPPED
+            agent["last_updated"] = datetime.utcnow()
 
-        agent.status = AgentStatus.STOPPED
-        agent.last_updated = datetime.utcnow()
-        try:
-            db.commit()
-            db.refresh(agent)
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"Database error stopping agent: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to stop agent")
-
-        return agent
-    except HTTPException:
-        raise
+        return AgentResponse(**agent)
     except Exception as e:
         logger.error(f"Error stopping agent: {e}")
         raise HTTPException(status_code=500, detail="Failed to stop agent")
@@ -675,33 +600,26 @@ async def stop_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentRes
 
 @app.post("/api/v1/agents", response_model=AgentResponse)
 async def create_agent(
-    agent: AgentCreate, db: Session = Depends(get_db)
+    agent: AgentCreate,
 ) -> AgentResponse:
     try:
         if not agent.type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        existing_agent = (
-            db.query(Agent)
-            .filter(Agent.type != None)
-            .filter(Agent.type == agent.type)
-            .first()
-        )
+        existing_agent = await app.state.db.agents.find_one({"type": agent.type})
         if existing_agent:
             msg = f"Agent with type {agent.type} already exists"
             raise HTTPException(status_code=409, detail=msg)
 
-        db_agent = Agent(type=agent.type, status=agent.status)
-        try:
-            db.add(db_agent)
-            db.commit()
-            db.refresh(db_agent)
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"Database error creating agent: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to create agent")
-
-        return db_agent
+        agent_data = {
+            "type": agent.type,
+            "status": agent.status,
+            "created_at": datetime.utcnow(),
+            "last_updated": datetime.utcnow()
+        }
+        result = await app.state.db.agents.insert_one(agent_data)
+        agent_data["id"] = str(result.inserted_id)
+        return AgentResponse(**agent_data)
     except HTTPException:
         raise
     except Exception as e:
@@ -710,43 +628,34 @@ async def create_agent(
 
 
 @app.delete("/api/v1/agents/{agent_type}", response_model=AgentResponse)
-async def delete_agent(agent_type: str, db: Session = Depends(get_db)) -> AgentResponse:
+async def delete_agent(agent_type: str) -> AgentResponse:
     try:
         if not agent_type:
             raise HTTPException(status_code=400, detail="Agent type is required")
 
-        agent = (
-            db.query(Agent)
-            .filter(Agent.type == agent_type)
-            .first()
-        )
+        agent = await app.state.db.agents.find_one({"type": agent_type})
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent {agent_type} not found")
 
         # Stop agent if running before deletion
-        if agent.status == AgentStatus.RUNNING:
-            agent.status = AgentStatus.STOPPED
+        if agent["status"] == AgentStatus.RUNNING:
+            await app.state.db.agents.update_one(
+                {"type": agent_type},
+                {"$set": {"status": AgentStatus.STOPPED}}
+            )
+            agent["status"] = AgentStatus.STOPPED
 
-        try:
-            db.delete(agent)
-            db.commit()
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"Database error deleting agent: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to delete agent")
-
-        return agent
-    except HTTPException:
-        raise
+        await app.state.db.agents.delete_one({"type": agent_type})
+        return AgentResponse(**agent)
     except Exception as e:
         logger.error(f"Error deleting agent: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete agent")
 
 
 @app.get("/api/v1/trades", response_model=TradeListResponse)
-async def get_trades(db: Session = Depends(get_db)) -> TradeListResponse:
+async def get_trades() -> TradeListResponse:
     try:
-        trades = db.query(Trade).all()
+        trades = await app.state.db.trades.find().to_list(None)
         return TradeListResponse(trades=trades)
     except Exception as e:
         logger.error(f"Error fetching trades: {e}")
@@ -755,36 +664,32 @@ async def get_trades(db: Session = Depends(get_db)) -> TradeListResponse:
 
 @app.post("/api/v1/trades", response_model=TradeResponse)
 async def create_trade(
-    trade: TradeCreate, db: Session = Depends(get_db)
+    trade: TradeCreate,
 ) -> TradeResponse:
     try:
-        db_trade = Trade(**trade.model_dump())
-        try:
-            db.add(db_trade)
-            db.commit()
-            db.refresh(db_trade)
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"Database error creating trade: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to create trade")
+        trade_data = {
+            **trade.model_dump(),
+            "created_at": datetime.utcnow(),
+            "id": None
+        }
+        result = await app.state.db.trades.insert_one(trade_data)
+        trade_data["id"] = str(result.inserted_id)
 
         try:
-            await broadcast_trade_update(db_trade.model_dump())
+            await broadcast_trade_update(trade_data)
         except Exception as ws_error:
             logger.error(f"WebSocket broadcast error: {ws_error}")
 
-        return db_trade
-    except HTTPException:
-        raise
+        return TradeResponse(**trade_data)
     except Exception as e:
         logger.error(f"Error creating trade: {e}")
         raise HTTPException(status_code=500, detail="Failed to create trade")
 
 
 @app.get("/api/v1/signals", response_model=SignalListResponse)
-async def get_signals(db: Session = Depends(get_db)) -> SignalListResponse:
+async def get_signals() -> SignalListResponse:
     try:
-        signals = db.query(Signal).all()
+        signals = await app.state.db.signals.find().to_list(None)
         return SignalListResponse(signals=signals)
     except Exception as e:
         logger.error(f"Error fetching signals: {e}")
@@ -793,36 +698,32 @@ async def get_signals(db: Session = Depends(get_db)) -> SignalListResponse:
 
 @app.post("/api/v1/signals", response_model=SignalResponse)
 async def create_signal(
-    signal: SignalCreate, db: Session = Depends(get_db)
+    signal: SignalCreate,
 ) -> SignalResponse:
     try:
-        db_signal = Signal(**signal.model_dump())
-        try:
-            db.add(db_signal)
-            db.commit()
-            db.refresh(db_signal)
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"Database error creating signal: {db_error}")
-            raise HTTPException(status_code=500, detail="Failed to create signal")
+        signal_data = {
+            **signal.model_dump(),
+            "created_at": datetime.utcnow(),
+            "id": None
+        }
+        result = await app.state.db.signals.insert_one(signal_data)
+        signal_data["id"] = str(result.inserted_id)
 
         try:
-            await broadcast_signal(db_signal.model_dump())
+            await broadcast_signal(signal_data)
         except Exception as ws_error:
             logger.error(f"WebSocket broadcast error: {ws_error}")
 
-        return db_signal
-    except HTTPException:
-        raise
+        return SignalResponse(**signal_data)
     except Exception as e:
         logger.error(f"Error creating signal: {e}")
         raise HTTPException(status_code=500, detail="Failed to create signal")
 
 
 @app.get("/api/v1/performance", response_model=PerformanceResponse)
-async def get_performance(db: Session = Depends(get_db)) -> PerformanceResponse:
+async def get_performance() -> PerformanceResponse:
     try:
-        trades = db.query(Trade).all()
+        trades = await app.state.db.trades.find().to_list(None)
         total_trades = len(trades)
         if total_trades == 0:
             performance_data = {
@@ -836,7 +737,7 @@ async def get_performance(db: Session = Depends(get_db)) -> PerformanceResponse:
             await broadcast_performance_update(performance_data)
             return PerformanceResponse(**performance_data)
 
-        closed_trades = [t for t in trades if t.status == TradeStatus.CLOSED]
+        closed_trades = [t for t in trades if t.get("status") == TradeStatus.CLOSED]
         closed_count = len(closed_trades)
         if closed_count == 0:
             performance_data = {
@@ -858,14 +759,14 @@ async def get_performance(db: Session = Depends(get_db)) -> PerformanceResponse:
             try:
                 profit = calculate_trade_profit(trade)
                 if profit == 0.0:
-                    logger.warning(f"Could not calculate profit for trade {trade.id}")
+                    logger.warning(f"Could not calculate profit for trade {trade.get('id')}")
 
                 if profit > 0:
                     profitable_trades += 1
                 total_profit += profit
                 profits.append(profit)
             except (TypeError, AttributeError, Exception) as e:
-                logger.error(f"Error calculating profit for trade {trade.id}: {e}")
+                logger.error(f"Error calculating profit for trade {trade.get('id')}: {e}")
                 continue
 
         win_rate = profitable_trades / closed_count
