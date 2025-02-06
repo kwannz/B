@@ -28,6 +28,8 @@ import (
 	"github.com/kwanRoshi/B/go-migration/internal/trading/grpc"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/strategy"
 	"github.com/kwanRoshi/B/go-migration/internal/trading/interfaces"
+	"github.com/kwanRoshi/B/go-migration/internal/types"
+	"github.com/kwanRoshi/B/go-migration/internal/trading/risk"
 	"github.com/kwanRoshi/B/go-migration/internal/ws"
 )
 
@@ -157,13 +159,38 @@ func main() {
 			Trailing: decimal.NewFromFloat(0.01),
 		},
 		TakeProfitLevels: []types.ProfitLevel{
-			{Price: decimal.NewFromFloat(1.015), Size: decimal.NewFromFloat(0.5)},
-			{Price: decimal.NewFromFloat(1.03), Size: decimal.NewFromFloat(0.5)},
+			{Multiplier: decimal.NewFromFloat(1.015), Percentage: decimal.NewFromFloat(0.5)},
+			{Multiplier: decimal.NewFromFloat(1.03), Percentage: decimal.NewFromFloat(0.5)},
 		},
 	}
-	riskManager := executor.NewRiskManager(limits, logger)
+	riskManager := risk.NewRiskManager(&limits, logger)
 	
-	pumpConfig := types.PumpTradingConfig{
+	pumpConfig := pump.Config{
+		BaseURL:      viper.GetString("market.providers.pump.base_url"),
+		WebSocketURL: viper.GetString("market.providers.pump.ws_url"),
+		TimeoutSec:   int(viper.GetDuration("market.providers.pump.timeout").Seconds()),
+		APIKey:       apiKey,
+	}
+	
+	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, &pumpConfig, apiKey)
+	if err := pumpExecutor.Start(); err != nil {
+		logger.Fatal("Failed to start pump.fun executor", zap.Error(err))
+	}
+	defer pumpExecutor.Stop()
+	
+	// Initialize trading engine
+	tradingConfig := trading.Config{
+		Commission:     viper.GetFloat64("trading.order.commission"),
+		Slippage:      viper.GetFloat64("trading.order.slippage"),
+		MaxOrderSize:   viper.GetFloat64("trading.risk.max_order_size"),
+		MinOrderSize:   viper.GetFloat64("trading.risk.min_order_size"),
+		MaxPositions:   viper.GetInt("trading.risk.max_positions"),
+		UpdateInterval: viper.GetDuration("trading.engine.update_interval"),
+	}
+	tradingEngine := trading.NewEngine(tradingConfig, logger, tradingStorage)
+
+	// Register pump.fun strategy with trading engine
+	pumpStrategy := strategy.NewPumpStrategy(&types.PumpTradingConfig{
 		MaxMarketCap: decimal.NewFromFloat(30000),
 		MinVolume:    decimal.NewFromFloat(1000),
 		WebSocket: types.WSConfig{
@@ -189,30 +216,13 @@ func main() {
 			TakeProfitLevels:  []decimal.Decimal{decimal.NewFromFloat(1.015), decimal.NewFromFloat(1.03)},
 			BatchSizes:        []decimal.Decimal{decimal.NewFromFloat(0.5), decimal.NewFromFloat(0.5)},
 		},
-	}
-	
-	pumpExecutor := executor.NewPumpExecutor(logger, pumpProvider, riskManager, &pumpConfig, apiKey)
-	if err := pumpExecutor.Start(); err != nil {
-		logger.Fatal("Failed to start pump.fun executor", zap.Error(err))
-	}
-	defer pumpExecutor.Stop()
-	
-	// Initialize trading engine
-	tradingConfig := types.Config{
-		Commission:     viper.GetFloat64("trading.order.commission"),
-		Slippage:      viper.GetFloat64("trading.order.slippage"),
-		MaxOrderSize:   viper.GetFloat64("trading.risk.max_order_size"),
-		MinOrderSize:   viper.GetFloat64("trading.risk.min_order_size"),
-		MaxPositions:   viper.GetInt("trading.risk.max_positions"),
-		UpdateInterval: viper.GetDuration("trading.engine.update_interval"),
-	}
-	tradingEngine := trading.NewEngine(tradingConfig, logger, tradingStorage)
-
-	// Register pump.fun strategy with trading engine
-	pumpStrategy := strategy.NewPumpStrategy(&pumpConfig, pumpExecutor, logger)
+	}, pumpExecutor, logger)
 	if err := tradingEngine.RegisterStrategy(pumpStrategy); err != nil {
 		logger.Fatal("Failed to register pump.fun strategy", zap.Error(err))
 	}
+
+	// Create trading service
+	tradingService := grpc.NewTradingService(tradingEngine, logger)
 
 	// Initialize monitoring service
 	monitoringService := monitoring.NewService(pumpProvider, metrics.NewPumpMetrics(), logger)
@@ -234,8 +244,6 @@ func main() {
 		WriteWait:      10 * time.Second,
 		MaxMessageSize: 1024 * 1024, // 1MB
 	}
-	// Create trading service that implements TradingEngine interface
-	tradingService := trading.NewService(tradingEngine, logger)
 	wsServer := ws.NewServer(wsConfig, logger, tradingService, marketHandler)
 
 	// Start WebSocket server

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/kwanRoshi/B/go-migration/internal/types"
+	"github.com/kwanRoshi/B/go-migration/internal/trading"
 )
 
 // TradingEngine defines the interface for trading operations
@@ -23,6 +24,6 @@ type TradingEngine interface {
 	GetPositions(ctx context.Context) ([]*types.Position, error)
 
 	// Market Data
-	GetOrderBook(ctx context.Context, symbol string) (*OrderBook, error)
-	SubscribeOrderBook(ctx context.Context, symbol string) (<-chan *OrderBook, error)
+	GetOrderBook(ctx context.Context, symbol string) (*trading.OrderBook, error)
+	SubscribeOrderBook(ctx context.Context, symbol string) (<-chan *trading.OrderBook, error)
 }
