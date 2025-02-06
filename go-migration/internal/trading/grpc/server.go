@@ -193,7 +193,7 @@ func (s *Server) GetPosition(ctx context.Context, req *pb.GetPositionRequest) (*
 }
 
 func (s *Server) GetPositions(ctx context.Context, req *pb.GetPositionsRequest) (*pb.PositionList, error) {
-	positions, err := s.service.GetPositions(ctx, req.UserId)
+	positions, err := s.service.GetPositions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get positions: %w", err)
 	}
