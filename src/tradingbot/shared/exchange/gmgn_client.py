@@ -126,18 +126,19 @@ class GMGNClient:
             sig_bytes = bytes(signature)
             
             # Create signature array with proper format
-            sig_array = []
-            for i in range(64):  # Ensure exactly 64 bytes
-                sig_array.append(sig_bytes[i] if i < len(sig_bytes) else 0)
+            sig_array = [x for x in sig_bytes]  # Convert signature to list of integers
             
-            # Create a new transaction with proper signature format
-            tx = VersionedTransaction.from_bytes(tx_buf)
-            tx.signatures = []
-            tx.signatures.append(sig_array)
+            # Create versioned transaction format
+            tx_header = bytearray([0x80])  # Legacy transaction marker
+            sig_count = bytearray([1])  # One signature
+            tx_bytes = tx_header + sig_count + bytearray(sig_array) + tx_buf[3:]
             
-            # Serialize and encode transaction
-            tx_serialized = bytes(tx)
-            signed_tx = base64.b64encode(tx_serialized).decode()
+            # Print debug info
+            print(f"Original tx length: {len(tx_buf)}")
+            print(f"Signature length: {len(sig_array)}")
+            print(f"Final tx length: {len(tx_bytes)}")
+            
+            signed_tx = base64.b64encode(bytes(tx_bytes)).decode()
             
             # Submit transaction with anti-MEV protection if enabled
             endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
