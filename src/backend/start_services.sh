@@ -10,6 +10,21 @@ check_process() {
     fi
 }
 
+# Function to check service health
+check_service_health() {
+    local port=$1
+    local max_retries=5
+    local retry=0
+    while [ $retry -lt $max_retries ]; do
+        if curl -s "http://localhost:$port/api/v1/health" | grep -q "healthy"; then
+            return 0
+        fi
+        sleep 2
+        retry=$((retry + 1))
+    done
+    return 1
+}
+
 # Set environment variables
 export PYTHONPATH=/home/ubuntu/repos/B/src
 export POSTGRES_DB=tradingbot
@@ -55,11 +70,11 @@ python3 -m uvicorn monitor:app --host 0.0.0.0 --port 8001 &
 MONITOR_PID=$!
 
 # Wait for monitor to start
-sleep 5
-if ! check_process $MONITOR_PID; then
+if ! check_service_health 8001; then
     echo "Failed to start Monitoring Service"
     exit 1
 fi
+echo "Monitor service started successfully (PID: $MONITOR_PID)"
 
 # Start Trading Service
 echo "=== Starting Trading Service ==="
@@ -68,12 +83,12 @@ python3 -m uvicorn trading:app --host 0.0.0.0 --port 8002 &
 EXECUTOR_PID=$!
 
 # Wait for trading to start
-sleep 5
-if ! ps -p $EXECUTOR_PID > /dev/null; then
+if ! check_service_health 8002; then
     echo "Failed to start Trading Service"
     kill $MONITOR_PID
     exit 1
 fi
+echo "Trading service started successfully (PID: $EXECUTOR_PID)"
 
 # Start Backend API
 echo "=== Starting Backend API ==="
@@ -82,12 +97,12 @@ uvicorn main:app --host 0.0.0.0 --port 8000 &
 API_PID=$!
 
 # Wait for API to start
-sleep 5
-if ! check_process $API_PID; then
+if ! check_service_health 8000; then
     echo "Failed to start Backend API"
     kill $MONITOR_PID $EXECUTOR_PID
     exit 1
 fi
+echo "API service started successfully (PID: $API_PID)"
 
 echo "=== All Services Started Successfully ==="
 echo "Monitor PID: $MONITOR_PID"
