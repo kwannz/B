@@ -88,12 +88,11 @@ func main() {
 	solanaProvider := solana.NewProvider(solanaConfig, logger)
 
 	// Initialize pump.fun provider
-	pumpConfig := pump.Config{
+	pumpProvider := pump.NewProvider(pump.Config{
 		BaseURL:      viper.GetString("market.providers.pump.base_url"),
 		WebSocketURL: viper.GetString("market.providers.pump.ws_url"),
 		TimeoutSec:   int(viper.GetDuration("market.providers.pump.timeout").Seconds()),
-	}
-	pumpProvider := pump.NewProvider(pumpConfig, logger)
+	}, logger)
 
 	// Initialize market data handler with both providers
 	marketHandler := market.NewHandler([]types.MarketDataProvider{solanaProvider, pumpProvider}, logger)
@@ -161,13 +160,6 @@ func main() {
 		},
 	}
 	riskManager := risk.NewRiskManager(&limits, logger)
-	
-	var pumpConfig = pump.Config{
-		BaseURL:      viper.GetString("market.providers.pump.base_url"),
-		WebSocketURL: viper.GetString("market.providers.pump.ws_url"),
-		TimeoutSec:   int(viper.GetDuration("market.providers.pump.timeout").Seconds()),
-		APIKey:       apiKey,
-	}
 	
 	wsConfig := ws.Config{
 		Port:           viper.GetInt("server.websocket.port"),
