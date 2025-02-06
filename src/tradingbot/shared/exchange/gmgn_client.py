@@ -128,19 +128,46 @@ class GMGNClient:
             # Create signature array with proper format
             sig_array = [x for x in sig_bytes]  # Convert signature to list of integers
             
-            # Parse transaction with proper versioning
+            # Parse and sign transaction preserving original format
             tx = VersionedTransaction.from_bytes(tx_buf)
             message = tx.message
             
-            # Create signature array with proper format
+            # Sign the message
             signature = wallet.sign_message(bytes(message))
             sig_bytes = bytes(signature)
             sig_array = [x for x in sig_bytes]
             
-            # Create transaction buffer preserving original format
+            # Create transaction buffer with exact original format
+            # Create transaction buffer with exact original format
+            # Parse transaction and examine format
+            tx = VersionedTransaction.from_bytes(tx_buf)
+            message = tx.message
+            
+            # Print original transaction format
+            print(f"\nOriginal transaction format:")
+            print(f"- First 32 bytes: {tx_buf[:32].hex()}")
+            print(f"- Version byte: {tx_buf[0]:02x}")
+            print(f"- Header bytes: {tx_buf[1:4].hex()}")
+            print(f"- Total length: {len(tx_buf)}")
+            print(f"- Message length: {len(bytes(message))}")
+            
+            # Sign the message
+            signature = wallet.sign_message(bytes(message))
+            sig_bytes = bytes(signature)
+            sig_array = [x for x in sig_bytes]
+            
+            # Create transaction buffer preserving exact format
             tx_bytes = bytearray(tx_buf)  # Start with original buffer
-            sig_start = 3  # Skip version and num_required_signatures
-            tx_bytes[sig_start:sig_start + len(sig_array)] = sig_array
+            sig_start = 1  # After version byte
+            tx_bytes[sig_start:sig_start + len(sig_array)] = sig_array  # Replace signature
+            
+            # Print final transaction format
+            print(f"\nFinal transaction format:")
+            print(f"- First 32 bytes: {tx_bytes[:32].hex()}")
+            print(f"- Version byte: {tx_bytes[0]:02x}")
+            print(f"- Header bytes: {tx_bytes[1:4].hex()}")
+            print(f"- Total length: {len(tx_bytes)}")
+            print(f"- Signature: {bytes(sig_array).hex()[:32]}...")
             
             # Print debug info
             print(f"\nTransaction details:")
