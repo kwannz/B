@@ -10,9 +10,9 @@ A real-time trading bot application with a FastAPI backend and React frontend, s
 - Performance metrics and analytics
 - Customizable trading strategies
 - PostgreSQL database for persistent storage
-- Docker containerization
-- CI/CD pipeline with GitHub Actions
-- Prometheus and Grafana monitoring
+- GMGN DEX integration
+- Real-time Solana trading
+- Performance metrics and analytics
 
 ## Prerequisites
 
@@ -115,97 +115,40 @@ cd src/frontend
 npm run dev
 ```
 
-## Docker Deployment
+## Environment Setup
 
-1. Build and run with Docker Compose:
+1. Set up Python environment:
    ```bash
-   docker-compose up -d
+   python -m venv venv
+   source venv/bin/activate
+   pip install -e .
    ```
 
-2. Access the application:
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:8000
-   - API Documentation: http://localhost:8000/docs
-   - Prometheus: http://localhost:9090
-   - Grafana: http://localhost:3000
-
-## CI/CD Pipeline
-
-The project includes a complete CI/CD pipeline using GitHub Actions.
-
-### Setting Up CI/CD
-
-1. Run the CI/CD setup script:
+2. Set up Go environment:
    ```bash
-   ./scripts/setup_cicd.sh
+   cd go-migration
+   go mod download
    ```
-   This will:
-   - Configure GitHub repository secrets
-   - Set up deployment keys
-   - Configure Docker Hub integration
-   - Set up Slack notifications (optional)
 
-2. Required Secrets:
-   - `DOCKER_HUB_USERNAME`: Your Docker Hub username
-   - `DOCKER_HUB_TOKEN`: Docker Hub access token
-   - `PROD_HOST`: Production server hostname/IP
-   - `PROD_USERNAME`: Production server username
-   - `SSH_PRIVATE_KEY`: Deployment SSH key
-   - `POSTGRES_DB`: Database name
-   - `POSTGRES_USER`: Database username
-   - `POSTGRES_PASSWORD`: Database password
-   - `JWT_SECRET`: JWT signing key
-   - `SLACK_WEBHOOK_URL`: Slack webhook URL (optional)
-
-### Pipeline Workflow
-
-1. **Test Stage**:
-   - Runs backend tests with PostgreSQL
-   - Runs frontend tests
-   - Uploads coverage reports
-
-2. **Build Stage**:
-   - Builds Docker images
-   - Pushes to Docker Hub
-   - Uses layer caching for faster builds
-
-3. **Deploy Stage**:
-   - Pulls latest images on production server
-   - Updates running containers
-   - Runs database migrations
-   - Verifies deployment health
-
-4. **Notify Stage**:
-   - Sends Slack notifications
-   - Updates deployment status
-
-### Manual Deployment
-
-If needed, you can manually deploy using:
-```bash
-./deploy.sh
-```
+3. Configure Solana:
+   - Install Solana CLI tools
+   - Set up wallet configuration
+   - Configure RPC endpoints
 
 ## Monitoring
 
-### Prometheus Metrics
+The application includes built-in monitoring capabilities:
 
-Access Prometheus metrics at:
-- http://localhost:9090/metrics
+- Real-time trade execution monitoring
+- Performance metrics tracking
+- Risk management alerts
+- Position tracking
+- Order status updates
 
-Key metrics:
-- HTTP request latency
-- Database connection pool stats
-- Trading bot performance metrics
-
-### Grafana Dashboards
-
-Access Grafana at http://localhost:3000 (default credentials: admin/admin)
-
-Available dashboards:
-- System Overview
-- Trading Performance
-- API Metrics
+Access monitoring endpoints:
+- `/api/v1/performance` - Trading performance metrics
+- `/api/v1/risk/metrics` - Risk monitoring
+- `/ws/trades` - Real-time trade updates
 
 ## Testing
 
@@ -226,7 +169,7 @@ npm test
 ## Project Structure
 
 ```
-gotradingbot/
+tradingbot/
 ├── src/
 │   ├── backend/
 │   │   ├── main.py           # FastAPI application
@@ -239,11 +182,11 @@ gotradingbot/
 │       ├── api/              # API clients
 │       └── tests/            # Frontend tests
 │
-├── docker-compose.yml        # Docker services configuration
-├── .github/
-│   └── workflows/            # GitHub Actions workflows
-├── scripts/
-│   └── setup_cicd.sh        # CI/CD setup script
+├── go-migration/             # Go trading implementation
+│   ├── cmd/                  # Command line tools
+│   ├── internal/            # Internal packages
+│   └── tests/               # Go tests
+│
 └── README.md
 ```
 
