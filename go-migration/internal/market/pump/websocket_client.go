@@ -76,7 +76,7 @@ func (c *WSClient) Connect(ctx context.Context) error {
 		HandshakeTimeout: c.config.DialTimeout,
 		EnableCompression: true,
 		TLSClientConfig: nil,
-		Subprotocols:     []string{"pump.fun-api"},
+		Subprotocols:     []string{"v1.pump.trading"},
 	}
 
 	headers := http.Header{}
