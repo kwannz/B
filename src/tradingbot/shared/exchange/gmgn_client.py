@@ -120,16 +120,34 @@ class GMGNClient:
             tx = VersionedTransaction.from_bytes(tx_buf)
             message_bytes = bytes(tx.message)
             signature = wallet.sign_message(message_bytes)
-            signature_bytes = bytes(signature)
-            print(f"\nSignature bytes length: {len(signature_bytes)}")
-            print(f"First 64 bytes: {[x for x in signature_bytes[:64]]}")
-            tx.signatures = [bytearray(signature_bytes[:64])]  # Use bytearray for mutable signature
+            
+            # Convert signature to bytes and create Signature object
+            sig_bytes = bytes(signature)[:64]
+            sig_array = [int(x) for x in sig_bytes]  # Convert to list of integers
+            tx.signatures = [sig_array]  # Pass signature bytes as array
+            
+            # Verify signature before sending
+            try:
+                tx.verify()
+                print("\nTransaction signature verified successfully")
+            except Exception as e:
+                print(f"\nTransaction signature verification failed: {e}")
+                print(f"Message bytes: {message_bytes[:32].hex()}...")
+                print(f"Public key: {wallet.pubkey()}")
+                print(f"Raw signature: {sig_bytes.hex()}")
+                print(f"Signature array: {sig_array[:8]}...")
+                print(f"Transaction message: {tx.message}")
+                print(f"Transaction version: {tx.version}")
+                print(f"Transaction signatures: {tx.signatures}")
+            
+            # Encode and submit transaction
             signed_tx = base64.b64encode(bytes(tx)).decode()
-            print(f"Signed transaction length: {len(signed_tx)}")
-            print(f"Original transaction length: {len(tx_buf)}")
-            print(f"Message bytes length: {len(message_bytes)}")
-            print(f"Signature type: {type(signature)}")
-            print(f"Signature bytes type: {type(signature_bytes)}")
+            print(f"\nTransaction details:")
+            print(f"- Signature length: {len(sig_bytes)}")
+            print(f"- Transaction length: {len(signed_tx)}")
+            print(f"- Message length: {len(message_bytes)}")
+            print(f"- Raw signature: {sig_bytes.hex()}")
+            print(f"- Signature array: {sig_array[:8]}...")
             
             # Submit transaction with anti-MEV protection if enabled
             endpoint = "/tx/submit_signed_bundle_transaction" if self.use_anti_mev else "/tx/submit_signed_transaction"
