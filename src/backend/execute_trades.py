@@ -3,6 +3,8 @@ import logging
 import os
 from datetime import datetime
 import motor.motor_asyncio
+import base58
+from solders.keypair import Keypair
 from tradingbot.backend.trading_agent.agents.wallet_manager import WalletManager
 from tradingbot.shared.exchange.gmgn_client import GMGNClient
 from tradingbot.shared.exchange.jupiter_client import JupiterClient
@@ -129,12 +131,7 @@ async def execute_trades():
                             # Execute trade with anti-MEV protection
                             trade_result = await trading_client.execute_swap(
                                 quote,
-                                {
-                                    "userPublicKey": wallet.public_key,
-                                    "compute_unit_price": 1000,
-                                    "compute_unit_limit": 1400000,
-                                    "priority_fee": 10000
-                                }
+                                None  # Use default options from GMGN client
                             )
                             
                             # Verify transaction result
