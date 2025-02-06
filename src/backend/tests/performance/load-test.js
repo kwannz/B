@@ -19,7 +19,7 @@ export const options = {
 };
 
 export default function () {
-  const BASE_URL = __ENV.BASE_URL || 'http://localhost:8000';
+  const BASE_URL = __ENV.BASE_URL || 'http://localhost:8123';
   
   // 健康检查
   const healthCheck = http.get(`${BASE_URL}/health`);
@@ -52,4 +52,4 @@ export default function () {
   });
 
   sleep(1);
-} 
+}  
