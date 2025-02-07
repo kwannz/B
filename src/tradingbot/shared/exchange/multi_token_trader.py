@@ -11,15 +11,28 @@ logger = logging.getLogger(__name__)
 
 class MultiTokenTrader:
     def __init__(self, config: Dict[str, Any]):
-        self.config = config
-        self.jupiter_client = JupiterClient(config)
+        self.config = {
+            "rpc_url": config.get("rpc_url"),
+            "ws_url": config.get("ws_url"),
+            "slippage_bps": 250,  # 2.5% slippage
+            "retry_count": 3,
+            "retry_delay": 1000,
+            "max_price_diff": 0.05,
+            "circuit_breaker": 0.10,
+            "trade_amount": 0.066,  # SOL
+            "max_concurrent_trades": 1,
+            "trade_delay": 5,  # seconds
+            "max_failures": 5,
+            "cooldown_period": 600  # 10 minutes
+        }
+        self.jupiter_client = JupiterClient(self.config)
         self.token_ranking = None  # Will be initialized in start()
-        self.trade_amount = config.get("trade_amount", 0.066)  # SOL
-        self.max_concurrent_trades = config.get("max_concurrent_trades", 1)
-        self.trade_delay = config.get("trade_delay", 5)  # seconds
+        self.trade_amount = self.config["trade_amount"]
+        self.max_concurrent_trades = self.config["max_concurrent_trades"]
+        self.trade_delay = self.config["trade_delay"]
         self.failures = 0
-        self.max_failures = config.get("max_failures", 5)
-        self.cooldown_period = config.get("cooldown_period", 600)  # 10 minutes
+        self.max_failures = self.config["max_failures"]
+        self.cooldown_period = self.config["cooldown_period"]
         self.last_failure_time = 0
         self.trades = []
         
