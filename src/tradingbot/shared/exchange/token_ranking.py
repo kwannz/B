@@ -64,7 +64,7 @@ class TokenRankingService:
             for token in tokens_data:
                 try:
                     if isinstance(token, dict) and token.get("address") and token.get("symbol"):
-                        if token["symbol"] in known_tokens:
+                        if token["symbol"] in known_tokens and token["address"] != "So11111111111111111111111111111111111111112":
                             verified_tokens.append(token)
                             logger.info(f"Added known token {token['symbol']} to verified list")
                 except (TypeError, ValueError) as e:
