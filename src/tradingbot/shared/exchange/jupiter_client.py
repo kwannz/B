@@ -34,7 +34,7 @@ class JupiterClient:
         wallet_key = os.getenv("walletkey")
         if not wallet_key:
             raise RuntimeError("Missing wallet key")
-        self.wallet = Keypair.from_secret_key(base58.b58decode(wallet_key))
+        self.wallet = Keypair.from_bytes(base58.b58decode(wallet_key))
         
     def _deserialize_instruction(self, instruction_data: Dict[str, Any]) -> TransactionInstruction:
         program_id = Pubkey.from_string(instruction_data["programId"])
