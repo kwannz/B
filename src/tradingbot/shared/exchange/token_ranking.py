@@ -59,14 +59,21 @@ class TokenRankingService:
             
             logger.info(f"Got {len(tokens_data)} tokens from Jupiter API")
             # Start with well-known tokens
-            known_tokens = ["SOL", "USDC", "USDT", "RAY", "BONK", "JitoSOL", "mSOL"]
+            known_tokens = {
+                "USDC": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                "USDT": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+                "RAY": "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
+                "BONK": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+                "JitoSOL": "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",
+                "mSOL": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So"
+            }
             verified_tokens = []
             for token in tokens_data:
                 try:
                     if isinstance(token, dict) and token.get("address") and token.get("symbol"):
-                        if token["symbol"] in known_tokens and token["address"] != "So11111111111111111111111111111111111111112":
+                        if token["symbol"] in known_tokens and token["address"] == known_tokens[token["symbol"]]:
                             verified_tokens.append(token)
-                            logger.info(f"Added known token {token['symbol']} to verified list")
+                            logger.info(f"Added known token {token['symbol']} ({token['address']}) to verified list")
                 except (TypeError, ValueError) as e:
                     logger.warning(f"Invalid token data: {e}")
                     continue
