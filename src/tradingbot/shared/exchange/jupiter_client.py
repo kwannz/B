@@ -1,9 +1,16 @@
 import aiohttp
 import asyncio
+import base58
+import base64
 import logging
 import os
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+from solders.keypair import Keypair
+from solders.transaction import Transaction
+from solders.instruction import Instruction as TransactionInstruction
+from solders.pubkey import Pubkey
+from solders.system_program import ID as SYS_PROGRAM_ID
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +29,29 @@ class JupiterClient:
         self.rate_limit_delay = 1.0  # 1 second between requests (1 RPS)
         self.session: Optional[aiohttp.ClientSession] = None
         self.rpc_session: Optional[aiohttp.ClientSession] = None
+        
+        # Initialize wallet
+        wallet_key = os.getenv("walletkey")
+        if not wallet_key:
+            raise RuntimeError("Missing wallet key")
+        self.wallet = Keypair.from_secret_key(base58.b58decode(wallet_key))
+        
+    def _deserialize_instruction(self, instruction_data: Dict[str, Any]) -> TransactionInstruction:
+        program_id = Pubkey.from_string(instruction_data["programId"])
+        accounts = [
+            {
+                "pubkey": Pubkey.from_string(account["pubkey"]),
+                "is_signer": account.get("isSigner", False),
+                "is_writable": account.get("isWritable", False),
+                "is_invoked": False
+            } for account in instruction_data.get("accounts", [])
+        ]
+        data = base64.b64decode(instruction_data.get("data", ""))
+        return TransactionInstruction(
+            accounts=accounts,
+            program_id=program_id,
+            data=data
+        )
         
     async def start(self) -> bool:
         try:
@@ -57,33 +87,103 @@ class JupiterClient:
         for attempt in range(self.retry_count):
             try:
                 # Get swap instructions
-                async with self.session.post(f"{self.base_url}/swap", json=params) as response:
+                async with self.session.post(f"{self.base_url}/swap-instructions", json=params) as response:
                     if response.status != 200:
                         error_text = await response.text()
                         logger.error(f"Swap failed with status {response.status}: {error_text}")
                         raise RuntimeError(f"Swap failed: {error_text}")
                         
-                    swap_data = await response.json()
-                    if "error" in swap_data:
-                        raise RuntimeError(f"Swap error: {swap_data['error']}")
+                    instructions = await response.json()
+                    if "error" in instructions:
+                        raise RuntimeError(f"Swap error: {instructions['error']}")
                         
-                    if "swapTransaction" not in swap_data:
-                        logger.error(f"Missing swapTransaction in response: {swap_data}")
-                        raise RuntimeError("Missing swapTransaction in response")
-                        
+                    # Build versioned transaction
+                    transaction_instructions = []
+                    
+                    # Add compute budget instructions
+                    compute_budget = instructions.get("computeBudgetInstructions", [])
+                    for instruction in compute_budget:
+                        transaction_instructions.append(self._deserialize_instruction(instruction))
+                    
+                    # Add setup instructions
+                    setup = instructions.get("setupInstructions", [])
+                    for instruction in setup:
+                        transaction_instructions.append(self._deserialize_instruction(instruction))
+                    
+                    # Add swap instruction
+                    swap = instructions.get("swapInstruction")
+                    if not swap:
+                        raise RuntimeError("Missing swap instruction")
+                    transaction_instructions.append(self._deserialize_instruction(swap))
+                    
+                    # Add cleanup instruction if present
+                    cleanup = instructions.get("cleanupInstruction")
+                    if cleanup:
+                        transaction_instructions.append(self._deserialize_instruction(cleanup))
+                    
+                    # Get latest blockhash
+                    await self._enforce_rate_limit(is_rpc=True)
+                    async with self.rpc_session.post(self.rpc_url, json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getLatestBlockhash",
+                        "params": [{"commitment": "finalized"}]
+                    }) as blockhash_response:
+                        if blockhash_response.status != 200:
+                            raise RuntimeError("Failed to get latest blockhash")
+                        blockhash_data = await blockhash_response.json()
+                        blockhash = blockhash_data["result"]["value"]["blockhash"]
+                    
+                    # Build versioned transaction
+                    transaction = Transaction()
+                    transaction.message.recent_blockhash = blockhash
+                    transaction.message.fee_payer = self.wallet.pubkey()
+                    
+                    # Add instructions
+                    for instruction in transaction_instructions:
+                        transaction.message.instructions.append(instruction)
+                    
+                    # Add address lookup tables if present
+                    lookup_tables = instructions.get("addressLookupTableAccounts", [])
+                    if lookup_tables:
+                        for table in lookup_tables:
+                            lookup_table = {
+                                "key": Pubkey.from_string(table["publicKey"]),
+                                "addresses": [Pubkey.from_string(addr) for addr in table["addresses"]]
+                            }
+                            transaction.message.address_table_lookups.append(lookup_table)
+                    
+                    # Sign transaction
+                    transaction.sign([self.wallet])
+                    serialized_transaction = base64.b64encode(transaction.serialize()).decode('utf-8')
+                    
                     # Execute swap transaction with RPC node
                     await self._enforce_rate_limit(is_rpc=True)
+                    
+                    # Get network priority fee
+                    priority_fee = instructions.get("prioritizationFeeLamports", {})
+                    if not priority_fee:
+                        priority_fee = {
+                            "priorityLevelWithMaxLamports": {
+                                "maxLamports": 10000000,
+                                "priorityLevel": "veryHigh"
+                            }
+                        }
+                    
                     async with self.rpc_session.post(self.rpc_url, json={
                         "jsonrpc": "2.0",
                         "id": 1,
                         "method": "sendTransaction",
                         "params": [
-                            swap_data["swapTransaction"],
+                            serialized_transaction,
                             {
                                 "encoding": "base64",
                                 "preflightCommitment": "confirmed",
                                 "skipPreflight": False,
-                                "maxRetries": 3
+                                "maxRetries": 3,
+                                "minContextSlot": instructions.get("minContextSlot"),
+                                "computeUnitLimit": instructions.get("computeUnitLimit", 1400000),
+                                "prioritizationFee": priority_fee.get("priorityLevelWithMaxLamports", {}).get("maxLamports", 10000000)
                             }
                         ]
                     }) as exec_response:
@@ -116,7 +216,8 @@ class JupiterClient:
                                         "slippage_bps": self.slippage_bps,
                                         "min_amount_out": params.get("minAmountOut"),
                                         "confirmation_time": time.time() - confirmation_start,
-                                        "rpc_url": self.rpc_url
+                                        "rpc_url": self.rpc_url,
+                                        "blockhash": blockhash
                                     }
                             except Exception as e:
                                 logger.error(f"RPC error during confirmation: {e}")
@@ -130,17 +231,48 @@ class JupiterClient:
                         
             except Exception as e:
                 logger.error(f"Swap attempt {attempt + 1} failed: {e}")
+                if isinstance(e, aiohttp.ClientError):
+                    logger.warning("RPC node connection error, retrying...")
+                elif "priorityFee" in str(e).lower():
+                    logger.warning("Increasing priority fee due to network congestion")
+                    params["prioritizationFeeLamports"]["priorityLevelWithMaxLamports"]["maxLamports"] *= 1.5
+                elif "compute budget" in str(e).lower():
+                    logger.warning("Increasing compute budget due to network load")
+                    params["computeUnitLimit"] = min(
+                        int(params.get("computeUnitLimit", 1400000) * 1.5),
+                        2000000  # Max 2M compute units
+                    )
+                
                 if attempt < self.retry_count - 1:
                     await asyncio.sleep(current_delay / 1000)
-                    current_delay *= 1.5
+                    current_delay = min(current_delay * 1.5, 10000)  # Cap at 10s
                     continue
+                    
                 self.circuit_breaker_failures += 1
                 self.last_failure_time = time.time()
-                return {"error": str(e)}
+                return {
+                    "error": str(e),
+                    "status": "failed",
+                    "attempts": attempt + 1,
+                    "circuit_breaker_status": {
+                        "failures": self.circuit_breaker_failures,
+                        "cooldown": self.circuit_breaker_cooldown,
+                        "last_failure": self.last_failure_time
+                    }
+                }
                 
         self.circuit_breaker_failures += 1
         self.last_failure_time = time.time()
-        return {"error": "All retry attempts failed"}
+        return {
+            "error": "All retry attempts failed",
+            "status": "failed",
+            "attempts": self.retry_count,
+            "circuit_breaker_status": {
+                "failures": self.circuit_breaker_failures,
+                "cooldown": self.circuit_breaker_cooldown,
+                "last_failure": self.last_failure_time
+            }
+        }
             
     async def _enforce_rate_limit(self, is_rpc: bool = False):
         current_time = time.time()
@@ -150,31 +282,74 @@ class JupiterClient:
             await asyncio.sleep(delay - time_since_last)
         self.last_request_time = time.time()
             
-    async def _confirm_transaction(self, signature: str, max_retries: int = 3) -> bool:
-        for attempt in range(max_retries):
+    async def _confirm_transaction(self, signature: str, max_retries: int = 5) -> bool:
+        """Confirm transaction with exponential backoff and proper error handling."""
+        current_retry = 0
+        retry_delay = 1.0  # Initial delay 1s
+        start_time = time.time()
+        timeout = 60  # 60s timeout
+        
+        while current_retry < max_retries and (time.time() - start_time) < timeout:
             try:
+                logger.info(f"Confirming transaction {signature} (attempt {current_retry + 1}/{max_retries})")
                 await self._enforce_rate_limit(is_rpc=True)
+                
+                # Check RPC node health first
+                async with self.rpc_session.post(self.rpc_url, json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "getHealth"
+                }) as health_response:
+                    if health_response.status != 200:
+                        raise RuntimeError("RPC node health check failed")
+                
+                # Get transaction status
                 async with self.rpc_session.post(self.rpc_url, json={
                     "jsonrpc": "2.0",
                     "id": 1,
                     "method": "getSignatureStatuses",
                     "params": [[signature], {"searchTransactionHistory": True}]
                 }) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        if "error" in data:
-                            raise RuntimeError(f"RPC error: {data['error']}")
-                            
-                        status = data.get("result", {}).get("value", [{}])[0]
-                        if status and status.get("confirmationStatus") == "finalized":
-                            return True
-                            
-                    await asyncio.sleep(1 * (2 ** attempt))  # Exponential backoff
+                    if response.status != 200:
+                        raise RuntimeError(f"RPC request failed with status {response.status}")
+                        
+                    data = await response.json()
+                    if "error" in data:
+                        raise RuntimeError(f"RPC error: {data['error']}")
+                        
+                    status = data.get("result", {}).get("value", [{}])[0]
+                    if not status:
+                        logger.warning(f"Transaction {signature} not found, retrying...")
+                        current_retry += 1
+                        await asyncio.sleep(retry_delay)
+                        retry_delay = min(retry_delay * 1.5, 10.0)  # Cap at 10s
+                        continue
+                        
+                    if status.get("err"):
+                        logger.error(f"Transaction {signature} failed: {status['err']}")
+                        return False
+                        
+                    if status.get("confirmationStatus") == "finalized":
+                        logger.info(f"Transaction {signature} confirmed after {time.time() - start_time:.2f}s")
+                        return True
+                        
+                    logger.info(f"Transaction {signature} status: {status.get('confirmationStatus', 'unknown')}")
+                    
             except Exception as e:
-                logger.error(f"Failed to confirm transaction {signature}: {e}")
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(1 * (2 ** attempt))
-                    continue
+                logger.error(f"Error confirming transaction {signature}: {e}")
+                if isinstance(e, aiohttp.ClientError):
+                    logger.warning("RPC node connection error, switching to backup node")
+                    # TODO: Implement RPC node failover
+                
+            current_retry += 1
+            await asyncio.sleep(retry_delay)
+            retry_delay = min(retry_delay * 1.5, 10.0)  # Cap at 10s
+            
+        if (time.time() - start_time) >= timeout:
+            logger.error(f"Transaction {signature} confirmation timeout after {timeout}s")
+        else:
+            logger.error(f"Transaction {signature} confirmation failed after {max_retries} retries")
+            
         return False
             
     async def get_quote(self, input_mint: str, output_mint: str, amount: int) -> Dict[str, Any]:
@@ -204,7 +379,14 @@ class JupiterClient:
                     "maxAccounts": "54",
                     "platformFeeBps": "0",
                     "minAmountOut": str(min_amount),
-                    "computeUnitPriceMicroLamports": "auto"
+                    "computeUnitPriceMicroLamports": "auto",
+                    "dynamicComputeUnitLimit": True,
+                    "prioritizationFeeLamports": {
+                        "priorityLevelWithMaxLamports": {
+                            "maxLamports": 10000000,
+                            "priorityLevel": "veryHigh"
+                        }
+                    }
                 }
                 # Get quote from Jupiter API
                 await self._enforce_rate_limit()
@@ -212,6 +394,10 @@ class JupiterClient:
                     if response.status == 200:
                         data = await response.json()
                         if "error" in data:
+                            if "priorityFee" in str(data["error"]).lower():
+                                logger.warning("Increasing priority fee due to network congestion")
+                                params["prioritizationFeeLamports"]["priorityLevelWithMaxLamports"]["maxLamports"] *= 1.5
+                                continue
                             raise RuntimeError(f"Quote error: {data['error']}")
                             
                         # Verify RPC node health
