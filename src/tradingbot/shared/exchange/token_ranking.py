@@ -57,13 +57,20 @@ class TokenRankingService:
             tokens_response.raise_for_status()
             tokens_data = await tokens_response.json()
             
+            logger.info(f"Got {len(tokens_data)} tokens from Jupiter API")
+            # Start with well-known tokens
+            known_tokens = ["SOL", "USDC", "USDT", "RAY", "BONK", "JitoSOL", "mSOL"]
             verified_tokens = []
             for token in tokens_data:
                 try:
-                    if token.get("tags", []) and "verified" in token["tags"]:
-                        verified_tokens.append(token)
+                    if isinstance(token, dict) and token.get("address") and token.get("symbol"):
+                        if token["symbol"] in known_tokens:
+                            verified_tokens.append(token)
+                            logger.info(f"Added known token {token['symbol']} to verified list")
                 except (TypeError, ValueError) as e:
+                    logger.warning(f"Invalid token data: {e}")
                     continue
+            logger.info(f"Found {len(verified_tokens)} valid tokens")
             
             for token in verified_tokens[:10]:
                 try:
