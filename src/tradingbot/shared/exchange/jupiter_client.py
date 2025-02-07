@@ -119,11 +119,15 @@ class JupiterClient:
                     "useSharedAccounts": "true",
                     "dynamicComputeUnitLimit": "true",
                     "prioritizationFeeLamports": "10000000",
-                    "route": quote_response.get("route"),
-                    "otherAmountThreshold": quote_response.get("otherAmountThreshold"),
-                    "swapMode": quote_response.get("swapMode", "ExactIn"),
+                    "computeUnitLimit": "1400000",
+                    "slippageBps": str(params.get("slippageBps", 250)),
                     "platformFeeBps": "0",
-                    **params
+                    "inputMint": params["inputMint"],
+                    "outputMint": params["outputMint"],
+                    "amount": str(params["amount"]),
+                    "routeMap": quote_response.get("routeMap"),
+                    "otherAmountThreshold": str(quote_response.get("otherAmountThreshold", "0")),
+                    "swapMode": quote_response.get("swapMode", "ExactIn")
                 }
                 
                 logger.info(f"Requesting swap instructions with params: {swap_params}")
