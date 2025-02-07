@@ -13,14 +13,14 @@ from tradingbot.backend.trading.executor.trade_executor import TradeExecutor
 
 async def execute_test_trade():
     config = {
-        "slippage_bps": 250,  # 2.5% slippage
-        "retry_count": 3,
-        "retry_delay": 1000,
-        "max_price_diff": 0.05,
-        "circuit_breaker": 0.10,
+        "slippage_bps": 100,  # 1% slippage
+        "retry_count": 5,
+        "retry_delay": 500,
+        "max_price_diff": 0.02,
+        "circuit_breaker": 0.05,
         "strategy_type": "spot_trading",
-        "risk_level": "low",  # Keep below 0.8 for AI validation
-        "trade_size": 0.066  # SOL amount
+        "risk_level": "low",
+        "trade_size": 0.01  # Reduced from 0.066 SOL
     }
     
     executor = TradeExecutor(config)

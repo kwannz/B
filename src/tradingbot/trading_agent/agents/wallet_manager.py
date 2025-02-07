@@ -25,9 +25,14 @@ class WalletManager:
             self._wallet = Keypair.from_bytes(base58.b58decode(self._wallet_key))
             self._session = aiohttp.ClientSession()
             self._initialized = True
+            
+            # Verify balance
+            balance = await self.get_balance()
+            logger.info(f"Initialized wallet with balance: {balance:.6f} SOL")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize wallet: {e}")
+            self._initialized = False
             return False
             
     @property
