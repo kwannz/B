@@ -23,7 +23,8 @@ class JupiterClient:
         self.retry_count = config.get("retry_count", 3)
         self.retry_delay = config.get("retry_delay", 1000)  # 1s initial delay
         self.circuit_breaker_failures = 0
-        self.circuit_breaker_cooldown = 600  # 10 minutes
+        self.circuit_breaker_cooldown = 300  # 5 minutes
+        self.circuit_breaker_threshold = 3  # Lower threshold
         self.last_failure_time = 0
         self.last_request_time = 0
         self.rate_limit_delay = 1.0  # 1 second between requests (1 RPS)
@@ -380,7 +381,7 @@ class JupiterClient:
                     "platformFeeBps": "0",
                     "minAmountOut": str(min_amount),
                     "computeUnitPriceMicroLamports": "auto",
-                    "dynamicComputeUnitLimit": True,
+                    "dynamicComputeUnitLimit": "true",
                     "prioritizationFeeLamports": {
                         "priorityLevelWithMaxLamports": {
                             "maxLamports": 10000000,
