@@ -105,6 +105,7 @@ class TokenRankingService:
                                     "sell_impact": float(quote.get("priceImpactPct", 0.02))
                                 }
                             })
+                            logger.info(f"Added token {token['symbol']} to ranked list")
                     except Exception as e:
                         logger.error(f"Error getting price data for {token['symbol']}: {e}")
                         continue
