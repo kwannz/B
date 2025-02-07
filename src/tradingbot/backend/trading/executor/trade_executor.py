@@ -6,6 +6,7 @@ from datetime import datetime
 
 from src.shared.logging_config import setup_logging
 from src.shared.models.errors import TradingError
+from src.tradingbot.shared.exchange.jupiter_client import JupiterClient
 
 from ...trading_agent.agents.wallet_manager import WalletManager
 from .base_executor import BaseExecutor
@@ -24,6 +25,8 @@ class TradeExecutor(BaseExecutor):
         self.trade_history: List[Dict[str, Any]] = []
         self.grpc_client = TradingExecutorClient()
         self.executor_pool = ExecutorPool(["localhost:50051"])
+        self.rpc_url = config.get("rpc_url") or os.getenv("HELIUS_RPC_URL")
+        self.ws_url = config.get("ws_url") or os.getenv("HELIUS_WS_URL")
         self.logger = logging.getLogger(__name__)
 
     async def validate_with_ai(self, trade_params: Dict[str, Any]) -> Dict[str, Any]:
@@ -236,6 +239,20 @@ class TradeExecutor(BaseExecutor):
             self.last_update = datetime.now().isoformat()
             return False
 
+        # Initialize Jupiter client with RPC configuration
+        self.jupiter_client = JupiterClient({
+            "rpc_url": self.rpc_url,
+            "ws_url": self.ws_url,
+            "slippage_bps": 250,  # 2.5% slippage
+            "retry_count": 3,
+            "retry_delay": 1000,
+            "max_price_diff": 0.05,
+            "circuit_breaker": 0.10
+        })
+        if not await self.jupiter_client.start():
+            self.logger.error("Failed to start Jupiter client")
+            return False
+
         await self.executor_pool.initialize()
         self.logger.info("Trade executor started successfully")
         return True
@@ -247,6 +264,11 @@ class TradeExecutor(BaseExecutor):
         )
         for trade_id in list(self.active_trades.keys()):
             await self.cancel_trade(trade_id)
+            
+        # Stop Jupiter client
+        if hasattr(self, 'jupiter_client'):
+            await self.jupiter_client.stop()
+            
         await self.executor_pool.close()
         result = await super().stop()
         self.logger.info("Trade executor stopped: success=%s", result)
