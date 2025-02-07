@@ -81,36 +81,42 @@ class TokenRankingService:
             
             for token in verified_tokens:
                 try:
-                    # Get quote from Jupiter API
-                    quote_response = await self.session.get(
-                        "https://quote-api.jup.ag/v6/quote",
-                        params={
-                            "inputMint": token["address"],
-                            "outputMint": "So11111111111111111111111111111111111111112",  # SOL
-                            "amount": "1000000",  # Amount in token decimals
-                            "slippageBps": "250",  # 2.5% slippage
-                            "onlyDirectRoutes": "false",
-                            "asLegacyTransaction": "false",
-                            "computeUnitPriceMicroLamports": "auto",
-                            "platformFeeBps": "0"
-                        },
-                        timeout=10.0
-                    )
-                    quote_response.raise_for_status()
-                    quote_data = await quote_response.json()
-                    
-                    if "data" in quote_data:
-                        quote = quote_data["data"]
-                        ranked_tokens.append({
-                            "address": token["address"],
-                            "symbol": token["symbol"],
-                            "name": token["name"],
-                            "decimals": token["decimals"],
-                            "price": float(quote.get("inAmount", 0)) / float(quote.get("outAmount", 1)),
-                            "confidence": "high",
-                            "depth": {
-                                "buy_impact": float(quote.get("priceImpactPct", 0.02)),
-                                "sell_impact": float(quote.get("priceImpactPct", 0.02))
+                    try:
+                        # Get quote from Jupiter API
+                        quote_response = await self.session.get(
+                            "https://quote-api.jup.ag/v6/quote",
+                            params={
+                                "inputMint": "So11111111111111111111111111111111111111112",  # SOL
+                                "outputMint": token["address"],
+                                "amount": "66000000",  # 0.066 SOL
+                                "slippageBps": "250",  # 2.5% slippage
+                                "onlyDirectRoutes": "false",
+                                "asLegacyTransaction": "false",
+                                "computeUnitPriceMicroLamports": "auto",
+                                "platformFeeBps": "0"
+                            },
+                            timeout=10.0
+                        )
+                        quote_response.raise_for_status()
+                        quote_data = await quote_response.json()
+                        
+                        if "data" in quote_data:
+                            quote = quote_data["data"]
+                            ranked_tokens.append({
+                                "address": token["address"],
+                                "symbol": token["symbol"],
+                                "name": token["name"],
+                                "decimals": token["decimals"],
+                                "price": float(quote.get("outAmount", 0)) / (10 ** token["decimals"]),
+                                "confidence": "high",
+                                "depth": {
+                                    "buy_impact": float(quote.get("priceImpactPct", 0.02)),
+                                    "sell_impact": float(quote.get("priceImpactPct", 0.02))
+                                }
+                            })
+                            logger.info(f"Got quote for {token['symbol']}: {quote.get('outAmount', 0)} / {10 ** token['decimals']} = {float(quote.get('outAmount', 0)) / (10 ** token['decimals'])}")
+                    except Exception as e:
+                        logger.error(f"Error getting quote for {token['symbol']}: {e}")
                             }
                         })
                         logger.info(f"Added token {token['symbol']} to ranked list")
