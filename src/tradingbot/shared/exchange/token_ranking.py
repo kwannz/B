@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class TokenRankingService:
     def __init__(self, session: aiohttp.ClientSession, config: Dict[str, Any]):
-        self.base_url = "https://api.jup.ag"
+        self.base_url = "https://quote-api.jup.ag/v6"
         self.session = session
         self.min_daily_volume = config.get("min_daily_volume", 100000)  # $100k minimum
         self.min_depth_ratio = config.get("min_depth_ratio", 0.1)  # 10% max price impact
@@ -55,7 +55,7 @@ class TokenRankingService:
         """Update token rankings."""
         try:
             # Get all tradable tokens
-            tokens_response = await self.session.get(f"{self.base_url}/tokens/v1/all")
+            tokens_response = await self.session.get("https://token.jup.ag/all")
             tokens_response.raise_for_status()
             tokens_data = await tokens_response.json()
             
@@ -63,52 +63,36 @@ class TokenRankingService:
             verified_tokens = []
             for token in tokens_data:
                 try:
-                    daily_volume = token.get("daily_volume")
-                    if daily_volume is None:
-                        continue
-                        
-                    daily_volume = float(daily_volume)
-                    if "verified" in token.get("tags", []) and daily_volume >= self.min_daily_volume:
-                        token["daily_volume"] = daily_volume  # Store converted value
+                    if token.get("tags", []) and "verified" in token["tags"]:
                         verified_tokens.append(token)
                 except (TypeError, ValueError) as e:
                     continue
             
-            # Sort by volume (already converted to float)
-            sorted_tokens = sorted(
-                verified_tokens,
-                key=lambda x: x["daily_volume"],
-                reverse=True
-            )
-            
             # Get depth info for top tokens
             ranked_tokens = []
-            for token in sorted_tokens[:20]:  # Check top 20 to find 10 with good depth
+            for token in verified_tokens[:20]:  # Check top 20 to find 10 with good depth
                 try:
+                    # Get price from Jupiter API
                     price_response = await self.session.get(
-                        f"{self.base_url}/v6/quote",
+                        "https://price.jup.ag/v4/price",
                         params={
-                            "inputMint": token["address"],
-                            "outputMint": "So11111111111111111111111111111111111111112",  # SOL
-                            "amount": "1000000000",  # 1 SOL equivalent
-                            "slippageBps": "100",
-                            "onlyDirectRoutes": "false",
-                            "asLegacyTransaction": "true"
+                            "ids": ",".join([token["address"] for token in verified_tokens[:20]]),
+                            "vsToken": "So11111111111111111111111111111111111111112"  # SOL
                         },
                         timeout=10.0
                     )
                     price_response.raise_for_status()
                     price_data = await price_response.json()
                     
-                    if "data" in price_data and price_data.get("data"):
-                        quote = price_data["data"]
+                    if "data" in price_data and token["address"] in price_data["data"]:
+                        token_price = price_data["data"][token["address"]]
                         token_data = {
-                            "price": float(quote.get("outAmount", 0)) / 1e9,  # Convert to SOL
+                            "price": float(token_price.get("price", 0)),
                             "extraInfo": {
                                 "confidenceLevel": "high",
                                 "depth": {
-                                    "buyPriceImpactRatio": {"depth": {"1000": quote.get("priceImpactPct", 0)}},
-                                    "sellPriceImpactRatio": {"depth": {"1000": quote.get("priceImpactPct", 0)}}
+                                    "buyPriceImpactRatio": {"depth": {"1000": 0.02}},  # 2% default impact
+                                    "sellPriceImpactRatio": {"depth": {"1000": 0.02}}
                                 }
                             }
                         }
