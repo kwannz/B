@@ -1,13 +1,13 @@
-from typing import Any, Dict, List, Optional
-
 """Trade executor module for handling trade execution and management."""
+from typing import Any, Dict, List, Optional
 import logging
+import os
 from datetime import datetime
 
-from src.shared.logging_config import setup_logging
-from src.shared.models.errors import TradingError
-
-from ...trading_agent.agents.wallet_manager import WalletManager
+from tradingbot.shared.logging_config import setup_logging
+from tradingbot.shared.models.errors import TradingError
+from tradingbot.shared.exchange.jupiter_client import JupiterClient
+from tradingbot.trading_agent.agents.wallet_manager import WalletManager
 from .base_executor import BaseExecutor
 from .grpc_client import ExecutorPool, TradingExecutorClient
 
@@ -24,6 +24,8 @@ class TradeExecutor(BaseExecutor):
         self.trade_history: List[Dict[str, Any]] = []
         self.grpc_client = TradingExecutorClient()
         self.executor_pool = ExecutorPool(["localhost:50051"])
+        self.rpc_url = config.get("rpc_url") or os.getenv("HELIUS_RPC_URL")
+        self.ws_url = config.get("ws_url") or os.getenv("HELIUS_WS_URL")
         self.logger = logging.getLogger(__name__)
 
     async def validate_with_ai(self, trade_params: Dict[str, Any]) -> Dict[str, Any]:
@@ -70,6 +72,16 @@ class TradeExecutor(BaseExecutor):
                 self.logger.warning("Failed to cleanly stop AI analyzer")
 
     async def execute_trade(self, trade_params: Dict[str, Any]) -> Dict[str, Any]:
+        trade_params.update({
+            "compute_unit_limit": "auto",  # Dynamic compute units
+            "priority_fee": {
+                "priorityLevel": "medium",  # Start with medium priority
+                "maxLamports": 1000000     # 0.001 SOL max priority fee
+            },
+            "confirmation_timeout": 30,     # Reduced timeout for faster feedback
+            "max_retries": 3
+        })
+        
         self.logger.info(
             "Trade request received: symbol=%s side=%s amount=%.2f price=%.2f type=%s",
             trade_params.get("symbol"),
@@ -79,16 +91,16 @@ class TradeExecutor(BaseExecutor):
             trade_params.get("order_type", "market"),
         )
 
-        if not self.wallet_manager.is_initialized():
+        if not self.wallet_manager.is_initialized:
             self.logger.error("Trade rejected: wallet not initialized")
             raise TradingError("Wallet not initialized")
 
         balance = await self.wallet_manager.get_balance()
-        if balance < 0.5:
+        if balance < 0.1:
             self.logger.error(
                 "Trade rejected: insufficient balance (%.2f SOL)", balance
             )
-            raise TradingError("Insufficient balance (minimum 0.5 SOL required)")
+            raise TradingError("Insufficient balance (minimum 0.1 SOL required)")
 
         # Validate trade with AI before execution
         try:
@@ -230,10 +242,24 @@ class TradeExecutor(BaseExecutor):
             self.logger.error("Failed to start base executor")
             return False
 
-        if not self.wallet_manager.is_initialized():
+        if not await self.wallet_manager.initialize():
             self.logger.error("Failed to start: wallet not initialized")
             self.status = "error"
             self.last_update = datetime.now().isoformat()
+            return False
+
+        # Initialize Jupiter client with RPC configuration
+        self.jupiter_client = JupiterClient({
+            "rpc_url": self.rpc_url,
+            "ws_url": self.ws_url,
+            "slippage_bps": 100,  # 1% slippage for smaller trades
+            "retry_count": 5,
+            "retry_delay": 500,
+            "max_price_diff": 0.02,  # 2% max price impact
+            "circuit_breaker": 0.05  # 5% threshold for smaller trades
+        })
+        if not await self.jupiter_client.start():
+            self.logger.error("Failed to start Jupiter client")
             return False
 
         await self.executor_pool.initialize()
@@ -247,6 +273,11 @@ class TradeExecutor(BaseExecutor):
         )
         for trade_id in list(self.active_trades.keys()):
             await self.cancel_trade(trade_id)
+            
+        # Stop Jupiter client
+        if hasattr(self, 'jupiter_client'):
+            await self.jupiter_client.stop()
+            
         await self.executor_pool.close()
         result = await super().stop()
         self.logger.info("Trade executor stopped: success=%s", result)

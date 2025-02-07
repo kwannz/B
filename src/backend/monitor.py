@@ -1,6 +1,8 @@
 import os
+import json
 import asyncio
 import logging
+import websockets
 from datetime import datetime
 import motor.motor_asyncio
 from fastapi import FastAPI, WebSocket, HTTPException, BackgroundTasks
@@ -213,5 +215,145 @@ async def websocket_endpoint(websocket: WebSocket):
             await asyncio.sleep(5)
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
+    finally:
+        await websocket.close()
+
+@app.websocket("/ws/trades")
+async def trades_websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            try:
+                trades = await app.state.db.trades.find().sort("timestamp", -1).limit(10).to_list(None)
+                trade_data = [
+                    {
+                        "symbol": t["symbol"],
+                        "side": t["side"],
+                        "size": float(t["size"]),
+                        "price": float(t["price"]),
+                        "timestamp": t["timestamp"].isoformat()
+                    } for t in trades
+                ] if trades else []
+
+                await websocket.send_json({
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "trades": trade_data
+                })
+            except Exception as e:
+                logger.error(f"Error collecting trades: {e}")
+                await websocket.send_json({
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "error": str(e)
+                })
+            await asyncio.sleep(5)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+    finally:
+        await websocket.close()
+
+@app.websocket("/ws/multi_trades")
+async def multi_trades_websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            try:
+                trades = await app.state.db.trades.find().sort("timestamp", -1).limit(10).to_list(None)
+                trade_data = [
+                    {
+                        "symbol": t["symbol"],
+                        "side": t["side"],
+                        "size": float(t["size"]),
+                        "price": float(t["price"]),
+                        "timestamp": t["timestamp"].isoformat(),
+                        "status": t.get("status", "unknown"),
+                        "confidence": t.get("confidence", "unknown"),
+                        "depth": t.get("depth", {}),
+                        "price_impact": float(t.get("price_impact", 0)),
+                        "slippage_bps": t.get("slippage_bps", 250),
+                        "transaction_hash": t.get("transaction_hash"),
+                        "error": t.get("error"),
+                        "confirmation_time": t.get("confirmation_time")
+                    } for t in trades
+                ] if trades else []
+
+                await websocket.send_json({
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "trades": trade_data,
+                    "total_trades": len(trade_data),
+                    "successful_trades": len([t for t in trade_data if t.get("status") == "confirmed"]),
+                    "failed_trades": len([t for t in trade_data if t.get("status") == "failed"])
+                })
+            except Exception as e:
+                logger.error(f"Error collecting trades: {e}")
+                await websocket.send_json({
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "error": str(e)
+                })
+            await asyncio.sleep(5)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+    finally:
+        await websocket.close()
+
+@app.websocket("/ws/transaction/{signature}")
+async def transaction_websocket_endpoint(websocket: WebSocket, signature: str):
+    await websocket.accept()
+    try:
+        ws_url = os.getenv("HELIUS_WS_URL")
+        async with websockets.connect(ws_url) as ws:
+            await ws.send(json.dumps({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "signatureSubscribe",
+                "params": [signature, {"commitment": "finalized"}]
+            }))
+            
+            while True:
+                try:
+                    msg = await ws.recv()
+                    data = json.loads(msg)
+                    
+                    if "error" in data:
+                        await websocket.send_json({
+                            "status": "failed",
+                            "error": str(data["error"]),
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
+                        break
+                        
+                    if "result" in data:
+                        result = data["result"]
+                        if isinstance(result, dict) and "value" in result:
+                            value = result["value"]
+                            if "err" in value and value["err"]:
+                                await websocket.send_json({
+                                    "status": "failed",
+                                    "error": str(value["err"]),
+                                    "timestamp": datetime.utcnow().isoformat()
+                                })
+                                break
+                            elif value.get("confirmationStatus") == "finalized":
+                                await websocket.send_json({
+                                    "status": "confirmed",
+                                    "timestamp": datetime.utcnow().isoformat(),
+                                    "confirmations": value.get("confirmations", 0)
+                                })
+                                break
+                except Exception as e:
+                    logger.error(f"WebSocket message error: {e}")
+                    await websocket.send_json({
+                        "status": "error",
+                        "error": str(e),
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                    break
+                    
+    except Exception as e:
+        logger.error(f"WebSocket connection error: {e}")
+        await websocket.send_json({
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        })
     finally:
         await websocket.close()
