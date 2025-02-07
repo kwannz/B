@@ -70,29 +70,36 @@ class TokenRankingService:
             
             # Get depth info for top tokens
             ranked_tokens = []
-            for token in verified_tokens[:20]:  # Check top 20 to find 10 with good depth
-                try:
-                    # Get price from Jupiter API
-                    price_response = await self.session.get(
-                        "https://price.jup.ag/v4/price",
-                        params={
-                            "ids": ",".join([token["address"] for token in verified_tokens[:20]]),
-                            "vsToken": "So11111111111111111111111111111111111111112"  # SOL
-                        },
-                        timeout=10.0
-                    )
-                    price_response.raise_for_status()
-                    price_data = await price_response.json()
-                    
-                    if "data" in price_data and token["address"] in price_data["data"]:
-                        token_price = price_data["data"][token["address"]]
-                        token_data = {
-                            "price": float(token_price.get("price", 0)),
-                            "extraInfo": {
-                                "confidenceLevel": "high",
+            token_addresses = [token["address"] for token in verified_tokens[:20]]
+            
+            try:
+                # Get top 10 tokens
+                for token in verified_tokens[:10]:
+                    try:
+                        # Get quote from Jupiter API
+                        quote_response = await self.session.get(
+                            "https://price.jup.ag/v4/price",
+                            params={
+                                "ids": token["address"],
+                                "vsToken": "So11111111111111111111111111111111111111112"  # SOL
+                            },
+                            timeout=10.0
+                        )
+                        quote_response.raise_for_status()
+                        quote_data = await quote_response.json()
+                        
+                        if "data" in quote_data and token["address"] in quote_data["data"]:
+                            token_price = quote_data["data"][token["address"]]
+                            ranked_tokens.append({
+                                "address": token["address"],
+                                "symbol": token["symbol"],
+                                "name": token["name"],
+                                "decimals": token["decimals"],
+                                "price": float(token_price.get("price", 0)),
+                                "confidence": "high",
                                 "depth": {
-                                    "buyPriceImpactRatio": {"depth": {"1000": 0.02}},  # 2% default impact
-                                    "sellPriceImpactRatio": {"depth": {"1000": 0.02}}
+                                    "buy_impact": 0.02,  # 2% default impact
+                                    "sell_impact": 0.02
                                 }
                             }
                         }
