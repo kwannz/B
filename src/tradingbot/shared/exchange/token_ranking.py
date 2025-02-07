@@ -85,13 +85,14 @@ class TokenRankingService:
                     quote_response = await self.session.get(
                         "https://quote-api.jup.ag/v6/quote",
                         params={
-                            "inputMint": "So11111111111111111111111111111111111111112",  # SOL
-                            "outputMint": token["address"],
-                            "amount": "66000000",  # 0.066 SOL
+                            "inputMint": token["address"],
+                            "outputMint": "So11111111111111111111111111111111111111112",  # SOL
+                            "amount": "1000000",  # Amount in token decimals
                             "slippageBps": "250",  # 2.5% slippage
                             "onlyDirectRoutes": "false",
-                            "asLegacyTransaction": "true",
-                            "computeUnitPriceMicroLamports": "auto"
+                            "asLegacyTransaction": "false",
+                            "computeUnitPriceMicroLamports": "auto",
+                            "platformFeeBps": "0"
                         },
                         timeout=10.0
                     )
@@ -105,7 +106,7 @@ class TokenRankingService:
                             "symbol": token["symbol"],
                             "name": token["name"],
                             "decimals": token["decimals"],
-                            "price": float(quote.get("outAmount", 0)) / (10 ** token["decimals"]),
+                            "price": float(quote.get("inAmount", 0)) / float(quote.get("outAmount", 1)),
                             "confidence": "high",
                             "depth": {
                                 "buy_impact": float(quote.get("priceImpactPct", 0.02)),
