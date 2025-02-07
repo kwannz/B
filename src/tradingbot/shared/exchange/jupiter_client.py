@@ -426,15 +426,17 @@ class JupiterClient:
                     "inputMint": input_mint,
                     "outputMint": output_mint,
                     "amount": str(amount),
-                    "slippageBps": self.slippage_bps,
-                    "onlyDirectRoutes": "true",
+                    "slippageBps": str(self.slippage_bps),
+                    "feeBps": "0",
+                    "onlyDirectRoutes": "false",
                     "asLegacyTransaction": "true",
                     "maxAccounts": "54",
                     "platformFeeBps": "0",
                     "minAmountOut": str(min_amount),
                     "computeUnitPriceMicroLamports": "auto",
                     "dynamicComputeUnitLimit": "true",
-                    "prioritizationFeeLamports": "10000000"
+                    "prioritizationFeeLamports": "10000000",
+                    "userPublicKey": str(self.wallet.pubkey())
                 }
                 # Get quote from Jupiter API
                 await self._enforce_rate_limit()
