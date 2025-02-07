@@ -127,8 +127,8 @@ class MultiTokenTrader:
             
             # Get quote with proper slippage
             quote = await self.jupiter_client.get_quote(
-                input_mint="So11111111111111111111111111111111111111112",  # SOL
-                output_mint=token["address"],
+                input_mint=token["address"],
+                output_mint="So11111111111111111111111111111111111111112",  # SOL
                 amount=amount_lamports
             )
             
@@ -158,10 +158,13 @@ class MultiTokenTrader:
                 try:
                     # Execute trade with Jupiter
                     swap_result = await self.jupiter_client.execute_swap({
-                        "swapTransaction": quote["swapTransaction"],
-                        "walletAddress": self.config["wallet_address"],
-                        "slippageBps": 250,
-                        "prioritizationFeeLamports": "auto"
+                        "inputMint": token["address"],
+                        "outputMint": "So11111111111111111111111111111111111111112",  # SOL
+                        "amount": str(amount_lamports),
+                        "slippageBps": 250,  # 2.5% slippage
+                        "quoteResponse": quote,
+                        "computeUnitLimit": 1400000,
+                        "prioritizationFeeLamports": "10000000"
                     })
                     
                     if "error" in swap_result:
