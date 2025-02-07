@@ -113,21 +113,17 @@ class JupiterClient:
                 # Build swap params
                 swap_params = {
                     "userPublicKey": str(self.wallet.pubkey()),
-                    "wrapUnwrapSOL": "true",
+                    "quoteResponse": quote_response,
+                    "wrapUnwrapSOL": True,
                     "computeUnitPriceMicroLamports": "auto",
-                    "asLegacyTransaction": "true",
-                    "useSharedAccounts": "true",
-                    "dynamicComputeUnitLimit": "true",
+                    "asLegacyTransaction": True,
+                    "useSharedAccounts": True,
+                    "dynamicComputeUnitLimit": True,
                     "prioritizationFeeLamports": "10000000",
-                    "computeUnitLimit": "1400000",
-                    "slippageBps": str(params.get("slippageBps", 250)),
-                    "platformFeeBps": "0",
-                    "inputMint": params["inputMint"],
-                    "outputMint": params["outputMint"],
-                    "amount": str(params["amount"]),
-                    "routeMap": quote_response.get("routeMap"),
-                    "otherAmountThreshold": str(quote_response.get("otherAmountThreshold", "0")),
-                    "swapMode": quote_response.get("swapMode", "ExactIn")
+                    "computeUnitLimit": 1400000,
+                    "slippageBps": self.slippage_bps,
+                    "platformFeeBps": 0,
+                    "destinationTokenAccount": None
                 }
                 
                 logger.info(f"Requesting swap instructions with params: {swap_params}")
