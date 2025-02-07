@@ -419,20 +419,20 @@ class JupiterClient:
                 # Calculate minAmountOut as 97% of quote amount
                 min_amount = int(float(amount) * 0.97)
                 params = {
-                    "inputMint": input_mint,
-                    "outputMint": output_mint,
-                    "amount": str(amount),
+                    "inputMint": output_mint,  # Swap input/output since we're selling tokens for SOL
+                    "outputMint": input_mint,
+                    "amount": str(min_amount),  # Use min_amount as input amount
                     "slippageBps": str(self.slippage_bps),
                     "onlyDirectRoutes": "false",
                     "asLegacyTransaction": "true",
                     "maxAccounts": "54",
                     "platformFeeBps": "0",
-                    "minAmountOut": str(min_amount),
                     "computeUnitPriceMicroLamports": "auto",
                     "dynamicComputeUnitLimit": "true",
                     "prioritizationFeeLamports": "10000000",
                     "userPublicKey": str(self.wallet.pubkey()),
-                    "swapMode": "ExactIn"
+                    "swapMode": "ExactOut",  # Use ExactOut since we want exact SOL amount
+                    "wrapUnwrapSOL": "true"
                 }
                 # Get quote from Jupiter API
                 await self._enforce_rate_limit()
