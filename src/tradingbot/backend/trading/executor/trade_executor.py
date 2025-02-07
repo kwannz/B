@@ -1,14 +1,13 @@
-from typing import Any, Dict, List, Optional
-
 """Trade executor module for handling trade execution and management."""
+from typing import Any, Dict, List, Optional
 import logging
+import os
 from datetime import datetime
 
-from src.shared.logging_config import setup_logging
-from src.shared.models.errors import TradingError
-from src.tradingbot.shared.exchange.jupiter_client import JupiterClient
-
-from ...trading_agent.agents.wallet_manager import WalletManager
+from tradingbot.shared.logging_config import setup_logging
+from tradingbot.shared.models.errors import TradingError
+from tradingbot.shared.exchange.jupiter_client import JupiterClient
+from tradingbot.trading_agent.agents.wallet_manager import WalletManager
 from .base_executor import BaseExecutor
 from .grpc_client import ExecutorPool, TradingExecutorClient
 

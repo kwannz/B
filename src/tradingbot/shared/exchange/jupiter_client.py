@@ -11,6 +11,8 @@ from solders.transaction import Transaction
 from solders.instruction import Instruction as TransactionInstruction
 from solders.pubkey import Pubkey
 from solders.system_program import ID as SYS_PROGRAM_ID
+from solders.message import Message
+from typing import Optional as Some
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +22,15 @@ class JupiterClient:
         self.rpc_url = config.get("rpc_url") or os.getenv("HELIUS_RPC_URL")
         self.ws_url = config.get("ws_url") or os.getenv("HELIUS_WS_URL")
         self.slippage_bps = config.get("slippage_bps", 250)  # 2.5% default
-        self.retry_count = config.get("retry_count", 3)
-        self.retry_delay = config.get("retry_delay", 1000)  # 1s initial delay
-        self.circuit_breaker_failures = 0
+        self.retry_count = config.get("retry_count", 5)  # Increased retries
+        self.retry_delay = config.get("retry_delay", 2000)  # 2s initial delay
+        self.circuit_breaker_failures = {}  # Per token pair tracking
         self.circuit_breaker_cooldown = 300  # 5 minutes
-        self.circuit_breaker_threshold = 3  # Lower threshold
-        self.last_failure_time = 0
+        self.circuit_breaker_threshold = 5  # Increased threshold
+        self.last_failure_time = {}  # Per token pair tracking
         self.last_request_time = 0
-        self.rate_limit_delay = 1.0  # 1 second between requests (1 RPS)
+        self.rate_limit_delay = 0.5  # 500ms between requests (2 RPS)
+        self.rpc_rate_limit_delay = 1.0  # 1s between RPC requests
         self.session: Optional[aiohttp.ClientSession] = None
         self.rpc_session: Optional[aiohttp.ClientSession] = None
         
@@ -174,28 +177,38 @@ class JupiterClient:
                         blockhash_data = await blockhash_response.json()
                         blockhash = blockhash_data["result"]["value"]["blockhash"]
                     
-                    # Build versioned transaction
-                    transaction = Transaction()
-                    transaction.message.recent_blockhash = blockhash
-                    transaction.message.fee_payer = self.wallet.pubkey()
-                    
-                    # Add instructions
-                    for instruction in transaction_instructions:
-                        transaction.message.instructions.append(instruction)
-                    
-                    # Add address lookup tables if present
-                    lookup_tables = instructions.get("addressLookupTableAccounts", [])
-                    if lookup_tables:
-                        for table in lookup_tables:
-                            lookup_table = {
-                                "key": Pubkey.from_string(table["publicKey"]),
-                                "addresses": [Pubkey.from_string(addr) for addr in table["addresses"]]
-                            }
-                            transaction.message.address_table_lookups.append(lookup_table)
-                    
-                    # Sign transaction
-                    transaction.sign([self.wallet])
-                    serialized_transaction = base64.b64encode(transaction.serialize()).decode('utf-8')
+                    try:
+                        logger.info("Creating transaction with %d instructions", len(transaction_instructions))
+                        
+                        # Create legacy transaction with proper parameters
+                        transaction = Transaction()
+                        for instruction in transaction_instructions:
+                            transaction.add(instruction)
+                            
+                        # Set blockhash and fee payer
+                        transaction.recent_blockhash = blockhash
+                        transaction.fee_payer = self.wallet.pubkey()
+                        logger.info("Transaction created with blockhash: %s", blockhash)
+                        
+                        # Sign transaction with proper error handling
+                        try:
+                            transaction.sign([self.wallet])
+                            logger.info("Transaction signed successfully")
+                        except Exception as e:
+                            logger.error("Failed to sign transaction: %s", e)
+                            raise RuntimeError(f"Transaction signing failed: {e}")
+                            
+                        # Serialize transaction with proper encoding
+                        try:
+                            serialized_transaction = base64.b64encode(bytes(transaction)).decode('utf-8')
+                            logger.info("Transaction serialized successfully with signature: %s", transaction.signatures[0])
+                        except Exception as e:
+                            logger.error("Failed to serialize transaction: %s", e)
+                            raise RuntimeError(f"Transaction serialization failed: {e}")
+                            
+                    except Exception as e:
+                        logger.error("Transaction creation failed: %s", e)
+                        raise RuntimeError(f"Transaction creation failed: {e}")
                     
                     # Execute swap transaction with RPC node
                     await self._enforce_rate_limit(is_rpc=True)
@@ -316,9 +329,18 @@ class JupiterClient:
     async def _enforce_rate_limit(self, is_rpc: bool = False):
         current_time = time.time()
         time_since_last = current_time - self.last_request_time
-        delay = self.rate_limit_delay * 2 if is_rpc else self.rate_limit_delay
+        delay = self.rpc_rate_limit_delay if is_rpc else self.rate_limit_delay
+        
         if time_since_last < delay:
             await asyncio.sleep(delay - time_since_last)
+            
+        if response_time := getattr(self, '_last_response_time', 0):
+            # Adjust rate limit based on response time
+            if response_time > 1.0:  # Slow response
+                self.rate_limit_delay = min(self.rate_limit_delay * 1.5, 2.0)
+            elif response_time < 0.1:  # Fast response
+                self.rate_limit_delay = max(self.rate_limit_delay * 0.8, 0.1)
+                
         self.last_request_time = time.time()
             
     async def _confirm_transaction(self, signature: str, max_retries: int = 5) -> bool:
@@ -416,12 +438,11 @@ class JupiterClient:
         
         for attempt in range(self.retry_count):
             try:
-                # Calculate minAmountOut as 97% of quote amount
-                min_amount = int(float(amount) * 0.97)
+                # Get quote with proper parameters
                 params = {
-                    "inputMint": output_mint,  # Swap input/output since we're selling tokens for SOL
-                    "outputMint": input_mint,
-                    "amount": str(min_amount),  # Use min_amount as input amount
+                    "inputMint": input_mint,
+                    "outputMint": output_mint,
+                    "amount": str(amount),
                     "slippageBps": str(self.slippage_bps),
                     "onlyDirectRoutes": "false",
                     "asLegacyTransaction": "true",
@@ -431,7 +452,7 @@ class JupiterClient:
                     "dynamicComputeUnitLimit": "true",
                     "prioritizationFeeLamports": "10000000",
                     "userPublicKey": str(self.wallet.pubkey()),
-                    "swapMode": "ExactOut",  # Use ExactOut since we want exact SOL amount
+                    "swapMode": "ExactIn",
                     "wrapUnwrapSOL": "true"
                 }
                 # Get quote from Jupiter API
