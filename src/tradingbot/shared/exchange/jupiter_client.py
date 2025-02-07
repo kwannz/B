@@ -113,13 +113,16 @@ class JupiterClient:
                 # Build swap params
                 swap_params = {
                     "userPublicKey": str(self.wallet.pubkey()),
-                    "wrapUnwrapSOL": True,
+                    "wrapUnwrapSOL": "true",
                     "computeUnitPriceMicroLamports": "auto",
-                    "asLegacyTransaction": True,
-                    "useSharedAccounts": True,
-                    "dynamicComputeUnitLimit": True,
+                    "asLegacyTransaction": "true",
+                    "useSharedAccounts": "true",
+                    "dynamicComputeUnitLimit": "true",
                     "prioritizationFeeLamports": "10000000",
-                    "quoteResponse": quote_response,
+                    "route": quote_response.get("route"),
+                    "otherAmountThreshold": quote_response.get("otherAmountThreshold"),
+                    "swapMode": quote_response.get("swapMode", "ExactIn"),
+                    "platformFeeBps": "0",
                     **params
                 }
                 
