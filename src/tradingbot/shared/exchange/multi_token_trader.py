@@ -140,16 +140,18 @@ class MultiTokenTrader:
             
             # Get quote with proper slippage
             quote = await self.jupiter_client.get_quote(
-                input_mint=token["address"],
-                output_mint="So11111111111111111111111111111111111111112",  # SOL
-                amount=amount_lamports
+                input_mint="So11111111111111111111111111111111111111112",  # SOL
+                output_mint=token["address"],
+                amount=str(amount_lamports),
+                slippage_bps=250,  # 2.5% slippage
+                only_direct_routes=False
             )
             
             if "error" in quote:
                 logger.error(f"Quote error for {token['symbol']}: {quote['error']}")
                 trade_result.update({
                     "status": "failed",
-                    "error": quote["error"]
+                    "error": f"Failed to get quote: {quote['error']}"
                 })
                 return trade_result
                 
@@ -163,6 +165,9 @@ class MultiTokenTrader:
                 })
                 return trade_result
                 
+            # Calculate minimum amount out with 2.5% slippage
+            min_amount_out = int(float(quote.get("outAmount", 0)) * 0.975)
+                
             # Execute trade with proper validation and retries
             retry_count = self.config.get("retry_count", 3)
             retry_delay = self.config.get("retry_delay", 1000)
@@ -171,14 +176,14 @@ class MultiTokenTrader:
                 try:
                     # Execute trade with Jupiter
                     swap_result = await self.jupiter_client.execute_swap({
-                        "inputMint": token["address"],
-                        "outputMint": "So11111111111111111111111111111111111111112",  # SOL
+                        "inputMint": "So11111111111111111111111111111111111111112",  # SOL
+                        "outputMint": token["address"],
                         "amount": str(amount_lamports),
                         "slippageBps": 250,  # 2.5% slippage
                         "computeUnitLimit": 1400000,
                         "prioritizationFeeLamports": "10000000",
-                        "route": quote.get("route"),
-                        "otherAmountThreshold": quote.get("otherAmountThreshold"),
+                        "route": quote.get("routePlan"),
+                        "otherAmountThreshold": str(min_amount_out),
                         "swapMode": quote.get("swapMode", "ExactIn"),
                         "platformFeeBps": 0
                     })
