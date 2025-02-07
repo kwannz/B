@@ -100,21 +100,20 @@ class TokenRankingService:
                         quote_response.raise_for_status()
                         quote_data = await quote_response.json()
                         
-                        if "data" in quote_data:
-                            quote = quote_data["data"]
+                        if quote_data and "outAmount" in quote_data:
                             ranked_tokens.append({
                                 "address": token["address"],
                                 "symbol": token["symbol"],
                                 "name": token["name"],
                                 "decimals": token["decimals"],
-                                "price": float(quote.get("outAmount", 0)) / (10 ** token["decimals"]),
+                                "price": float(quote_data["outAmount"]) / (10 ** token["decimals"]),
                                 "confidence": "high",
                                 "depth": {
-                                    "buy_impact": float(quote.get("priceImpactPct", 0.02)),
-                                    "sell_impact": float(quote.get("priceImpactPct", 0.02))
+                                    "buy_impact": float(quote_data.get("priceImpactPct", 0.02)),
+                                    "sell_impact": float(quote_data.get("priceImpactPct", 0.02))
                                 }
                             })
-                            logger.info(f"Got quote for {token['symbol']}: {quote.get('outAmount', 0)} / {10 ** token['decimals']} = {float(quote.get('outAmount', 0)) / (10 ** token['decimals'])}")
+                            logger.info(f"Got quote for {token['symbol']}: {quote_data['outAmount']} / {10 ** token['decimals']} = {float(quote_data['outAmount']) / (10 ** token['decimals'])}")
                     except Exception as e:
                         logger.error(f"Error getting quote for {token['symbol']}: {e}")
                         continue
