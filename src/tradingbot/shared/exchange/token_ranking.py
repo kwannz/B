@@ -86,26 +86,41 @@ class TokenRankingService:
             for token in sorted_tokens[:20]:  # Check top 20 to find 10 with good depth
                 try:
                     price_response = await self.session.get(
-                        f"{self.base_url}/price/v2",
+                        f"{self.base_url}/v6/quote",
                         params={
-                            "ids": token["address"],
-                            "showExtraInfo": "true"
+                            "inputMint": token["address"],
+                            "outputMint": "So11111111111111111111111111111111111111112",  # SOL
+                            "amount": "1000000000",  # 1 SOL equivalent
+                            "slippageBps": "100",
+                            "onlyDirectRoutes": "false",
+                            "asLegacyTransaction": "true"
                         },
-                        timeout=10.0  # Add timeout
+                        timeout=10.0
                     )
                     price_response.raise_for_status()
                     price_data = await price_response.json()
                     
-                    if "data" not in price_data or token["address"] not in price_data["data"]:
+                    if "data" in price_data and price_data.get("data"):
+                        quote = price_data["data"]
+                        token_data = {
+                            "price": float(quote.get("outAmount", 0)) / 1e9,  # Convert to SOL
+                            "extraInfo": {
+                                "confidenceLevel": "high",
+                                "depth": {
+                                    "buyPriceImpactRatio": {"depth": {"1000": quote.get("priceImpactPct", 0)}},
+                                    "sellPriceImpactRatio": {"depth": {"1000": quote.get("priceImpactPct", 0)}}
+                                }
+                            }
+                        }
+                    else:
                         logger.warning(f"No price data for {token['symbol']}")
                         continue
                     
-                    token_data = price_data["data"][token["address"]]
                     if "extraInfo" not in token_data:
                         logger.warning(f"No extra info for {token['symbol']}")
                         continue
                     
-                    if token_data["extraInfo"]["confidenceLevel"] == "high":
+                    if token_data["extraInfo"].get("confidenceLevel") == "high":
                         # Check depth at 1000 SOL level
                         depth = token_data["extraInfo"].get("depth", {})
                         try:
