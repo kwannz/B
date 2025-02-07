@@ -117,9 +117,7 @@ class TokenRankingService:
                             logger.info(f"Got quote for {token['symbol']}: {quote.get('outAmount', 0)} / {10 ** token['decimals']} = {float(quote.get('outAmount', 0)) / (10 ** token['decimals'])}")
                     except Exception as e:
                         logger.error(f"Error getting quote for {token['symbol']}: {e}")
-                            }
-                        })
-                        logger.info(f"Added token {token['symbol']} to ranked list")
+                        continue
                 except Exception as e:
                     logger.error(f"Error getting price data for {token['symbol']}: {e}")
                     continue
