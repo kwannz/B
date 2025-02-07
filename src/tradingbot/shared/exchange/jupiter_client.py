@@ -172,14 +172,7 @@ class JupiterClient:
                     await self._enforce_rate_limit(is_rpc=True)
                     
                     # Get network priority fee
-                    priority_fee = instructions.get("prioritizationFeeLamports", {})
-                    if not priority_fee:
-                        priority_fee = {
-                            "priorityLevelWithMaxLamports": {
-                                "maxLamports": 10000000,
-                                "priorityLevel": "veryHigh"
-                            }
-                        }
+                    priority_fee = instructions.get("prioritizationFeeLamports", "10000000")
                     
                     async with self.rpc_session.post(self.rpc_url, json={
                         "jsonrpc": "2.0",
@@ -194,7 +187,7 @@ class JupiterClient:
                                 "maxRetries": 3,
                                 "minContextSlot": instructions.get("minContextSlot"),
                                 "computeUnitLimit": instructions.get("computeUnitLimit", 1400000),
-                                "prioritizationFee": priority_fee.get("priorityLevelWithMaxLamports", {}).get("maxLamports", 10000000)
+                                "prioritizationFee": int(priority_fee)
                             }
                         ]
                     }) as exec_response:
@@ -246,7 +239,8 @@ class JupiterClient:
                     logger.warning("RPC node connection error, retrying...")
                 elif "priorityFee" in str(e).lower():
                     logger.warning("Increasing priority fee due to network congestion")
-                    params["prioritizationFeeLamports"]["priorityLevelWithMaxLamports"]["maxLamports"] *= 1.5
+                    current_fee = int(params["prioritizationFeeLamports"])
+                    params["prioritizationFeeLamports"] = str(int(current_fee * 1.5))
                 elif "compute budget" in str(e).lower():
                     logger.warning("Increasing compute budget due to network load")
                     params["computeUnitLimit"] = min(
@@ -402,12 +396,7 @@ class JupiterClient:
                     "minAmountOut": str(min_amount),
                     "computeUnitPriceMicroLamports": "auto",
                     "dynamicComputeUnitLimit": "true",
-                    "prioritizationFeeLamports": {
-                        "priorityLevelWithMaxLamports": {
-                            "maxLamports": 10000000,
-                            "priorityLevel": "veryHigh"
-                        }
-                    }
+                    "prioritizationFeeLamports": "10000000"
                 }
                 # Get quote from Jupiter API
                 await self._enforce_rate_limit()
@@ -417,7 +406,8 @@ class JupiterClient:
                         if "error" in data:
                             if "priorityFee" in str(data["error"]).lower():
                                 logger.warning("Increasing priority fee due to network congestion")
-                                params["prioritizationFeeLamports"]["priorityLevelWithMaxLamports"]["maxLamports"] *= 1.5
+                                current_fee = int(params["prioritizationFeeLamports"])
+                                params["prioritizationFeeLamports"] = str(int(current_fee * 1.5))
                                 continue
                             raise RuntimeError(f"Quote error: {data['error']}")
                             
