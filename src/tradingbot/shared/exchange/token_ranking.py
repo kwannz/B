@@ -81,34 +81,30 @@ class TokenRankingService:
             
             for token in verified_tokens:
                 try:
-                    quote_response = await self.session.get(
-                        "https://quote-api.jup.ag/v6/quote",
+                    # Get price from Jupiter API
+                    price_response = await self.session.get(
+                        "https://price.jup.ag/v4/price",
                         params={
-                            "inputMint": "So11111111111111111111111111111111111111112",  # SOL
-                            "outputMint": token["address"],
-                            "amount": "66000000",  # 0.066 SOL
-                            "slippageBps": "250",  # 2.5% slippage
-                            "onlyDirectRoutes": "false",
-                            "asLegacyTransaction": "true",
-                            "computeUnitPriceMicroLamports": "auto"
+                            "ids": token["address"],
+                            "vsToken": "So11111111111111111111111111111111111111112"  # SOL
                         },
                         timeout=10.0
                     )
-                    quote_response.raise_for_status()
-                    quote_data = await quote_response.json()
+                    price_response.raise_for_status()
+                    price_data = await price_response.json()
                     
-                    if "data" in quote_data:
-                        quote = quote_data["data"]
+                    if "data" in price_data and token["address"] in price_data["data"]:
+                        token_price = price_data["data"][token["address"]]
                         ranked_tokens.append({
                             "address": token["address"],
                             "symbol": token["symbol"],
                             "name": token["name"],
                             "decimals": token["decimals"],
-                            "price": float(quote.get("outAmount", 0)) / (10 ** token["decimals"]),
+                            "price": float(token_price.get("price", 0)),
                             "confidence": "high",
                             "depth": {
-                                "buy_impact": float(quote.get("priceImpactPct", 0.02)),
-                                "sell_impact": float(quote.get("priceImpactPct", 0.02))
+                                "buy_impact": 0.02,  # 2% default impact
+                                "sell_impact": 0.02
                             }
                         })
                         logger.info(f"Added token {token['symbol']} to ranked list")
