@@ -142,9 +142,7 @@ class MultiTokenTrader:
             quote = await self.jupiter_client.get_quote(
                 input_mint="So11111111111111111111111111111111111111112",  # SOL
                 output_mint=token["address"],
-                amount=str(amount_lamports),
-                slippage_bps=250,  # 2.5% slippage
-                only_direct_routes=False
+                amount=str(amount_lamports)
             )
             
             if "error" in quote:
