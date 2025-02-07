@@ -162,9 +162,12 @@ class MultiTokenTrader:
                         "outputMint": "So11111111111111111111111111111111111111112",  # SOL
                         "amount": str(amount_lamports),
                         "slippageBps": 250,  # 2.5% slippage
-                        "quoteResponse": quote,
                         "computeUnitLimit": 1400000,
-                        "prioritizationFeeLamports": "10000000"
+                        "prioritizationFeeLamports": "10000000",
+                        "route": quote.get("route"),
+                        "otherAmountThreshold": quote.get("otherAmountThreshold"),
+                        "swapMode": quote.get("swapMode", "ExactIn"),
+                        "platformFeeBps": 0
                     })
                     
                     if "error" in swap_result:

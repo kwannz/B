@@ -97,8 +97,34 @@ class JupiterClient:
         
         for attempt in range(self.retry_count):
             try:
-                # Get swap instructions
-                async with self.session.post(f"{self.base_url}/swap-instructions", json=params) as response:
+                # Get quote first if not provided
+                if "quoteResponse" not in params:
+                    quote = await self.get_quote(
+                        input_mint=params["inputMint"],
+                        output_mint=params["outputMint"],
+                        amount=int(params["amount"])
+                    )
+                    if "error" in quote:
+                        raise RuntimeError(f"Quote error: {quote['error']}")
+                    quote_response = quote
+                else:
+                    quote_response = params.pop("quoteResponse")
+                
+                # Build swap params
+                swap_params = {
+                    "userPublicKey": str(self.wallet.pubkey()),
+                    "wrapUnwrapSOL": True,
+                    "computeUnitPriceMicroLamports": "auto",
+                    "asLegacyTransaction": True,
+                    "useSharedAccounts": True,
+                    "dynamicComputeUnitLimit": True,
+                    "prioritizationFeeLamports": "10000000",
+                    "quoteResponse": quote_response,
+                    **params
+                }
+                
+                logger.info(f"Requesting swap instructions with params: {swap_params}")
+                async with self.session.post(f"{self.base_url}/swap-instructions", json=swap_params) as response:
                     if response.status != 200:
                         error_text = await response.text()
                         logger.error(f"Swap failed with status {response.status}: {error_text}")
@@ -174,21 +200,26 @@ class JupiterClient:
                     # Get network priority fee
                     priority_fee = instructions.get("prioritizationFeeLamports", "10000000")
                     
+                    # Build transaction options
+                    options = {
+                        "encoding": "base64",
+                        "preflightCommitment": "confirmed",
+                        "skipPreflight": False,
+                        "maxRetries": 3,
+                        "computeUnitLimit": instructions.get("computeUnitLimit", 1400000),
+                        "prioritizationFeeLamports": int(priority_fee)
+                    }
+                    
+                    if "minContextSlot" in instructions:
+                        options["minContextSlot"] = instructions["minContextSlot"]
+                    
                     async with self.rpc_session.post(self.rpc_url, json={
                         "jsonrpc": "2.0",
                         "id": 1,
                         "method": "sendTransaction",
                         "params": [
                             serialized_transaction,
-                            {
-                                "encoding": "base64",
-                                "preflightCommitment": "confirmed",
-                                "skipPreflight": False,
-                                "maxRetries": 3,
-                                "minContextSlot": instructions.get("minContextSlot"),
-                                "computeUnitLimit": instructions.get("computeUnitLimit", 1400000),
-                                "prioritizationFee": int(priority_fee)
-                            }
+                            options
                         ]
                     }) as exec_response:
                         if exec_response.status != 200:
