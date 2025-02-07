@@ -79,17 +79,18 @@ class TokenRankingService:
                     continue
             logger.info(f"Found {len(verified_tokens)} valid tokens")
             
-            for token in verified_tokens[:10]:
+            for token in verified_tokens:
                 try:
                     quote_response = await self.session.get(
                         "https://quote-api.jup.ag/v6/quote",
                         params={
                             "inputMint": "So11111111111111111111111111111111111111112",  # SOL
                             "outputMint": token["address"],
-                            "amount": "1000000000",  # 1 SOL
+                            "amount": "66000000",  # 0.066 SOL
                             "slippageBps": "250",  # 2.5% slippage
                             "onlyDirectRoutes": "false",
-                            "asLegacyTransaction": "true"
+                            "asLegacyTransaction": "true",
+                            "computeUnitPriceMicroLamports": "auto"
                         },
                         timeout=10.0
                     )
@@ -103,7 +104,7 @@ class TokenRankingService:
                             "symbol": token["symbol"],
                             "name": token["name"],
                             "decimals": token["decimals"],
-                            "price": float(quote.get("outAmount", 0)) / 1e9,  # Convert to SOL
+                            "price": float(quote.get("outAmount", 0)) / (10 ** token["decimals"]),
                             "confidence": "high",
                             "depth": {
                                 "buy_impact": float(quote.get("priceImpactPct", 0.02)),
