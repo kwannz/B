@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package trading;
+
+service TradingExecutor {
+  rpc ExecuteTrade (TradeRequest) returns (TradeResponse) {}
+  rpc GetOrderStatus (OrderStatusRequest) returns (OrderStatusResponse) {}
+  rpc MonitorOrderStatus (OrderStatusRequest) returns (stream OrderStatusResponse) {}
+}
+
+message TradeRequest {
+  string symbol = 1;
+  string side = 2;
+  double amount = 3;
+  double price = 4;
+  string order_type = 5;
+  double slippage_tolerance = 6;
+  map<string, string> metadata = 7;
+}
+
+message TradeResponse {
+  string trade_id = 1;
+  string status = 2;
+  double executed_price = 3;
+  double executed_amount = 4;
+  string error = 5;
+  map<string, string> metadata = 6;
+}
+
+message OrderStatusRequest {
+  string trade_id = 1;
+}
+
+message OrderStatusResponse {
+  string trade_id = 1;
+  string status = 2;
+  double filled_amount = 3;
+  double average_price = 4;
+  string error = 5;
+  map<string, string> metadata = 6;
+}
