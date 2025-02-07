@@ -63,12 +63,15 @@ class TokenRankingService:
             verified_tokens = []
             for token in tokens_data:
                 try:
-                    daily_volume = float(token.get("daily_volume", 0))
+                    daily_volume = token.get("daily_volume")
+                    if daily_volume is None:
+                        continue
+                        
+                    daily_volume = float(daily_volume)
                     if "verified" in token.get("tags", []) and daily_volume >= self.min_daily_volume:
                         token["daily_volume"] = daily_volume  # Store converted value
                         verified_tokens.append(token)
                 except (TypeError, ValueError) as e:
-                    logger.warning(f"Invalid volume data for {token.get('symbol', 'unknown')}: {e}")
                     continue
             
             # Sort by volume (already converted to float)

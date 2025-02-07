@@ -74,12 +74,22 @@ class JupiterClient:
             
     async def execute_swap(self, params: Dict[str, Any]) -> Dict[str, Any]:
         if not self.session or not self.rpc_session:
-            return {"error": "Client not initialized"}
+            return {"error": "Client not initialized", "status": "failed"}
             
-        if self.circuit_breaker_failures >= 5:
+        if self.circuit_breaker_failures >= self.circuit_breaker_threshold:
             current_time = time.time()
             if current_time - self.last_failure_time < self.circuit_breaker_cooldown:
-                return {"error": "Circuit breaker active"}
+                return {
+                    "error": "Circuit breaker active",
+                    "status": "failed",
+                    "circuit_breaker_status": {
+                        "failures": self.circuit_breaker_failures,
+                        "cooldown": self.circuit_breaker_cooldown,
+                        "last_failure": self.last_failure_time,
+                        "reset_time": self.last_failure_time + self.circuit_breaker_cooldown
+                    }
+                }
+            logger.info("Circuit breaker cooldown expired, resetting failures")
             self.circuit_breaker_failures = 0
             
         await self._enforce_rate_limit()
@@ -355,12 +365,22 @@ class JupiterClient:
             
     async def get_quote(self, input_mint: str, output_mint: str, amount: int) -> Dict[str, Any]:
         if not self.session or not self.rpc_session:
-            return {"error": "Client not initialized"}
+            return {"error": "Client not initialized", "status": "failed"}
             
-        if self.circuit_breaker_failures >= 5:
+        if self.circuit_breaker_failures >= self.circuit_breaker_threshold:
             current_time = time.time()
             if current_time - self.last_failure_time < self.circuit_breaker_cooldown:
-                return {"error": "Circuit breaker active"}
+                return {
+                    "error": "Circuit breaker active",
+                    "status": "failed",
+                    "circuit_breaker_status": {
+                        "failures": self.circuit_breaker_failures,
+                        "cooldown": self.circuit_breaker_cooldown,
+                        "last_failure": self.last_failure_time,
+                        "reset_time": self.last_failure_time + self.circuit_breaker_cooldown
+                    }
+                }
+            logger.info("Circuit breaker cooldown expired, resetting failures")
             self.circuit_breaker_failures = 0
             
         await self._enforce_rate_limit()
